@@ -7,20 +7,24 @@ module lm4_cap_mod
   !-----------------------------------------------------------------------------
 
   use ESMF
-  use NUOPC                  , only : NUOPC_CompDerive, NUOPC_CompSetEntryPoint, NUOPC_CompSpecialize
-  use NUOPC                  , only : NUOPC_CompFilterPhaseMap, NUOPC_CompAttributeGet, NUOPC_CompAttributeSet
-  use NUOPC_Model            , only : model_routine_SS           => SetServices
-  use NUOPC_Model            , only : SetVM
-  use NUOPC_Model            , only : model_label_Advance        => label_Advance
-  use NUOPC_Model            , only : model_label_DataInitialize => label_DataInitialize
-  use NUOPC_Model            , only : model_label_SetRunClock    => label_SetRunClock
-  use NUOPC_Model            , only : model_label_Finalize       => label_Finalize
-  use NUOPC_Model            , only : NUOPC_ModelGet
+  use NUOPC,                only : NUOPC_CompDerive, NUOPC_CompSetEntryPoint, NUOPC_CompSpecialize
+  use NUOPC,                only : NUOPC_CompFilterPhaseMap, NUOPC_CompAttributeGet, NUOPC_CompAttributeSet
+  use NUOPC_Model,          only : model_routine_SS           => SetServices
+  use NUOPC_Model,          only : SetVM
+  use NUOPC_Model,          only : model_label_Advance        => label_Advance
+  use NUOPC_Model,          only : model_label_DataInitialize => label_DataInitialize
+  use NUOPC_Model,          only : model_label_SetRunClock    => label_SetRunClock
+  use NUOPC_Model,          only : model_label_Finalize       => label_Finalize
+  use NUOPC_Model,          only : NUOPC_ModelGet
 
-  use shr_kind_mod           , only : r8 => shr_kind_r8, cl=>shr_kind_cl
-  use nuopc_shr_methods      , only : chkerr
-  use lnd_import_export      , only : advertise_fields, realize_fields
-  use fms_mod                , only: fms_init
+  use shr_kind_mod,         only : r8 => shr_kind_r8, cl=>shr_kind_cl
+  use nuopc_shr_methods,    only : chkerr
+  use lnd_import_export,    only : advertise_fields, realize_fields
+  use fms_mod,              only: fms_init
+
+  use diag_manager_mod,     only: diag_manager_init, diag_manager_end
+  use lm4_driver,           only: init_driver
+  
   
   implicit none
   private ! except
@@ -183,11 +187,11 @@ contains
 
     ! local variables
     character(len=*),parameter :: subname=trim(modName)//':(InitializeRealize) '
-    ! cube sphere mosaic                                                                                                                              
+    ! cube sphere mosaic
     type(ESMF_Decomp_Flag)  :: decompflagPTile(2,6)
     character(256)          :: gridfile
     integer                 :: tl
-    integer,dimension(2,6)  :: decomptile                  !define delayout for the 6 cubed-sphere tiles                                              
+    integer,dimension(2,6)  :: decomptile                  !define delayout for the 6 cubed-sphere tiles
     type(ESMF_Grid)         :: lndGrid
     character(50)           :: gridchoice
     type (control_init_type)::   ctrl_init
@@ -220,25 +224,18 @@ contains
        decompflagPTile(:,tl) = (/ESMF_DECOMP_SYMMEDGEMAX,ESMF_DECOMP_SYMMEDGEMAX/)
     enddo
 
-    if (mype == 0) write(0,*) 'JP DEBUG 5' !!!!
-    if (mype == 0) write(0,*) 'JP gridfile', trim(gridfile)
-    if (mype == 0) write(0,*) 'JP decomptile', decomptile
-    !if (mype == 0) write(0,*) 'JP decompflagPTile', decompflagPTile(1,1)
-
     lndGrid = ESMF_GridCreateMosaic(filename="INPUT/"//trim(gridfile),     &
          regDecompPTile=decomptile,tileFilePath="INPUT/",                   &
          decompflagPTile=decompflagPTile,                                   &
          staggerlocList=(/ESMF_STAGGERLOC_CENTER, ESMF_STAGGERLOC_CORNER/), &
          name='lnd_grid', rc=rc)
 
-    if (mype == 0) write(0,*) 'JP DEBUG 6' !!!!
     ! ---------------------
     ! Realize the actively coupled fields
     ! ---------------------
     call realize_fields(gcomp, grid=lndGrid, flds_scalar_name=flds_scalar_name, &
          flds_scalar_num=flds_scalar_num, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    if (mype == 0) write(0,*) 'JP DEBUG 7' !!!!
 
   end subroutine InitializeRealize
 
