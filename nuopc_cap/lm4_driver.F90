@@ -16,6 +16,26 @@ module lm4_driver
 
   public :: init_driver, run_driver
 
+  ! ---- namelist with default values ------------------------------------------
+  logical :: use_mixing_ratio      = .false. !< An option to provide capability to run the Manabe Climate form of the surface flux
+  !! (coded for legacy purposes).
+  logical :: do_simple             = .false.
+  logical :: no_neg_q              = .false. !< If a_atm_in (specific humidity) is negative (because of numerical truncation),
+  !! then override with 0.0
+  logical :: alt_gustiness         = .false. !< An alternaive formulation for gustiness calculation.  A minimum bound on the wind
+                                           !! speed used influx calculations, with the bound equal to gust_const
+
+  real    :: gust_const            =  1.0 !< Constant for alternative gustiness calculation
+  real    :: gust_min              =  0.0 !< Minimum gustiness used when alt_gustiness is .FALSE.
+  
+  namelist /surface_flux_nml/  no_neg_q,             &
+                               alt_gustiness,        &
+                               gust_const,           &
+                               gust_min,             &
+                               use_mixing_ratio,     &
+                               do_simple
+
+  
 contains
 
   !subroutine init_driver(procbounds)
@@ -35,7 +55,7 @@ contains
     integer                      ::   blocksize
     logical, save                :: block_message = .true.
 
-    
+
     integer                      ::   im         ! horiz dimension
     integer :: isc, iec, jsc, jec
 
@@ -84,6 +104,7 @@ contains
     type(lm4_type),        intent(inout) :: lm4_model(:) ! land model's variable type
 
     ! ! local
+    real                   :: dt   ! Timestep
     type  (land_data_type) :: Land ! GFDL model dt
     !real(kind_phys)         :: foodata(noah_model%static%im)
     ! !
@@ -92,7 +113,7 @@ contains
     !     )
     !!
     
-    call sfc_boundary_layer(Land)
+    call sfc_boundary_layer(dt,Land)
     call flux_down_from_atmos(Land )
 
     ! ! Actually run land model
@@ -102,13 +123,118 @@ contains
   end subroutine run_driver
 
   ! ---------------------------------------
-  subroutine sfc_boundary_layer( Land )
-    
+  subroutine sfc_boundary_layer( dt,Land )
+    real,                  intent(in)     :: dt   !< Time step
     type(land_data_type),  intent(inout)  :: Land !< A derived data type to specify land boundary data
 
+    !! blocking not used for now
+    integer :: nblocks = 1
+    integer :: my_nblocks = 1
+
+    integer, allocatable :: block_start(:), block_end(:)
+
+    real    :: zrefm, zrefh
     
+    real, dimension(im) :: &
+         ex_albedo,     &
+         ex_albedo_vis_dir,     &
+         ex_albedo_nir_dir,     &
+         ex_albedo_vis_dif,     &
+         ex_albedo_nir_dif,     &
+         ex_land_frac,  &
+         ex_t_atm,      &
+         ex_p_atm,      &
+         ex_u_atm, ex_v_atm,    &
+         ex_gust,       &
+         ex_t_surf4,    &
+         ex_u_surf, ex_v_surf,  &
+         ex_rough_mom, ex_rough_heat, ex_rough_moist, &
+         ex_rough_scale,&
+         ex_q_star,     &
+         ex_cd_q,       &
+         ex_ref, ex_ref_u, ex_ref_v, ex_u10, &
+         ex_ref2,       &
+         ex_t_ref,      &
+         ex_qs_ref,     &
+         ex_qs_ref_cmip,     &
+         ex_del_m,      &
+         ex_del_h,      &
+         ex_del_q,      &
+         ex_frac_open_sea
 
+    
+    real, dimension(im,1) :: &
+         ex_tr_atm,  &
+         ex_tr_surf,    & !< near-surface tracer fields
+         ex_flux_tr,    & !< tracer fluxes
+         ex_dfdtr_surf, & !< d(tracer flux)/d(surf tracer)
+         ex_dfdtr_atm,  & !< d(tracer flux)/d(atm tracer)
+         ex_e_tr_n,     & !< coefficient in implicit scheme
+         ex_f_tr_delt_n   !< coefficient in implicit scheme
+    
+    !! -- These were orignally allocatable:
+    !!
 
+    logical, dimension(im) :: &
+         ex_avail,     &   !< true where data on exchange grid are available
+         ex_land           !< true if exchange grid cell is over land
+
+    real, dimension(im) :: &
+         ex_t_surf   ,  &
+         ex_t_surf_miz, &
+         ex_p_surf   ,  &
+         ex_slp      ,  &
+         ex_t_ca     ,  &
+         ex_dhdt_surf,  &
+         ex_dedt_surf,  &
+         ex_dqsatdt_surf,  &
+         ex_drdt_surf,  &
+         ex_dhdt_atm ,  &
+         ex_flux_t   ,  &
+         ex_flux_lw  ,  &
+         ex_drag_q   ,  &
+         ex_f_t_delt_n, &
+         
+         ! MOD these were moved from local ! so they can be passed to flux down
+         ex_flux_u,    &
+         ex_flux_v,    &
+         ex_dtaudu_atm,&
+         ex_dtaudv_atm,&
+         ex_seawater,  &
+
+         ! values added for LM3
+         ex_cd_t     ,  &
+         ex_cd_m     ,  &
+         ex_b_star   ,  &
+         ex_u_star   ,  &
+         ex_wind     ,  &
+         ex_z_atm    ,  &
+
+         ex_e_t_n    ,  &
+         ex_e_q_n    ,  &
+
+         !
+         ex_albedo_fix,        &
+         ex_albedo_vis_dir_fix,&
+         ex_albedo_nir_dir_fix,&
+         ex_albedo_vis_dif_fix,&
+         ex_albedo_nir_dif_fix
+
+    
+    integer :: tr, n, m ! tracer indices
+    integer :: i
+    integer :: is,ie,l,j
+    integer :: isc,iec,jsc,jec
+
+    integer :: isphum = 1       !< index of specific humidity tracer in tracer table 
+
+    ! IS this smart?
+    is = 1
+    ie = im
+    allocate(block_start(nblocks), block_end(nblocks))
+    
+    block_start = is
+    block_end   = im
     
     call surface_flux_1d (&
          ex_t_atm(is:ie), ex_tr_atm(is:ie,isphum),  ex_u_atm(is:ie), ex_v_atm(is:ie),  ex_p_atm(is:ie),  ex_z_atm(is:ie),  &
@@ -121,11 +247,14 @@ contains
          ex_wind(is:ie),   ex_u_star(is:ie), ex_b_star(is:ie), ex_q_star(is:ie),                     &
          ex_dhdt_surf(is:ie), ex_dedt_surf(is:ie), ex_dfdtr_surf(is:ie,isphum),  ex_drdt_surf(is:ie),        &
          ex_dhdt_atm(is:ie),  ex_dfdtr_atm(is:ie,isphum),  ex_dtaudu_atm(is:ie), ex_dtaudv_atm(is:ie),       &
-         !dt,                                                             &
+         dt,                                                             &
          ex_land(is:ie), ex_seawater(is:ie) .gt. 0.0,  ex_avail(is:ie)            )
 
 
     !! ....
+    zrefm = 10.0
+    zrefh = z_ref_heat
+
     do l = 1, my_nblocks
        is=block_start(l)
        ie=block_end(l)
@@ -202,7 +331,6 @@ contains
        enddo
     enddo
 
-    if(id_q_ref_land > 0 .or.id_hussLut_land > 0) then
     do l = 1, my_nblocks
        is=block_start(l)
        ie=block_end(l)
@@ -241,7 +369,15 @@ contains
        dhdt_surf, dedt_surf,  dedq_surf,  drdt_surf,                     &
        dhdt_atm,  dedq_atm,   dtaudu_atm, dtaudv_atm,                    &
        dt,        land,      seawater,     avail  )
-       
+
+
+    !use constants_mod, only : rdgas, rvgas
+    ! not GFS's RDGAS = 287.05
+    real,         public, parameter :: RDGAS  = 287.04_r8_kind           !< Gas constant for dry air [J/kg/deg]
+    real,         public, parameter :: RVGAS  = 461.50_r8_kind           !< Gas constant for water vapor [J/kg/deg]
+    real,         public, parameter :: KAPPA  = 2.0_r8_kind/7.0_r8_kind  !< RDGAS / CP_AIR [dimensionless]
+    real,         public, parameter :: CP_AIR = RDGAS/KAPPA              !< Specific heat capacity of dry air at constant pressure [J/kg/deg]
+
     ! ---- arguments -----------------------------------------------------------
     logical, intent(in), dimension(:) :: land, & !< Indicates where land exists (.TRUE. if exchange cell is on land
          seawater, & !< Indicates where liquid ocean water exists (.TRUE. if exchange cell is on liquid ocean water)
@@ -300,9 +436,12 @@ contains
 
     integer :: i, nbad
 
-
-    if (.not. module_is_initialized) &
-         call mpp_error(FATAL, "surface_flux_1d: surface_flux_init is not called")
+    real, parameter :: d622 = rdgas/rvgas
+    real, parameter :: d378   = 1.-d622
+    real, parameter :: d608   = d378/d622
+    
+    ! if (.not. module_is_initialized) &
+    !      call mpp_error(FATAL, "surface_flux_1d: surface_flux_init is not called")
 
     !---- use local value of surf temp ----
 
@@ -340,7 +479,8 @@ contains
        q_surf0 = q_sat  ! everything else assumes saturated sfc humidity
     endwhere
 
-    if (raoult_sat_vap) where (seawater) q_surf0 = 0.98 * q_surf0
+    !! Seawater, not needed for land
+    !if (raoult_sat_vap) where (seawater) q_surf0 = 0.98 * q_surf0
 
     ! check for negative atmospheric humidities
     where(avail) q_atm = q_atm_in
