@@ -30,7 +30,7 @@ module lm4_cap_mod
 
   use land_data_mod,        only: land_data_type, atmos_land_boundary_type
   use constants_mod,        only: constants_init
-  use time_manager_mod,     only: time_type, set_calendar_type, set_date,  &
+  use time_manager_mod,     only: time_type, set_calendar_type, set_date, set_time, &
                                   THIRTY_DAY_MONTHS, JULIAN, GREGORIAN,      &
                                   NOLEAP, NO_CALENDAR
   use sat_vapor_pres_mod,   only: sat_vapor_pres_init
@@ -148,6 +148,7 @@ contains
     type(ESMF_Config)           :: cf
     integer                     :: Run_length
     integer,dimension(6)        :: date, date_end
+    integer                     :: dt_atmos
 
     character(17)               :: calendar='                 '
     integer                     :: calendar_type = -99
@@ -223,7 +224,7 @@ contains
        call mpp_error ( FATAL, 'calendar must be one of '// &
             'JULIAN|GREGORIAN|NOLEAP|THIRTY_DAY|NO_CALENDAR.' )
     end select
-
+    
     call set_calendar_type (calendar_type)
 
     call ESMF_ClockGet(clock, CurrTime=CurrTime, StartTime=StartTime, &
@@ -272,6 +273,9 @@ contains
     call diag_manager_init (TIME_INIT=date)
     call diag_manager_set_time_end(land_int_state%Time_end)
 
+    call ESMF_ConfigGetAttribute(config=CF, value=dt_atmos, label ='dt_atmos:',   rc=rc)
+    land_int_state%Time_step_land = set_time (dt_atmos,0)
+    
     !----------------------------------------------------------------------------
     ! Initialize model
     !----------------------------------------------------------------------------
@@ -279,7 +283,9 @@ contains
     call land_model_init( land_int_state%From_atm, land_int_state%From_lnd, &
          land_int_state%Time_init, land_int_state%Time_land,                &
          land_int_state%Time_step_land, land_int_state%Time_step_ocean     )
+    if (mype == 0) write(0,*) '======== COMPLETED land_model_init =========='
 
+    
     !----------------------------------------------------------------------------
     ! advertise fields
     !----------------------------------------------------------------------------
