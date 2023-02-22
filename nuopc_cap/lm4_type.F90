@@ -91,7 +91,6 @@ module lm4_type_mod
 
   type  :: lm4_model_type
 
-     real(kind_phys), allocatable :: foo_atm2lndfield(:,:)
      ! from ufs-land-driver
 
      real(kind_phys), allocatable :: ps        (:,:) ! surface pressure (pa)                       im
@@ -229,7 +228,6 @@ contains
     lm%static%thsfc_loc  = .true.
     ! --------------------------------------------
     ! --------------------------------------------    
-    allocate(lm%model%foo_atm2lndfield        (im,ltile))
     allocate(lm%model%ps            (im,ltile))
     allocate(lm%model%t1            (im,ltile))
     allocate(lm%model%q1            (im,ltile))
@@ -350,7 +348,6 @@ contains
 
     ! --------------------------------------------------------
 
-    lm%model%foo_atm2lndfield  = clear_val
     lm%model%ps         = clear_val
     lm%model%t1         = clear_val
     lm%model%q1         = clear_val

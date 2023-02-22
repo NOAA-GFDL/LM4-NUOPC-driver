@@ -134,7 +134,6 @@ contains
     !real(kind_phys)         :: foodata(noah_model%static%im)
     ! !
 
-    !associate(foodata => noah_model%model%foo_atm2lndfield  &
     !     )
     !!
     

@@ -34,6 +34,7 @@ module lm4_cap_mod
                                   THIRTY_DAY_MONTHS, JULIAN, GREGORIAN,      &
                                   NOLEAP, NO_CALENDAR
   use sat_vapor_pres_mod,   only: sat_vapor_pres_init
+  use proc_bounds, only : procbounds, control_init_type
 
   implicit none
   private ! except
@@ -55,6 +56,7 @@ module lm4_cap_mod
 
   type(land_internalstate_type),pointer,save :: land_int_state
   type(land_internalstate_wrapper),save      :: wrap
+  type (control_init_type), save             :: ctrl_init
 
   integer :: date_init(6)
 
@@ -133,12 +135,20 @@ contains
   !===============================================================================
   subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
 
+    !use proc_bounds, only : procbounds, control_init_type
+    
     ! input/output variables
     type(ESMF_GridComp)         :: gcomp
     type(ESMF_State)            :: importState, exportState
     type(ESMF_Clock)            :: clock
     integer, intent(out)        :: rc
 
+ 
+    !type (control_init_type), save ::   ctrl_init
+
+
+
+    
     ! local variables
     type(ESMF_VM)               :: vm
     integer                     :: lmpicom
@@ -163,6 +173,9 @@ contains
     character(len=*), parameter :: subname=trim(modName)//':(InitializeAdvertise) '
 
     !-------------------------------------------------------------------------------
+
+
+
     rc = ESMF_SUCCESS
 
     call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
@@ -177,7 +190,7 @@ contains
     call ESMF_GridCompGet(gcomp, vm=vm, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    ! Get communicator for fms. If smae proc layout as Atm, will be same communicator
+    ! Get communicator for fms. If same proc layout as Atm, will be same communicator
     ! that Atm uses in it's fms_init. But it's ok, this fms_init will return without
     ! doing anything if already called on same proc layout
     call ESMF_VMGetCurrent(vm=VM,rc=RC)
@@ -280,6 +293,9 @@ contains
     ! Initialize model
     !----------------------------------------------------------------------------
 
+    call init_driver(ctrl_init)
+
+    
     call land_model_init( land_int_state%From_atm, land_int_state%From_lnd, &
          land_int_state%Time_init, land_int_state%Time_land,                &
          land_int_state%Time_step_land, land_int_state%Time_step_ocean     )
@@ -339,7 +355,7 @@ contains
     integer,dimension(2,6)  :: decomptile                  !define delayout for the 6 cubed-sphere tiles
     type(ESMF_Grid)         :: lndGrid
     character(50)           :: gridchoice
-    type (control_init_type)::   ctrl_init
+    !type (control_init_type)::   ctrl_init
 
     !! tmp debug
     integer :: mype
@@ -353,7 +369,9 @@ contains
     call ESMF_VMGetCurrent(vm=VM,rc=RC)
     call ESMF_VMGet(vm=VM, localPet=mype, rc=rc)
 
-    call init_driver(ctrl_init)
+    ! JP: ok to remove now?
+    ! calling again now
+    !call init_driver(ctrl_init)
 
     geomtype = ESMF_GEOMTYPE_GRID
 
@@ -362,7 +380,14 @@ contains
        call read_data("INPUT/grid_spec.nc", "atm_mosaic_file", gridfile)
     endif
 
-    ctrl_init%layout = (/2,4/) !!! TMP DEBUG
+    !! JP TMP DEBUG
+    ! write out ctrl_init%layout
+    if (mype == 0) then
+       write(0,*) "ctrl_init%layout is:", ctrl_init%layout
+    endif
+    !! JP TMP DEBUG
+
+    
     do tl=1,6
        decomptile(1,tl) = ctrl_init%layout(1)
        decomptile(2,tl) = ctrl_init%layout(2)
@@ -578,9 +603,10 @@ contains
        endif
 
        ! Write array bundle to grid file
-       call ESMF_ArrayBundleWrite(arraybundle, fileName=trim(lfileName), rc=rc)
-       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, file=__FILE__)) return
+       ! note: 6-tile not supported yet
+       ! call ESMF_ArrayBundleWrite(arraybundle, fileName=trim(lfileName), rc=rc)
+       ! if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+       !      line=__LINE__, file=__FILE__)) return
 
        ! Clean-up
        if (lRegridArea) then

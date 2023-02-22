@@ -59,7 +59,6 @@ module lnd_import_export
   !! import fields ------------
   character(*), parameter :: Faxa_lwdn           = 'Faxa_lwdn'
   character(*), parameter :: inst_land_sea_mask  = 'inst_land_sea_mask'
-  character(*), parameter :: foo_atm2lndfield    = 'foo_atm2lndfield'
   character(*), parameter :: Faxa_swndr          = 'Faxa_swndr'
   character(*), parameter :: Faxa_swvdr          = 'Faxa_swvdr'
   character(*), parameter :: Faxa_swndf          = 'Faxa_swndf'
@@ -83,8 +82,8 @@ module lnd_import_export
   character(*), parameter :: Faxa_prsl1     = 'Faxa_prsl1'
   character(*), parameter :: Faxa_prslki    = 'Faxa_prslki'
   character(*), parameter :: Faxa_zf        = 'Faxa_zf'
-  character(*), parameter :: Faxa_land      = 'Faxa_land'
-  character(*), parameter :: Faxa_slopetyp  = 'Faxa_slopetyp'
+  !character(*), parameter :: Faxa_land      = 'Faxa_land'
+  !character(*), parameter :: Faxa_slopetyp  = 'Faxa_slopetyp'
   character(*), parameter :: Faxa_shdmin    = 'Faxa_shdmin'
   character(*), parameter :: Faxa_shdmax    = 'Faxa_shdmax'
   character(*), parameter :: Faxa_snoalb    = 'Faxa_snoalb'
@@ -281,7 +280,6 @@ contains
 
     ! from atm
     call fldlist_add(fldsToLnd_num, fldsToLnd, Faxa_lwdn    )
-    call fldlist_add(fldsToLnd_num, fldsToLnd, foo_atm2lndfield    )
     call fldlist_add(fldsToLnd_num, fldsToLnd, inst_land_sea_mask  )
     call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_swndr)
     call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_swvdr)
@@ -304,8 +302,8 @@ contains
     call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_prsl1)
     call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_prslki)
     call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_zf)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_land)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_slopetyp)
+    !call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_land)
+    !call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_slopetyp)
     call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_shdmin)
     call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_shdmax)
     call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_snoalb)
