@@ -30,7 +30,10 @@ module lm4_cap_mod
 
   use land_data_mod,        only: land_data_type, atmos_land_boundary_type
   use constants_mod,        only: constants_init
-  use time_manager_mod,     only: time_type, set_calendar_type, set_date, set_time, &
+  use monin_obukhov_mod,    only: monin_obukhov_init
+
+  use time_manager_mod,     only: time_type, set_calendar_type, set_date,    &
+                                  set_time, get_time,                        &
                                   THIRTY_DAY_MONTHS, JULIAN, GREGORIAN,      &
                                   NOLEAP, NO_CALENDAR
   use sat_vapor_pres_mod,   only: sat_vapor_pres_init
@@ -204,6 +207,8 @@ contains
     call constants_init
     call sat_vapor_pres_init
 
+    ! orig in surface_flux_init
+    call monin_obukhov_init
 
     !------------------------------------------------------------------------
     ! get config variables
@@ -416,12 +421,23 @@ contains
   !===============================================================================
   subroutine ModelAdvance(gcomp, rc)
 
+
+    use lm4_driver,           only: sfc_boundary_layer, flux_down_from_atmos
+    use land_model_mod,          only: update_land_model_fast
+    
     ! Arguments
     type(ESMF_GridComp)  :: gcomp
     integer, intent(out) :: rc
 
+    integer :: sec
+    
     rc = ESMF_SUCCESS
 
+    call get_time (land_int_state%Time_step_land, sec)
+    call sfc_boundary_layer(real(sec),land_int_state%From_lnd)
+    call flux_down_from_atmos(land_int_state%From_lnd)      ! JP: needs review of implicit coupling
+    call update_land_model_fast(land_int_state%From_atm,land_int_state%From_lnd)
+    
   end subroutine ModelAdvance
 
   !===============================================================================
@@ -434,7 +450,7 @@ contains
     rc = ESMF_SUCCESS
     call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
 
-    ! call lm4_finalize()
+    call land_model_end(land_int_state%From_atm, land_int_state%From_lnd)
 
   end subroutine ModelFinalize
 
