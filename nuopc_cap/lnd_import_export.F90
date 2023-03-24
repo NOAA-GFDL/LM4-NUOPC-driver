@@ -1,20 +1,15 @@
-!! Originally from CTSM (insert sharing statement here)
-!! TODO: clean up
-
 module lnd_import_export
 
-  use ESMF
-  use NUOPC
   use ESMF                    , only : ESMF_GridComp, ESMF_State, ESMF_Mesh, ESMF_StateGet
-  use ESMF                    , only : ESMF_KIND_R8, ESMF_SUCCESS, ESMF_MAXSTR, ESMF_LOGMSG_INFO
+  use ESMF                    , only : ESMF_KIND_R8, ESMF_SUCCESS, ESMF_END_ABORT, ESMF_Finalize
+  use ESMF                    , only : ESMF_MAXSTR, ESMF_LOGMSG_INFO
   use ESMF                    , only : ESMF_LogWrite, ESMF_LOGMSG_ERROR, ESMF_LogFoundError, ESMF_FAILURE
   use ESMF                    , only : ESMF_STATEITEM_NOTFOUND, ESMF_StateItem_Flag
   use ESMF                    , only : operator(/=), operator(==)
   use NUOPC                   , only : NUOPC_CompAttributeGet, NUOPC_Advertise, NUOPC_IsConnected
   use NUOPC_Model             , only : NUOPC_ModelGet
-  use shr_kind_mod            , only : r8 => shr_kind_r8, cx=>shr_kind_cx, cs=>shr_kind_cs
-  use shr_sys_mod             , only : shr_sys_abort
-  use nuopc_shr_methods       , only : chkerr
+  use lm4_kind_mod            , only : r8 => shr_kind_r8, cx=>shr_kind_cx, cs=>shr_kind_cs
+  use nuopc_lm4_methods       , only : chkerr
 
   implicit none
   private ! except
@@ -448,7 +443,7 @@ contains
     if (num > fldsMax) then
        call ESMF_LogWrite(trim(subname)//": ERROR num > fldsMax "//trim(stdname), &
             ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__)
-       call shr_sys_abort(trim(subname)//": ERROR: num > fldsMax")
+       call ESMF_Finalize(endflag=ESMF_END_ABORT)
     endif
     fldlist(num)%stdname = trim(stdname)
 
@@ -763,7 +758,11 @@ contains
        call ESMF_FieldGet(lfield, farrayPtr=fldptr2d, rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     else
-       call shr_sys_abort("either fldptr1d or fldptr2d must be an input argument")
+      call ESMF_LogWrite(trim(subname)//": either fldptr1d or fldptr2d must be an input argument", &
+      ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__)
+
+      call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
     end if
 
   end subroutine state_getfldptr

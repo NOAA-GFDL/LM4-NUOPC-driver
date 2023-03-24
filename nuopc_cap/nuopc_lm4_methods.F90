@@ -1,6 +1,6 @@
 !! Based of of CMEPS nuopc_shr_methods
 
-module nuopc_shr_methods
+module nuopc_lm4_methods
 
   use ESMF         , only : ESMF_LOGERR_PASSTHRU, ESMF_LogFoundError
 
@@ -27,4 +27,4 @@ contains
     endif
   end function chkerr
 
-end module nuopc_shr_methods
+end module nuopc_lm4_methods

@@ -17,8 +17,8 @@ module lm4_cap_mod
    use NUOPC_Model,          only : model_label_Finalize       => label_Finalize
    use NUOPC_Model,          only : NUOPC_ModelGet
    
-   use shr_kind_mod,         only : r8 => shr_kind_r8, cl=>shr_kind_cl
-   use nuopc_shr_methods,    only : chkerr
+   use lm4_kind_mod,         only : r8 => shr_kind_r8, cl=>shr_kind_cl
+   use nuopc_lm4_methods,    only : chkerr
    use lnd_import_export,    only : advertise_fields, realize_fields
    use fms_mod,              only: fms_init, fms_end, uppercase
    use mpp_mod,              only: mpp_error,FATAL, WARNING
