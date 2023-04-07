@@ -52,72 +52,6 @@ module lnd_import_export
   integer, parameter     :: debug = 0        ! internal debug level
 
   !! import fields ------------
-  character(*), parameter :: Faxa_lwdn           = 'Faxa_lwdn'
-  character(*), parameter :: inst_land_sea_mask  = 'inst_land_sea_mask'
-  character(*), parameter :: Faxa_swndr          = 'Faxa_swndr'
-  character(*), parameter :: Faxa_swvdr          = 'Faxa_swvdr'
-  character(*), parameter :: Faxa_swndf          = 'Faxa_swndf'
-  character(*), parameter :: Faxa_swvdf          = 'Faxa_swvdf'
-  character(*), parameter :: Faxa_rain           = 'Faxa_rain'
-  character(*), parameter :: Faxa_snow           = 'Faxa_snow'
-  character(*), parameter :: land_mask           = 'land_mask'
-  character(*), parameter :: sea_surface_temperature  = 'sea_surface_temperature'
-
-  character(*), parameter :: Faxa_soiltyp   = 'Faxa_soiltyp'
-  character(*), parameter :: Faxa_vegtype   = 'Faxa_vegtype'
-  character(*), parameter :: Faxa_sigmaf    = 'Faxa_sigmaf'
-  character(*), parameter :: Faxa_sfcemis   = 'Faxa_sfcemis'
-  character(*), parameter :: Faxa_dlwflx    = 'Faxa_dlwflx'
-  character(*), parameter :: Faxa_dswsfc    = 'Faxa_dswsfc'
-  character(*), parameter :: inst_down_sw_flx = 'inst_down_sw_flx'
-  character(*), parameter :: Faxa_snet      = 'Faxa_snet'
-  character(*), parameter :: Faxa_tg3       = 'Faxa_tg3'
-  character(*), parameter :: Faxa_cm        = 'Faxa_cm'
-  character(*), parameter :: Faxa_ch        = 'Faxa_ch'
-  character(*), parameter :: Faxa_prsl1     = 'Faxa_prsl1'
-  character(*), parameter :: Faxa_prslki    = 'Faxa_prslki'
-  character(*), parameter :: Faxa_zf        = 'Faxa_zf'
-  !character(*), parameter :: Faxa_land      = 'Faxa_land'
-  !character(*), parameter :: Faxa_slopetyp  = 'Faxa_slopetyp'
-  character(*), parameter :: Faxa_shdmin    = 'Faxa_shdmin'
-  character(*), parameter :: Faxa_shdmax    = 'Faxa_shdmax'
-  character(*), parameter :: Faxa_snoalb    = 'Faxa_snoalb'
-  character(*), parameter :: Faxa_sfalb     = 'Faxa_sfalb'
-  character(*), parameter :: Faxa_bexppert  = 'Faxa_bexppert'
-  character(*), parameter :: Faxa_xlaipert  = 'Faxa_xlaipert'
-  character(*), parameter :: Faxa_vegfpert  = 'Faxa_vegfpert'
-  character(*), parameter :: Faxa_prsik1    = 'Faxa_prsik1'
-  character(*), parameter :: Faxa_weasd     = 'Faxa_weasd'
-  character(*), parameter :: Faxa_snwdph    = 'Faxa_snwdph'
-  character(*), parameter :: Faxa_tskin     = 'Faxa_tskin'
-  character(*), parameter :: Faxa_tprcp     = 'Faxa_tprcp'
-  character(*), parameter :: Faxa_srflag    = 'Faxa_srflag'
-  ! character(*), parameter :: Faxa_smc       = 'Faxa_smc'
-  ! character(*), parameter :: Faxa_stc       = 'Faxa_stc'
-  ! character(*), parameter :: Faxa_slc       = 'Faxa_slc'
-  character(*), parameter :: Faxa_canopy    = 'Faxa_canopy'
-  character(*), parameter :: Faxa_trans     = 'Faxa_trans'
-  character(*), parameter :: Faxa_tsurf     = 'Faxa_tsurf'
-  character(*), parameter :: Faxa_z0rl      = 'Faxa_z0rl'
-  character(*), parameter :: Faxa_z0pert    = 'Faxa_z0pert'
-  character(*), parameter :: Faxa_ztpert    = 'Faxa_ztpert'
-  character(*), parameter :: Faxa_ustar     = 'Faxa_ustar'  
-  character(*), parameter :: Faxa_wind      = 'Faxa_wind'
-  character(*), parameter :: Faxa_ps        = 'Faxa_ps'
-  character(*), parameter :: Faxa_t1        = 'Faxa_t1'
-  character(*), parameter :: Faxa_q1        = 'Faxa_q1'
-
-  
-  character(*), parameter :: Faxa_albdvis_lnd  = 'Faxa_albdvis_lnd'
-  character(*), parameter :: Faxa_albdnir_lnd  = 'Faxa_albdnir_lnd'
-  character(*), parameter :: Faxa_albivis_lnd  = 'Faxa_albivis_lnd'
-  character(*), parameter :: Faxa_albinir_lnd  = 'Faxa_albinir_lnd'
-  character(*), parameter :: Faxa_adjvisbmd    = 'Faxa_adjvisbmd'
-  character(*), parameter :: Faxa_adjnirbmd    = 'Faxa_adjnirbmd'
-  character(*), parameter :: Faxa_adjvisdfd    = 'Faxa_adjvisdfd'
-  character(*), parameter :: Faxa_adjnirdfd    = 'Faxa_adjnirdfd'
-  character(*), parameter :: Faxa_prslk1       = 'Faxa_prslk1'
-  character(*), parameter :: Faxa_garea        = 'Faxa_garea'
   
   !! export fields --------
   character(*), parameter :: Sl_lfrin         = 'Sl_lfrin'
@@ -271,75 +205,38 @@ contains
     ! Advertise import fields
     !--------------------------------
 
-    call fldlist_add(fldsToLnd_num, fldsToLnd, trim(flds_scalar_name))
+    !call fldlist_add(fldsToLnd_num, fldsToLnd, trim(flds_scalar_name))
 
     ! from atm
-    call fldlist_add(fldsToLnd_num, fldsToLnd, Faxa_lwdn    )
-    call fldlist_add(fldsToLnd_num, fldsToLnd, inst_land_sea_mask  )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_swndr)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_swvdr)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_swndf)        
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_swvdf)        
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_rain)          
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_snow)
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_z')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_tbot')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_ta')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_tskn')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_pslv')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_prsl')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_pbot')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_shum')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_qa')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_u')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_v')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_ua')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_va')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_exner')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_ustar')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swdn')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_lwdn')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swnet')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_rainc')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_rainl')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_rain')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snow')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snowc')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snowl')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'vfrac')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'zorl')
 
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_soiltyp)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_vegtype)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_sigmaf)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_sfcemis)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_dlwflx)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_dswsfc)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,inst_down_sw_flx)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_snet)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_tg3)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_cm)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_ch)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_prsl1)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_prslki)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_zf)
-    !call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_land)
-    !call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_slopetyp)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_shdmin)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_shdmax)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_snoalb)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_sfalb)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_bexppert)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_xlaipert)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_vegfpert)
-    
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_prsik1)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_weasd )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_snwdph)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_tskin )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_tprcp )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_srflag)
-    ! ! call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_smc   )
-    ! ! call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_stc   )
-    ! ! call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_slc   )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_canopy)
-    ! call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_trans )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_tsurf )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_z0rl  ) 
-    ! call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_z0pert) !!
-    ! call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_ztpert)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_ustar )    
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_wind)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_ps)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_t1)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_q1)
-    ! call fldlist_add(fldsToLnd_num, fldsToLnd,land_mask)          
-    ! call fldlist_add(fldsToLnd_num, fldsToLnd,sea_surface_temperature)
-    
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_albdvis_lnd)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_albdnir_lnd)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_albivis_lnd)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_albinir_lnd)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_adjvisbmd  )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_adjnirbmd  )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_adjvisdfd  )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_adjnirdfd  )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_prslk1     )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_garea      )
+    ! needed?
+    !call fldlist_add(fldsToLnd_num, fldsToLnd,'Faxa_garea')
     
 
     ! Now advertise import fields
