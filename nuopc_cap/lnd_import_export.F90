@@ -51,54 +51,6 @@ module lnd_import_export
   integer                :: glc_nec          ! number of glc elevation classes
   integer, parameter     :: debug = 0        ! internal debug level
 
-  !! import fields ------------
-  
-  !! export fields --------
-  character(*), parameter :: Sl_lfrin         = 'Sl_lfrin'
-  character(*), parameter :: foo_lnd2atmfield = 'foo_lnd2atmfield'
-  ! inouts
-  character(*), parameter :: Fall_weasd  = 'Fall_weasd'
-  character(*), parameter :: Fall_snwdph = 'Fall_snwdph'
-  character(*), parameter :: Fall_tskin  = 'Fall_tskin'
-  character(*), parameter :: Fall_tprcp  = 'Fall_tprcp'
-  character(*), parameter :: Fall_srflag = 'Fall_srflag'
-  character(*), parameter :: Fall_smc    = 'Fall_smc'
-  character(*), parameter :: Fall_stc    = 'Fall_stc'
-  character(*), parameter :: Fall_slc    = 'Fall_slc'
-  character(*), parameter :: Fall_canopy = 'Fall_canopy'
-  character(*), parameter :: Fall_trans  = 'Fall_trans'
-  character(*), parameter :: Fall_tsurf  = 'Fall_tsurf'
-  character(*), parameter :: Fall_z0rl   = 'Fall_z0rl'
-
-  ! noahouts
-  character(*), parameter :: Fall_sncovr1 = 'Fall_sncovr1'
-  character(*), parameter :: Fall_qsurf   = 'Fall_qsurf'
-  character(*), parameter :: Fall_gflux   = 'Fall_gflux'
-  character(*), parameter :: Fall_drain   = 'Fall_drain'
-  character(*), parameter :: Fall_evap    = 'Fall_evap'
-  character(*), parameter :: Fall_hflx    = 'Fall_hflx'
-  character(*), parameter :: Fall_ep      = 'Fall_ep'
-  character(*), parameter :: Fall_runoff  = 'Fall_runoff'
-  character(*), parameter :: Fall_cmm     = 'Fall_cmm'
-  character(*), parameter :: Fall_chh     = 'Fall_chh'
-  character(*), parameter :: Fall_evbs    = 'Fall_evbs'
-  character(*), parameter :: Fall_evcw    = 'Fall_evcw'
-  character(*), parameter :: Fall_sbsno   = 'Fall_sbsno'
-  character(*), parameter :: Fall_snowc   = 'Fall_snowc'
-  character(*), parameter :: Fall_stm     = 'Fall_stm'
-  character(*), parameter :: Fall_snohf   = 'Fall_snohf'
-  character(*), parameter :: Fall_smcwlt2 = 'Fall_smcwlt2'
-  character(*), parameter :: Fall_smcref2 = 'Fall_smcref2'
-  character(*), parameter :: Fall_wet1    = 'Fall_wet1'
-
-  ! diffouts
-  character(*), parameter :: Fall_rb_lnd   = 'Fall_rb_lnd'
-  character(*), parameter :: Fall_fm_lnd   = 'Fall_fm_lnd'
-  character(*), parameter :: Fall_fh_lnd   = 'Fall_fh_lnd'
-  character(*), parameter :: Fall_fm10_lnd = 'Fall_fm10_lnd'
-  character(*), parameter :: Fall_fh2_lnd  = 'Fall_fh2_lnd'
-  character(*), parameter :: Fall_stress   = 'Fall_stress'
-
 
   logical :: send_to_atm = .false.
 
@@ -110,21 +62,11 @@ module lnd_import_export
 contains
 !===============================================================================
 
-!  subroutine advertise_fields(gcomp, flds_scalar_name, glc_present, cism_evolve, rof_prognostic, atm_prognostic, rc)
   subroutine advertise_fields(gcomp, flds_scalar_name,  rc)
-
-    ! use shr_carma_mod     , only : shr_carma_readnl
-    ! use shr_ndep_mod      , only : shr_ndep_readnl
-    ! use shr_fire_emis_mod , only : shr_fire_emis_readnl
-    ! use clm_varctl        , only : ndep_from_cpl
 
     ! input/output variables
     type(ESMF_GridComp)            :: gcomp
     character(len=*) , intent(in)  :: flds_scalar_name
-    ! logical          , intent(in)  :: glc_present
-    ! logical          , intent(in)  :: cism_evolve
-    ! logical          , intent(in)  :: rof_prognostic
-    ! logical          , intent(in)  :: atm_prognostic
     integer          , intent(out) :: rc
 
     ! local variables
@@ -141,56 +83,17 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     send_to_atm = .true.
-
+    
+    !--------------------------------
+    ! Advertise export fields
+    !--------------------------------
 
     ! export to atm
     if (send_to_atm) then
        ! TODO: actually set land frac for this field
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Sl_lfrin     )
+       call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_lfrin'     )
 
-       call fldlist_add(fldsFrLnd_num, fldsFrLnd, foo_lnd2atmfield    )
-       ! inouts
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_weasd       )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_snwdph      )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_tskin       )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_tprcp       )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_srflag      )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_smc         )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_stc         )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_slc         )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_canopy      )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_trans       )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_tsurf       )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_z0rl        )
 
-       ! noahouts
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_sncovr1      )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_qsurf        )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_gflux        )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_drain        )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_evap         )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_hflx         )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_ep           )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_runoff       )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_cmm          )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_chh          )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_evbs         )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_evcw         )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_sbsno        )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_snowc        )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_stm          )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_snohf        )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_smcwlt2      )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_smcref2      )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_wet1         )
-
-       ! diffouts
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_rb_lnd        )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_fm_lnd        )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_fh_lnd        )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_fm10_lnd      )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_fh2_lnd       )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_stress        )
        
     end if
 
@@ -205,7 +108,6 @@ contains
     ! Advertise import fields
     !--------------------------------
 
-    !call fldlist_add(fldsToLnd_num, fldsToLnd, trim(flds_scalar_name))
 
     ! from atm
     call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_z')
@@ -234,7 +136,6 @@ contains
     call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snowl')
     call fldlist_add(fldsToLnd_num, fldsToLnd, 'vfrac')
     call fldlist_add(fldsToLnd_num, fldsToLnd, 'zorl')
-
     ! needed?
     !call fldlist_add(fldsToLnd_num, fldsToLnd,'Faxa_garea')
     
@@ -469,9 +370,9 @@ contains
   end subroutine fldlist_realize
 
   !===============================================================================
-  subroutine state_getimport_1d(state, fldname, ctsmdata, rc)
+  subroutine state_getimport_1d(state, fldname, lm4data, rc)
 
-    ! fill in ctsm import data for 1d field
+    ! fill in lm4 import data for 1d field
 
     use ESMF, only : ESMF_LOGERR_PASSTHRU, ESMF_END_ABORT, ESMF_LogFoundError
     use ESMF, only : ESMF_Finalize
@@ -479,7 +380,7 @@ contains
     ! input/output variabes
     type(ESMF_State) , intent(in)    :: state
     character(len=*) , intent(in)    :: fldname
-    real(r8)         , intent(inout) :: ctsmdata(:)
+    real(r8)         , intent(inout) :: lm4data(:)
     integer          , intent(out)   :: rc
 
     ! local variables
@@ -492,17 +393,17 @@ contains
 
     call state_getfldptr(State, trim(fldname), fldptr1d=fldptr1d, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    do g = 1,size(ctsmdata)
-       ctsmdata(g) = fldptr1d(g)
+    do g = 1,size(lm4data)
+       lm4data(g) = fldptr1d(g)
     end do
-    !call check_for_nans(ctsmdata, trim(fldname), 1)
+    !call check_for_nans(lm4data, trim(fldname), 1)
 
   end subroutine state_getimport_1d
 
   !===============================================================================
-  ! subroutine state_getimport_2d(state, fldname, ctsmdata, rc)
+  ! subroutine state_getimport_2d(state, fldname, lm4data, rc)
 
-  !   ! fill in ctsm import data for 2d field
+  !   ! fill in lm4 import data for 2d field
 
   !   use ESMF, only : ESMF_LOGERR_PASSTHRU, ESMF_END_ABORT, ESMF_LogFoundError
   !   use ESMF, only : ESMF_Finalize
@@ -510,7 +411,7 @@ contains
   !   ! input/output variabes
   !   type(ESMF_State) , intent(in)    :: state
   !   character(len=*) , intent(in)    :: fldname
-  !   real(r8)         , intent(inout) :: ctsmdata(:,:)
+  !   real(r8)         , intent(inout) :: lm4data(:,:)
   !   integer          , intent(out)   :: rc
 
   !   ! local variables
@@ -524,20 +425,20 @@ contains
 
   !   call state_getfldptr(state, trim(fldname), fldptr2d=fldptr2d, rc=rc)
   !   if (ChkErr(rc,__LINE__,u_FILE_u)) return
-  !   do n = 1,size(ctsmdata, dim=2)
+  !   do n = 1,size(lm4data, dim=2)
   !      write(cnum,'(i0)') n
-  !      do g = 1,size(ctsmdata,dim=1)
-  !         ctsmdata(g,n) = fldptr2d(n,g)
+  !      do g = 1,size(lm4data,dim=1)
+  !         lm4data(g,n) = fldptr2d(n,g)
   !      end do
-  !      call check_for_nans(ctsmdata(:,n), trim(fldname)//trim(cnum), 1)
+  !      call check_for_nans(lm4data(:,n), trim(fldname)//trim(cnum), 1)
   !   end do
 
   ! end subroutine state_getimport_2d
 
   ! !===============================================================================
-  ! subroutine state_setexport_1d(state, fldname, ctsmdata, minus, rc)
+  ! subroutine state_setexport_1d(state, fldname, lm4data, minus, rc)
 
-  !   ! fill in ctsm export data for 1d field
+  !   ! fill in lm4 export data for 1d field
 
   !   use ESMF, only : ESMF_LOGERR_PASSTHRU, ESMF_END_ABORT, ESMF_LogFoundError
   !   use ESMF, only : ESMF_Finalize
@@ -545,7 +446,7 @@ contains
   !   ! input/output variabes
   !   type(ESMF_State) , intent(in) :: state
   !   character(len=*) , intent(in) :: fldname
-  !   real(r8)         , intent(in) :: ctsmdata(:)
+  !   real(r8)         , intent(in) :: lm4data(:)
   !   logical, optional, intent(in) :: minus
   !   integer          , intent(out):: rc
 
@@ -559,22 +460,22 @@ contains
   !   if (ChkErr(rc,__LINE__,u_FILE_u)) return
   !   fldptr1d(:) = 0._r8
   !   if (present(minus)) then
-  !      do g = 1,size(ctsmdata)
-  !         fldptr1d(g) = -ctsmdata(g)
+  !      do g = 1,size(lm4data)
+  !         fldptr1d(g) = -lm4data(g)
   !      end do
   !   else
-  !      do g = 1,size(ctsmdata)
-  !         fldptr1d(g) = ctsmdata(g)
+  !      do g = 1,size(lm4data)
+  !         fldptr1d(g) = lm4data(g)
   !      end do
   !   end if
-  !   call check_for_nans(ctsmdata, trim(fldname), 1)
+  !   call check_for_nans(lm4data, trim(fldname), 1)
 
   ! end subroutine state_setexport_1d
 
   ! !===============================================================================
-  ! subroutine state_setexport_2d(state, fldname, ctsmdata, minus, rc)
+  ! subroutine state_setexport_2d(state, fldname, lm4data, minus, rc)
 
-  !   ! fill in ctsm export data for 2d field
+  !   ! fill in lm4 export data for 2d field
 
   !   use ESMF, only : ESMF_LOGERR_PASSTHRU, ESMF_END_ABORT, ESMF_LogFoundError
   !   use ESMF, only : ESMF_Finalize
@@ -582,7 +483,7 @@ contains
   !   ! input/output variabes
   !   type(ESMF_State) , intent(in) :: state
   !   character(len=*) , intent(in) :: fldname
-  !   real(r8)         , intent(in) :: ctsmdata(:,:)
+  !   real(r8)         , intent(in) :: lm4data(:,:)
   !   logical, optional, intent(in) :: minus
   !   integer          , intent(out):: rc
 
@@ -598,18 +499,18 @@ contains
   !   call state_getfldptr(state, trim(fldname), fldptr2d=fldptr2d, rc=rc)
   !   if (ChkErr(rc,__LINE__,u_FILE_u)) return
   !   fldptr2d(:,:) = 0._r8
-  !   do n = 1,size(ctsmdata, dim=2)
+  !   do n = 1,size(lm4data, dim=2)
   !      write(cnum,'(i0)') n
   !      if (present(minus)) then
-  !         do g = 1,size(ctsmdata, dim=1)
-  !            fldptr2d(n,g) = -ctsmdata(g,n)
+  !         do g = 1,size(lm4data, dim=1)
+  !            fldptr2d(n,g) = -lm4data(g,n)
   !         end do
   !      else
-  !         do g = 1,size(ctsmdata, dim=1)
-  !            fldptr2d(n,g) = ctsmdata(g,n)
+  !         do g = 1,size(lm4data, dim=1)
+  !            fldptr2d(n,g) = lm4data(g,n)
   !         end do
   !      end if
-  !      call check_for_nans(ctsmdata(:,n), trim(fldname)//trim(cnum), 1)
+  !      call check_for_nans(lm4data(:,n), trim(fldname)//trim(cnum), 1)
   !   end do
 
   ! end subroutine state_setexport_2d
