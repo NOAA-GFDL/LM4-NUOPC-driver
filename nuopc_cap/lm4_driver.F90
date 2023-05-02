@@ -21,7 +21,7 @@ module lm4_driver
   type(control_init_type),  public :: ctrl_init
 
   
-  public :: init_driver, run_driver, end_driver
+  public :: init_driver, end_driver
   public :: sfc_boundary_layer, flux_down_from_atmos
   
   ! ---- namelist with default values ------------------------------------------
@@ -128,28 +128,28 @@ contains
   end subroutine init_driver
 
   ! ---------------------------------------
-  subroutine run_driver(lm4_model)
+!   subroutine run_driver(lm4_model)
 
-    type(lm4_type),        intent(inout) :: lm4_model(:) ! land model's variable type
+!     type(lm4_type),        intent(inout) :: lm4_model(:) ! land model's variable type
 
-    ! ! local
-    real                   :: dt   ! Timestep
-    type(land_data_type)   :: Land ! GFDL derived data type to specify land boundary data
-    type(atmos_land_boundary_type)  :: Atm  ! GFDL derived data type to specify atmosphere boundary data
-    !real(kind_phys)         :: foodata(noah_model%static%im)
-    ! !
+!     ! ! local
+!     real                   :: dt   ! Timestep
+!     type(land_data_type)   :: Land ! GFDL derived data type to specify land boundary data
+!     type(atmos_land_boundary_type)  :: Atm  ! GFDL derived data type to specify atmosphere boundary data
+!     !real(kind_phys)         :: foodata(noah_model%static%im)
+!     ! !
 
-    !     )
-    !!
+!     !     )
+!     !!
     
-    call sfc_boundary_layer(dt,Land)
-    !call flux_down_from_atmos(Land,Atm)
+!     call sfc_boundary_layer(dt,Land)
+!     !call flux_down_from_atmos(Land,Atm)
 
-    ! ! Actually run land model
-    ! call update_land_model_fast ( Atmos_land_boundary, Land )
+!     ! ! Actually run land model
+!     ! call update_land_model_fast ( Atmos_land_boundary, Land )
 
-    !end associate
-  end subroutine run_driver
+!     !end associate
+!   end subroutine run_driver
 
   ! ---------------------------------------
   subroutine sfc_boundary_layer( dt,Land )

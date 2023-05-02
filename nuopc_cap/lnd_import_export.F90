@@ -1,22 +1,23 @@
 module lnd_import_export
 
-  use ESMF                    , only : ESMF_GridComp, ESMF_State, ESMF_Mesh, ESMF_StateGet
-  use ESMF                    , only : ESMF_KIND_R8, ESMF_SUCCESS, ESMF_END_ABORT, ESMF_Finalize
-  use ESMF                    , only : ESMF_MAXSTR, ESMF_LOGMSG_INFO
-  use ESMF                    , only : ESMF_LogWrite, ESMF_LOGMSG_ERROR, ESMF_LogFoundError, ESMF_FAILURE
-  use ESMF                    , only : ESMF_STATEITEM_NOTFOUND, ESMF_StateItem_Flag
-  use ESMF                    , only : operator(/=), operator(==)
-  use NUOPC                   , only : NUOPC_CompAttributeGet, NUOPC_Advertise, NUOPC_IsConnected
-  use NUOPC_Model             , only : NUOPC_ModelGet
-  use lm4_kind_mod            , only : r8 => shr_kind_r8, cx=>shr_kind_cx, cs=>shr_kind_cs
-  use nuopc_lm4_methods       , only : chkerr
+  use ESMF                    , only: ESMF_GridComp, ESMF_State, ESMF_Mesh, ESMF_StateGet
+  use ESMF                    , only: ESMF_KIND_R8, ESMF_SUCCESS, ESMF_END_ABORT, ESMF_Finalize
+  use ESMF                    , only: ESMF_MAXSTR, ESMF_LOGMSG_INFO
+  use ESMF                    , only: ESMF_LogWrite, ESMF_LOGMSG_ERROR, ESMF_LogFoundError, ESMF_FAILURE
+  use ESMF                    , only: ESMF_STATEITEM_NOTFOUND, ESMF_StateItem_Flag
+  use ESMF                    , only: operator(/=), operator(==)
+  use NUOPC                   , only: NUOPC_CompAttributeGet, NUOPC_Advertise, NUOPC_IsConnected
+  use NUOPC_Model             , only: NUOPC_ModelGet
+  use lm4_kind_mod            , only: r8 => shr_kind_r8, cx=>shr_kind_cx, cs=>shr_kind_cs
+  use land_data_mod           , only: land_data_type, atmos_land_boundary_type  
+  use nuopc_lm4_methods       , only: chkerr
 
   implicit none
   private ! except
 
   public  :: advertise_fields
   public  :: realize_fields
-  ! public  :: import_fields
+  public  :: import_fields
   ! public  :: export_fields
 
   private :: fldlist_add
@@ -369,6 +370,90 @@ contains
 
   end subroutine fldlist_realize
 
+
+  !===============================================================================
+  subroutine import_fields(gcomp, cplr2land, rc)
+
+   ! input/output variables
+   type(ESMF_GridComp),              intent(in)    :: gcomp
+   type(atmos_land_boundary_type),   intent(inout) :: cplr2land 
+   integer,                          intent(out)   :: rc
+
+   ! local variables
+   type(ESMF_State)            :: importState
+   character(len=*), parameter :: subname=trim(modName)//':(import_fields)'
+   ! ----------------------------------------------
+
+   rc = ESMF_SUCCESS
+   call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
+
+   ! Get export state
+   call NUOPC_ModelGet(gcomp, importState=importState, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+   ! -----------------------
+   ! atm input fields
+   ! -----------------------
+
+   ! call state_getimport_1d(importState, 'Sa_z'      , cplr2land%, rc=rc) ! bottom layer height
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Sa_ta'     , cplr2land%, rc=rc)  ! bottom layer temperature (inst_temp_height_lowest_from_phys)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Sa_tbot'   , cplr2land%, rc=rc)  ! bottom layer temperature (inst_temp_height_lowest)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Sa_tskn'   , cplr2land%, rc=rc) ! sea surface skin temperature
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Sa_prsl'   , cplr2land% rc=rc) ! pressure at lowest model layer (inst_pres_height_lowest_from_phys)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Sa_pbot'   , cplr2land%, rc=rc) ! pressure at lowest model layer (inst_pres_height_lowest)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Sa_pslv'   , cplr2land%, rc=rc) ! instantaneous pressure land and sea surface
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Sa_shum'   , cplr2land%, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Sa_qa'     , cplr2land%, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Faxa_swdn' , cplr2land%swdn_flux, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Faxa_lwdn' , cplr2land%, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Faxa_swnet', cplr2land%, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Sa_u'      , cplr2land%, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Sa_ua'     , cplr2land%, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Sa_v'      , cplr2land%, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Sa_va'     , cplr2land%, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Sa_exner'  , cplr2land%, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Sa_ustar'  , cplr2land%, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Faxa_rain' , cplr2land%lprec, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Faxa_rainc', cplr2land%, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Faxa_rainl', cplr2land%, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Faxa_snow' , cplr2land%fprec, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Faxa_snowc', cplr2land%, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Faxa_snowl', cplr2land%, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'vfrac'     , cplr2land%, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'zorl'      , cplr2land%, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+   call ESMF_LogWrite(subname//' done', ESMF_LOGMSG_INFO)
+
+ end subroutine import_fields
+
+
+
   !===============================================================================
   subroutine state_getimport_1d(state, fldname, lm4data, rc)
 
@@ -400,40 +485,6 @@ contains
 
   end subroutine state_getimport_1d
 
-  !===============================================================================
-  ! subroutine state_getimport_2d(state, fldname, lm4data, rc)
-
-  !   ! fill in lm4 import data for 2d field
-
-  !   use ESMF, only : ESMF_LOGERR_PASSTHRU, ESMF_END_ABORT, ESMF_LogFoundError
-  !   use ESMF, only : ESMF_Finalize
-
-  !   ! input/output variabes
-  !   type(ESMF_State) , intent(in)    :: state
-  !   character(len=*) , intent(in)    :: fldname
-  !   real(r8)         , intent(inout) :: lm4data(:,:)
-  !   integer          , intent(out)   :: rc
-
-  !   ! local variables
-  !   real(r8), pointer :: fldPtr2d(:,:)
-  !   integer           :: g,n
-  !   character(len=CS) :: cnum
-  !   character(len=*), parameter :: subname='(lnd_import_export:state_getimport_1d)'
-  !   ! ----------------------------------------------
-
-  !   rc = ESMF_SUCCESS
-
-  !   call state_getfldptr(state, trim(fldname), fldptr2d=fldptr2d, rc=rc)
-  !   if (ChkErr(rc,__LINE__,u_FILE_u)) return
-  !   do n = 1,size(lm4data, dim=2)
-  !      write(cnum,'(i0)') n
-  !      do g = 1,size(lm4data,dim=1)
-  !         lm4data(g,n) = fldptr2d(n,g)
-  !      end do
-  !      call check_for_nans(lm4data(:,n), trim(fldname)//trim(cnum), 1)
-  !   end do
-
-  ! end subroutine state_getimport_2d
 
   ! !===============================================================================
   ! subroutine state_setexport_1d(state, fldname, lm4data, minus, rc)
@@ -472,48 +523,6 @@ contains
 
   ! end subroutine state_setexport_1d
 
-  ! !===============================================================================
-  ! subroutine state_setexport_2d(state, fldname, lm4data, minus, rc)
-
-  !   ! fill in lm4 export data for 2d field
-
-  !   use ESMF, only : ESMF_LOGERR_PASSTHRU, ESMF_END_ABORT, ESMF_LogFoundError
-  !   use ESMF, only : ESMF_Finalize
-
-  !   ! input/output variabes
-  !   type(ESMF_State) , intent(in) :: state
-  !   character(len=*) , intent(in) :: fldname
-  !   real(r8)         , intent(in) :: lm4data(:,:)
-  !   logical, optional, intent(in) :: minus
-  !   integer          , intent(out):: rc
-
-  !   ! local variables
-  !   real(r8), pointer :: fldPtr2d(:,:)
-  !   integer           :: g, n
-  !   character(len=CS) :: cnum
-  !   character(len=*), parameter :: subname='(lnd_export_export:state_setexport_2d)'
-  !   ! ----------------------------------------------
-
-  !   rc = ESMF_SUCCESS
-
-  !   call state_getfldptr(state, trim(fldname), fldptr2d=fldptr2d, rc=rc)
-  !   if (ChkErr(rc,__LINE__,u_FILE_u)) return
-  !   fldptr2d(:,:) = 0._r8
-  !   do n = 1,size(lm4data, dim=2)
-  !      write(cnum,'(i0)') n
-  !      if (present(minus)) then
-  !         do g = 1,size(lm4data, dim=1)
-  !            fldptr2d(n,g) = -lm4data(g,n)
-  !         end do
-  !      else
-  !         do g = 1,size(lm4data, dim=1)
-  !            fldptr2d(n,g) = lm4data(g,n)
-  !         end do
-  !      end if
-  !      call check_for_nans(lm4data(:,n), trim(fldname)//trim(cnum), 1)
-  !   end do
-
-  ! end subroutine state_setexport_2d
 
   !===============================================================================
   subroutine state_getfldptr(State, fldname, fldptr1d, fldptr2d, rc)
