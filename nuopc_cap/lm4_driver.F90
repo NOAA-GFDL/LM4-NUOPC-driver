@@ -113,7 +113,7 @@ contains
     lm4_model%control%iec = iec
     lm4_model%control%jsc = jsc
     lm4_model%control%jec = jec
-    lm4_model%static%im   = im
+    !lm4_model%static%im   = im
     !call lm4_model%Create(im)
 
     

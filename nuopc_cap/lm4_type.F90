@@ -10,7 +10,7 @@ module lm4_type_mod
 
 	! type for atmospheric forcing data, based off atmos_solo_land's atmos_data_type
 	type, public :: atm_forc_type
-		real, pointer, dimension(:,:) ::  &
+		real, pointer, dimension(:) ::  &
 		t_bot     => NULL(), &   ! temperature at the atm. bottom, degK                                                                                                                                              
 		z_bot     => NULL(), &   ! altitude of the atm. bottom above sfc., m                                                                                                                                         
 		p_bot     => NULL(), &   ! pressure at the atm. bottom, N/m2                                                                                                                                                 

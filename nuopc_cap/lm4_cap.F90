@@ -45,7 +45,7 @@ module lm4_cap_mod
    !---- model defined-types ----
    
    type land_internalstate_type
-      type(atm_forc_type)            :: atm_forc ! atm forcing data
+      type(atm_forc_type)            :: Atm_forc ! atm forcing data
       type(land_data_type)           :: From_lnd ! data from land
       type(atmos_land_boundary_type) :: From_atm ! data from atm
       type(time_type)                :: Time_land, Time_init, Time_end,  &
@@ -60,7 +60,7 @@ module lm4_cap_mod
    
    type(land_internalstate_type),pointer,save :: land_int_state
    type(land_internalstate_wrapper),save      :: wrap
-   type(control_init_type), save             :: ctrl_init
+   type(control_init_type), save              :: ctrl_init
    
    integer :: date_init(6)
    
@@ -307,7 +307,7 @@ module lm4_cap_mod
       if (mype == 0) write(0,*) '======== COMPLETED land_model_init =========='
       
       ! allocate storage for the atm forc data
-      call realloc_land2cplr(land_int_state%atm_forc)
+      call alloc_atmforc(land_int_state%atm_forc)
       
       !----------------------------------------------------------------------------
       ! advertise fields
@@ -448,7 +448,7 @@ module lm4_cap_mod
       !-------------------------------------------------------------------------------
       ! Get import fields
       !-------------------------------------------------------------------------------
-      call import_fields(gcomp, land_int_state%From_atm, rc)
+      call import_fields(gcomp, land_int_state%From_atm,land_int_state%Atm_forc, rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
       
@@ -471,7 +471,7 @@ module lm4_cap_mod
       call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
       
       call land_model_end(land_int_state%From_atm, land_int_state%From_lnd)
-      
+
       ! deallocate storage for the atm forc data
       call dealloc_atmforc(land_int_state%atm_forc)      
       

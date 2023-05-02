@@ -9,6 +9,7 @@ module lnd_import_export
   use NUOPC                   , only: NUOPC_CompAttributeGet, NUOPC_Advertise, NUOPC_IsConnected
   use NUOPC_Model             , only: NUOPC_ModelGet
   use lm4_kind_mod            , only: r8 => shr_kind_r8, cx=>shr_kind_cx, cs=>shr_kind_cs
+  use lm4_type_mod            , only: atm_forc_type
   use land_data_mod           , only: land_data_type, atmos_land_boundary_type  
   use nuopc_lm4_methods       , only: chkerr
 
@@ -55,6 +56,7 @@ module lnd_import_export
 
   logical :: send_to_atm = .false.
 
+  character(*),parameter :: modName =  "(lnd_import_export)"
   character(*),parameter :: F01 = "('(lnd_import_export) ',a,i5,2x,i5,2x,d21.14)"
   character(*),parameter :: u_FILE_u = &
        __FILE__
@@ -372,11 +374,12 @@ contains
 
 
   !===============================================================================
-  subroutine import_fields(gcomp, cplr2land, rc)
+  subroutine import_fields(gcomp, cplr2land, forc, rc)
 
    ! input/output variables
    type(ESMF_GridComp),              intent(in)    :: gcomp
-   type(atmos_land_boundary_type),   intent(inout) :: cplr2land 
+   type(atmos_land_boundary_type),   intent(inout) :: cplr2land
+   type(atm_forc_type),              intent(inout) :: forc
    integer,                          intent(out)   :: rc
 
    ! local variables
@@ -397,10 +400,10 @@ contains
 
    ! call state_getimport_1d(importState, 'Sa_z'      , cplr2land%, rc=rc) ! bottom layer height
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_1d(importState, 'Sa_ta'     , cplr2land%, rc=rc)  ! bottom layer temperature (inst_temp_height_lowest_from_phys)
-   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_1d(importState, 'Sa_tbot'   , cplr2land%, rc=rc)  ! bottom layer temperature (inst_temp_height_lowest)
-   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call state_getimport_1d(importState, 'Sa_ta'     , forc%t_bot, rc=rc)  ! bottom layer temperature (inst_temp_height_lowest_from_phys)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call state_getimport_1d(importState, 'Sa_tbot'   , forc%t_bot, rc=rc)  ! bottom layer temperature (inst_temp_height_lowest)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
    ! call state_getimport_1d(importState, 'Sa_tskn'   , cplr2land%, rc=rc) ! sea surface skin temperature
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
    ! call state_getimport_1d(importState, 'Sa_prsl'   , cplr2land% rc=rc) ! pressure at lowest model layer (inst_pres_height_lowest_from_phys)
