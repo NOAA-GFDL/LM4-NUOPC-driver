@@ -141,6 +141,14 @@ contains
     call fldlist_add(fldsToLnd_num, fldsToLnd, 'zorl')
     ! needed?
     !call fldlist_add(fldsToLnd_num, fldsToLnd,'Faxa_garea')
+
+    ! additional provided by CDEPS
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swnet')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swvdf')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swndf')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swvdr')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swndr')
+
     
 
     ! Now advertise import fields
@@ -398,50 +406,61 @@ contains
    ! atm input fields
    ! -----------------------
 
-   ! call state_getimport_1d(importState, 'Sa_z'      , cplr2land%, rc=rc) ! bottom layer height
-   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   call state_getimport_1d(importState, 'Sa_ta'     , forc%t_bot, rc=rc)  ! bottom layer temperature (inst_temp_height_lowest_from_phys)
+   call state_getimport_1d(importState, 'Sa_z'      , forc%z_bot, rc=rc) ! bottom layer height
    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Sa_ta'     , forc%t_bot, rc=rc)  ! bottom layer temperature (inst_temp_height_lowest_from_phys)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
    call state_getimport_1d(importState, 'Sa_tbot'   , forc%t_bot, rc=rc)  ! bottom layer temperature (inst_temp_height_lowest)
    if (ChkErr(rc,__LINE__,u_FILE_u)) return
    ! call state_getimport_1d(importState, 'Sa_tskn'   , cplr2land%, rc=rc) ! sea surface skin temperature
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_1d(importState, 'Sa_prsl'   , cplr2land% rc=rc) ! pressure at lowest model layer (inst_pres_height_lowest_from_phys)
-   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_1d(importState, 'Sa_pbot'   , cplr2land%, rc=rc) ! pressure at lowest model layer (inst_pres_height_lowest)
-   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_1d(importState, 'Sa_pslv'   , cplr2land%, rc=rc) ! instantaneous pressure land and sea surface
-   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call state_getimport_1d(importState, 'Sa_prsl'   , forc%p_bot, rc=rc) ! pressure at lowest model layer (inst_pres_height_lowest_from_phys)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call state_getimport_1d(importState, 'Sa_pbot'   , forc%p_bot, rc=rc) ! pressure at lowest model layer (inst_pres_height_lowest)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call state_getimport_1d(importState, 'Sa_pslv'   , forc%slp, rc=rc) ! instantaneous pressure land and sea surface
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
    ! call state_getimport_1d(importState, 'Sa_shum'   , cplr2land%, rc=rc)
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
    ! call state_getimport_1d(importState, 'Sa_qa'     , cplr2land%, rc=rc)
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
    ! call state_getimport_1d(importState, 'Faxa_swdn' , cplr2land%swdn_flux, rc=rc)
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_1d(importState, 'Faxa_lwdn' , cplr2land%, rc=rc)
+   call state_getimport_1d(importState, 'Faxa_lwdn' , forc%flux_lw, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call state_getimport_1d(importState, 'Faxa_swnet', forc%flux_sw, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! -----------------------
+   call state_getimport_1d(importState, 'Faxa_swvdf', forc%flux_sw_down_vis_dif, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Faxa_swndf', 
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_1d(importState, 'Faxa_swnet', cplr2land%, rc=rc)
-   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_1d(importState, 'Sa_u'      , cplr2land%, rc=rc)
-   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_1d(importState, 'Sa_ua'     , cplr2land%, rc=rc)
-   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_1d(importState, 'Sa_v'      , cplr2land%, rc=rc)
-   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_1d(importState, 'Sa_va'     , cplr2land%, rc=rc)
-   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call state_getimport_1d(importState, 'Faxa_swvdr', forc%flux_sw_down_vis_dir, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_1d(importState, 'Faxa_swndr',
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return   
+   ! -----------------------
+
+   call state_getimport_1d(importState, 'Sa_u'      , forc%u_bot, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call state_getimport_1d(importState, 'Sa_ua'     , forc%u_bot, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call state_getimport_1d(importState, 'Sa_v'      , forc%v_bot, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call state_getimport_1d(importState, 'Sa_va'     , forc%v_bot, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
    ! call state_getimport_1d(importState, 'Sa_exner'  , cplr2land%, rc=rc)
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
    ! call state_getimport_1d(importState, 'Sa_ustar'  , cplr2land%, rc=rc)
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_1d(importState, 'Faxa_rain' , cplr2land%lprec, rc=rc)
-   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call state_getimport_1d(importState, 'Faxa_rain' , forc%lprec, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
    ! call state_getimport_1d(importState, 'Faxa_rainc', cplr2land%, rc=rc)
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
    ! call state_getimport_1d(importState, 'Faxa_rainl', cplr2land%, rc=rc)
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_1d(importState, 'Faxa_snow' , cplr2land%fprec, rc=rc)
-   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call state_getimport_1d(importState, 'Faxa_snow' , forc%fprec, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
    ! call state_getimport_1d(importState, 'Faxa_snowc', cplr2land%, rc=rc)
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
    ! call state_getimport_1d(importState, 'Faxa_snowl', cplr2land%, rc=rc)
@@ -450,6 +469,7 @@ contains
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
    ! call state_getimport_1d(importState, 'zorl'      , cplr2land%, rc=rc)
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   
 
    call ESMF_LogWrite(subname//' done', ESMF_LOGMSG_INFO)
 
