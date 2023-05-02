@@ -493,18 +493,25 @@ contains
 
     ! local variables
     real(r8), pointer :: fldPtr1d(:)
-    integer           :: g
+    type(ESMF_StateItem_Flag)   :: itemType
     character(len=*), parameter :: subname='(lnd_import_export:state_getimport_1d)'
     ! ----------------------------------------------
 
     rc = ESMF_SUCCESS
 
-    call state_getfldptr(State, trim(fldname), fldptr1d=fldptr1d, rc=rc)
+    call ESMF_StateGet(state, itemName=trim(fldname), itemType=itemType, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    do g = 1,size(lm4data)
-       lm4data(g) = fldptr1d(g)
-    end do
-    !call check_for_nans(lm4data, trim(fldname), 1)
+
+    if (itemType == ESMF_STATEITEM_FIELD) then
+
+      call state_getfldptr(State, trim(fldname), fldptr1d=fldptr1d, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      lm4data(:) = fldptr1d(:)
+      !call check_for_nans(lm4data, trim(fldname), 1)
+    else
+      call ESMF_LogWrite(subname//' '//trim(fldname)//' is not in the state!', ESMF_LOGMSG_INFO)
+   end if
+
 
   end subroutine state_getimport_1d
 
