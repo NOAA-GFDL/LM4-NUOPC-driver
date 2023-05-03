@@ -6,6 +6,7 @@ module lnd_import_export
   use ESMF                    , only: ESMF_LogWrite, ESMF_LOGMSG_ERROR, ESMF_LogFoundError, ESMF_FAILURE
   use ESMF                    , only: ESMF_STATEITEM_NOTFOUND, ESMF_StateItem_Flag
   use ESMF                    , only: operator(/=), operator(==)
+  use ESMF          , only : ESMF_StateItem_Flag, ESMF_STATEITEM_FIELD
   use NUOPC                   , only: NUOPC_CompAttributeGet, NUOPC_Advertise, NUOPC_IsConnected
   use NUOPC_Model             , only: NUOPC_ModelGet
   use lm4_kind_mod            , only: r8 => shr_kind_r8, cx=>shr_kind_cx, cs=>shr_kind_cs
