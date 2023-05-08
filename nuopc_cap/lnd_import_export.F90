@@ -426,86 +426,91 @@ contains
 
 
 
-   call state_getimport_2d(importState, 'Sa_z'      , datar8, rc=rc) ! bottom layer height
+   call state_getimport_2d(importState, 'Sa_z',datar8, rc=rc) ! bottom layer height
    if (ChkErr(rc,__LINE__,u_FILE_u)) return
    call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%z_bot)
 
-   ! ! now get and write out bounds of datar8 again:
-   ! lower1 = lbound(datar8,1)
-   ! upper1 = ubound(datar8,1)
-   ! lower2 = lbound(datar8,2)
-   ! upper2 = ubound(datar8,2) 
-   ! write(*,*) 'datar8 bounds 2: ', lower1, upper1, lower2, upper2
-
-
-   ! ! loop test
-   ! do l = lnd%ls, lnd%le
-   !    i = lnd%i_index(l)
-   !    j = lnd%j_index(l)
-
-   !    ! write out l,i,j, is, ie, js, je, datar8(i,j)
-   !    write(*,*) l,i,j, lnd%is,lnd%ie,lnd%js,lnd%je, datar8(i,j)
-   !    lm4_model%atm_forc%z_bot(l) = datar8(i,j)
-
-   ! end do
-
-   ! ! call state_getimport_2d(importState, 'Sa_ta'     , forc%t_bot, rc=rc)  ! bottom layer temperature (inst_temp_height_lowest_from_phys)
-   ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_2d(importState, 'Sa_tbot'   , forc%t_bot, rc=rc)  ! bottom layer temperature (inst_temp_height_lowest)
+   ! call state_getimport_2d(importState, 'Sa_ta'     , datar8, rc=rc)  ! bottom layer temperature (inst_temp_height_lowest_from_phys)
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! ! call state_getimport_2d(importState, 'Sa_tskn'   , cplr2land%, rc=rc) ! sea surface skin temperature
-   ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call state_getimport_2d(importState, 'Sa_tbot'   , datar8, rc=rc)  ! bottom layer temperature (inst_temp_height_lowest)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%t_bot)
+
+   ! call state_getimport_2d(importState, 'Sa_tskn'   , datar8, rc=rc) ! sea surface skin temperature
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
    ! call state_getimport_2d(importState, 'Sa_prsl'   , forc%p_bot, rc=rc) ! pressure at lowest model layer (inst_pres_height_lowest_from_phys)
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_2d(importState, 'Sa_pbot'   , forc%p_bot, rc=rc) ! pressure at lowest model layer (inst_pres_height_lowest)
-   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! ! call state_getimport_2d(importState, 'Sa_pslv'   , forc%slp, rc=rc) ! instantaneous pressure land and sea surface
-   ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! ! call state_getimport_2d(importState, 'Sa_shum'   , cplr2land%, rc=rc)
-   ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! ! call state_getimport_2d(importState, 'Sa_qa'     , cplr2land%, rc=rc)
-   ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! ! call state_getimport_2d(importState, 'Faxa_swdn' , cplr2land%swdn_flux, rc=rc)
-   ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_2d(importState, 'Faxa_lwdn' , forc%flux_lw, rc=rc)
-   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! ! call state_getimport_2d(importState, 'Faxa_swnet', forc%flux_sw, rc=rc)
-   ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! ! -----------------------
-   ! call state_getimport_2d(importState, 'Faxa_swvdf', forc%flux_sw_down_vis_dif, rc=rc)
-   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! ! call state_getimport_2d(importState, 'Faxa_swndf', 
-   ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_2d(importState, 'Faxa_swvdr', forc%flux_sw_down_vis_dir, rc=rc)
-   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! ! call state_getimport_2d(importState, 'Faxa_swndr',
-   ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return   
-   ! ! -----------------------
+   call state_getimport_2d(importState, 'Sa_pbot', datar8, rc=rc) ! pressure at lowest model layer (inst_pres_height_lowest)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%p_bot)
 
-   ! call state_getimport_2d(importState, 'Sa_u'      , forc%u_bot, rc=rc)
+   ! call state_getimport_2d(importState, 'Sa_pslv'   , forc%slp, rc=rc) ! instantaneous pressure land and sea surface
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_2d(importState, 'Sa_ua'     , forc%u_bot, rc=rc)
+   ! call state_getimport_2d(importState, 'Sa_shum'   , cplr2land%, rc=rc)
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_2d(importState, 'Sa_v'      , forc%v_bot, rc=rc)
+   ! call state_getimport_2d(importState, 'Sa_qa'     , cplr2land%, rc=rc)
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_2d(importState, 'Sa_va'     , forc%v_bot, rc=rc)
+   ! call state_getimport_2d(importState, 'Faxa_swdn' , cplr2land%swdn_flux, rc=rc)
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+   call state_getimport_2d(importState, 'Faxa_lwdn' , datar8, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%flux_lw)
+
+   ! call state_getimport_2d(importState, 'Faxa_swnet', forc%flux_sw, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! -----------------------
+   call state_getimport_2d(importState, 'Faxa_swvdf', datar8, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%flux_sw_down_vis_dif)
+
+   ! call state_getimport_2d(importState, 'Faxa_swndf', 
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+   call state_getimport_2d(importState, 'Faxa_swvdr', datar8, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%flux_sw_down_vis_dir)
+
+   ! call state_getimport_2d(importState, 'Faxa_swndr',
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return   
+   ! -----------------------
+
+   call state_getimport_2d(importState, 'Sa_u'      , datar8, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_2d(importState, 'Sa_ua'     , datar8, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%u_bot)
+
+   call state_getimport_2d(importState, 'Sa_v'      , datar8, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_2d(importState, 'Sa_va'     , datar8, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%v_bot)
+
    ! ! call state_getimport_2d(importState, 'Sa_exner'  , cplr2land%, rc=rc)
    ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
    ! ! call state_getimport_2d(importState, 'Sa_ustar'  , cplr2land%, rc=rc)
    ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_2d(importState, 'Faxa_rain' , forc%lprec, rc=rc)
-   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+   call state_getimport_2d(importState, 'Faxa_rain' , datar8, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%lprec)
+
    ! ! call state_getimport_2d(importState, 'Faxa_rainc', cplr2land%, rc=rc)
    ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
    ! ! call state_getimport_2d(importState, 'Faxa_rainl', cplr2land%, rc=rc)
    ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   ! call state_getimport_2d(importState, 'Faxa_snow' , forc%fprec, rc=rc)
-   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+   call state_getimport_2d(importState, 'Faxa_snow' , datar8, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%fprec)
+
    ! ! call state_getimport_2d(importState, 'Faxa_snowc', cplr2land%, rc=rc)
    ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
    ! ! call state_getimport_2d(importState, 'Faxa_snowl', cplr2land%, rc=rc)
    ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   
    ! ! call state_getimport_2d(importState, 'vfrac'     , cplr2land%, rc=rc)
    ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
    ! ! call state_getimport_2d(importState, 'zorl'      , cplr2land%, rc=rc)
