@@ -390,16 +390,10 @@ contains
    type(ESMF_GridComp),              intent(in)    :: gcomp
    type(atmos_land_boundary_type),   intent(inout) :: cplr2land
    type(lm4_type),                   intent(inout) :: lm4_model
-   !type(atm_forc_type),              intent(inout) :: forc
    integer,                          intent(out)   :: rc
 
    ! local variables
-   integer :: isc, iec, jsc, jec
-   integer :: i, j, l
    real(r8), dimension(:,:), pointer  :: datar8 
-
-   ! DEBUG:
-   integer :: lower1, upper1, lower2, upper2
 
    type(ESMF_State)            :: importState
    character(len=*), parameter :: subname=trim(modName)//':(import_fields)'
@@ -417,13 +411,6 @@ contains
    ! -----------------------
 
    allocate(datar8(lnd%is:lnd%ie,lnd%js:lnd%je))
-   ! get and write out bounds of datar8:
-   lower1 = lbound(datar8,1)
-   upper1 = ubound(datar8,1)
-   lower2 = lbound(datar8,2)
-   upper2 = ubound(datar8,2)
-   write(*,*) 'datar8 bounds 1: ', lower1, upper1, lower2, upper2
-
 
 
    call state_getimport_2d(importState, 'Sa_z',datar8, rc=rc) ! bottom layer height

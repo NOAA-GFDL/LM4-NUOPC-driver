@@ -47,7 +47,6 @@ module lm4_cap_mod
    type(lm4_type) :: lm4_model
    
    type land_internalstate_type
-      !type(atm_forc_type)            :: Atm_forc ! atm forcing data
       type(land_data_type)           :: From_lnd ! data from land
       type(atmos_land_boundary_type) :: From_atm ! data from atm
       type(time_type)                :: Time_land, Time_init, Time_end,  &
@@ -140,21 +139,14 @@ module lm4_cap_mod
    
    !===============================================================================
    subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
-      
-      !use proc_bounds, only : procbounds, control_init_type
-      
+           
       ! input/output variables
       type(ESMF_GridComp)         :: gcomp
       type(ESMF_State)            :: importState, exportState
       type(ESMF_Clock)            :: clock
       integer, intent(out)        :: rc
       
-      
-      !type (control_init_type), save ::   ctrl_init
-      
-      
-      
-      
+
       ! local variables
       type(ESMF_VM)               :: vm
       integer                     :: lmpicom
@@ -210,7 +202,7 @@ module lm4_cap_mod
       call constants_init
       call sat_vapor_pres_init
       
-      ! orig in surface_flux_init
+      ! originally in surface_flux_init
       call monin_obukhov_init
       
       !------------------------------------------------------------------------
@@ -452,7 +444,7 @@ module lm4_cap_mod
 
       
       ! TMP disable for testing
-      !     call get_time (land_int_state%Time_step_land, sec)
+      call get_time (land_int_state%Time_step_land, sec)
       !     call sfc_boundary_layer(real(sec),land_int_state%From_lnd)
       !     call flux_down_from_atmos(land_int_state%From_lnd)      ! JP: needs review of implicit coupling
       !     call update_land_model_fast(land_int_state%From_atm,land_int_state%From_lnd)
