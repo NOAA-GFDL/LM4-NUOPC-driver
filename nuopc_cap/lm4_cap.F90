@@ -16,10 +16,10 @@ module lm4_cap_mod
    use NUOPC_Model,          only: NUOPC_ModelGet
    
    use lm4_kind_mod,         only: r8 => shr_kind_r8, cl=>shr_kind_cl
-   use lm4_type_mod,         only: atm_forc_type, alloc_atmforc, dealloc_atmforc
+   !use lm4_type_mod,         only: atm_forc_type, alloc_atmforc, dealloc_atmforc
+   use lm4_type_mod,         only: lm4_type, alloc_atmforc, dealloc_atmforc
    use nuopc_lm4_methods,    only: chkerr
-   use lnd_import_export,    only: advertise_fields, realize_fields
-   use lnd_import_export,    only: import_fields
+   use lnd_import_export,    only: advertise_fields, realize_fields, import_fields
    use fms_mod,              only: fms_init, fms_end, uppercase
    use mpp_mod,              only: mpp_error,FATAL, WARNING
    use diag_manager_mod,     only: diag_manager_init, diag_manager_end, &
@@ -28,7 +28,7 @@ module lm4_cap_mod
    use lm4_driver,           only: init_driver
    use land_model_mod,       only: land_model_init, land_model_end
    
-   use land_data_mod,        only: land_data_type, atmos_land_boundary_type
+   use land_data_mod,        only: land_data_type, atmos_land_boundary_type, lnd
    use constants_mod,        only: constants_init
    use monin_obukhov_mod,    only: monin_obukhov_init
    
@@ -43,9 +43,11 @@ module lm4_cap_mod
    private ! except
    
    !---- model defined-types ----
+
+   type(lm4_type) :: lm4_model
    
    type land_internalstate_type
-      type(atm_forc_type)            :: Atm_forc ! atm forcing data
+      !type(atm_forc_type)            :: Atm_forc ! atm forcing data
       type(land_data_type)           :: From_lnd ! data from land
       type(atmos_land_boundary_type) :: From_atm ! data from atm
       type(time_type)                :: Time_land, Time_init, Time_end,  &
@@ -299,7 +301,7 @@ module lm4_cap_mod
       ! Initialize model
       !----------------------------------------------------------------------------
       
-      call init_driver(ctrl_init)
+      call init_driver(lm4_model,ctrl_init)
       
       call land_model_init( land_int_state%From_atm, land_int_state%From_lnd, &
       land_int_state%Time_init, land_int_state%Time_land,                &
@@ -307,7 +309,7 @@ module lm4_cap_mod
       if (mype == 0) write(0,*) '======== COMPLETED land_model_init =========='
       
       ! allocate storage for the atm forc data
-      call alloc_atmforc(land_int_state%atm_forc)
+      call alloc_atmforc(lm4_model%atm_forc)
       
       !----------------------------------------------------------------------------
       ! advertise fields
@@ -376,9 +378,6 @@ module lm4_cap_mod
       call ESMF_VMGetCurrent(vm=VM,rc=RC)
       call ESMF_VMGet(vm=VM, localPet=mype, rc=rc)
       
-      ! JP: ok to remove now?
-      ! calling again now
-      !call init_driver(ctrl_init)
       
       geomtype = ESMF_GEOMTYPE_GRID
       
@@ -448,7 +447,7 @@ module lm4_cap_mod
       !-------------------------------------------------------------------------------
       ! Get import fields
       !-------------------------------------------------------------------------------
-      call import_fields(gcomp, land_int_state%From_atm,land_int_state%Atm_forc, rc)
+      call import_fields(gcomp, land_int_state%From_atm,lm4_model, rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
       
@@ -473,7 +472,7 @@ module lm4_cap_mod
       call land_model_end(land_int_state%From_atm, land_int_state%From_lnd)
 
       ! deallocate storage for the atm forc data
-      call dealloc_atmforc(land_int_state%atm_forc)      
+      call dealloc_atmforc(lm4_model%atm_forc)      
       
    end subroutine ModelFinalize
    

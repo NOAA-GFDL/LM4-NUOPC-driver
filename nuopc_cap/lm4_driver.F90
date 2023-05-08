@@ -5,7 +5,7 @@ module lm4_driver
   
   use proc_bounds,        only: procbounds_type, control_init_type
   use mpp_domains_mod,    only: domain2d
-  use lm4_type_mod
+  use lm4_type_mod,       only: lm4_type
   use land_data_mod,      only: land_data_type, atmos_land_boundary_type, lnd
 
   implicit none
@@ -60,14 +60,16 @@ module lm4_driver
 contains
 
   !subroutine init_driver(procbounds)
-  subroutine init_driver(ctrl_init)
+  subroutine init_driver(lm4_model,ctrl_init)
 
     use mpp_domains_mod,    only: domain2d, mpp_get_compute_domain
     use mpp_mod,            only: mpp_pe, mpp_root_pe
     use land_domain_mod,    only: domain_create
     use block_control_mod,  only: block_control_type, define_blocks_packed
     !use land_restart_mod,   only: sfc_prop_restart_read, sfc_prop_transfer
-    type(control_init_type), intent(out)  ::   ctrl_init
+
+    type(lm4_type),          intent(inout) :: lm4_model ! land model's variable type
+    type(control_init_type), intent(out)   :: ctrl_init
 
     ! ---------------
     ! local
