@@ -1,25 +1,25 @@
-! model test after CTSM
-
 module lm4_cap_mod
    
    !-----------------------------------------------------------------------------
-   ! LND Component.
+   ! LM4 Component
    !-----------------------------------------------------------------------------
    
    use ESMF
-   use NUOPC,                only : NUOPC_CompDerive, NUOPC_CompSetEntryPoint, NUOPC_CompSpecialize
-   use NUOPC,                only : NUOPC_CompFilterPhaseMap, NUOPC_CompAttributeGet, NUOPC_CompAttributeSet
-   use NUOPC_Model,          only : model_routine_SS           => SetServices
-   use NUOPC_Model,          only : SetVM
-   use NUOPC_Model,          only : model_label_Advance        => label_Advance
-   use NUOPC_Model,          only : model_label_DataInitialize => label_DataInitialize
-   use NUOPC_Model,          only : model_label_SetRunClock    => label_SetRunClock
-   use NUOPC_Model,          only : model_label_Finalize       => label_Finalize
-   use NUOPC_Model,          only : NUOPC_ModelGet
+   use NUOPC,                only: NUOPC_CompDerive, NUOPC_CompSetEntryPoint, NUOPC_CompSpecialize
+   use NUOPC,                only: NUOPC_CompFilterPhaseMap, NUOPC_CompAttributeGet, NUOPC_CompAttributeSet
+   use NUOPC_Model,          only: model_routine_SS           => SetServices
+   use NUOPC_Model,          only: SetVM
+   use NUOPC_Model,          only: model_label_Advance        => label_Advance
+   use NUOPC_Model,          only: model_label_DataInitialize => label_DataInitialize
+   use NUOPC_Model,          only: model_label_SetRunClock    => label_SetRunClock
+   use NUOPC_Model,          only: model_label_Finalize       => label_Finalize
+   use NUOPC_Model,          only: NUOPC_ModelGet
    
-   use lm4_kind_mod,         only : r8 => shr_kind_r8, cl=>shr_kind_cl
-   use nuopc_lm4_methods,    only : chkerr
-   use lnd_import_export,    only : advertise_fields, realize_fields
+   use lm4_kind_mod,         only: r8 => shr_kind_r8, cl=>shr_kind_cl
+   !use lm4_type_mod,         only: atm_forc_type, alloc_atmforc, dealloc_atmforc
+   use lm4_type_mod,         only: lm4_type, alloc_atmforc, dealloc_atmforc
+   use nuopc_lm4_methods,    only: chkerr
+   use lnd_import_export,    only: advertise_fields, realize_fields, import_fields
    use fms_mod,              only: fms_init, fms_end, uppercase
    use mpp_mod,              only: mpp_error,FATAL, WARNING
    use diag_manager_mod,     only: diag_manager_init, diag_manager_end, &
@@ -28,7 +28,7 @@ module lm4_cap_mod
    use lm4_driver,           only: init_driver
    use land_model_mod,       only: land_model_init, land_model_end
    
-   use land_data_mod,        only: land_data_type, atmos_land_boundary_type
+   use land_data_mod,        only: land_data_type, atmos_land_boundary_type, lnd
    use constants_mod,        only: constants_init
    use monin_obukhov_mod,    only: monin_obukhov_init
    
@@ -37,29 +37,31 @@ module lm4_cap_mod
    THIRTY_DAY_MONTHS, JULIAN, GREGORIAN,      &
    NOLEAP, NO_CALENDAR
    use sat_vapor_pres_mod,   only: sat_vapor_pres_init
-   use proc_bounds, only : procbounds, control_init_type
+   use proc_bounds,          only: procbounds, control_init_type
    
    implicit none
    private ! except
    
    !---- model defined-types ----
+
+   type(lm4_type) :: lm4_model
    
    type land_internalstate_type
-   type(land_data_type)           :: From_lnd ! data from land
-   type(atmos_land_boundary_type) :: From_atm ! data from atm
-   type(time_type)                :: Time_land, Time_init, Time_end,  &
-   Time_step_land, Time_step_ocean, &
-   Time_restart, Time_step_restart, &
-   Time_atstart
+      type(land_data_type)           :: From_lnd ! data from land
+      type(atmos_land_boundary_type) :: From_atm ! data from atm
+      type(time_type)                :: Time_land, Time_init, Time_end,  &
+                                        Time_step_land, Time_step_ocean, &
+                                        Time_restart, Time_step_restart, &
+                                        Time_atstart
    end type land_internalstate_type
    
    type land_internalstate_wrapper
-   type(land_internalstate_type), pointer :: ptr
+      type(land_internalstate_type), pointer :: ptr
    end type land_internalstate_wrapper
    
    type(land_internalstate_type),pointer,save :: land_int_state
    type(land_internalstate_wrapper),save      :: wrap
-   type (control_init_type), save             :: ctrl_init
+   type(control_init_type), save              :: ctrl_init
    
    integer :: date_init(6)
    
@@ -137,21 +139,14 @@ module lm4_cap_mod
    
    !===============================================================================
    subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
-      
-      !use proc_bounds, only : procbounds, control_init_type
-      
+           
       ! input/output variables
       type(ESMF_GridComp)         :: gcomp
       type(ESMF_State)            :: importState, exportState
       type(ESMF_Clock)            :: clock
       integer, intent(out)        :: rc
       
-      
-      !type (control_init_type), save ::   ctrl_init
-      
-      
-      
-      
+
       ! local variables
       type(ESMF_VM)               :: vm
       integer                     :: lmpicom
@@ -207,7 +202,7 @@ module lm4_cap_mod
       call constants_init
       call sat_vapor_pres_init
       
-      ! orig in surface_flux_init
+      ! originally in surface_flux_init
       call monin_obukhov_init
       
       !------------------------------------------------------------------------
@@ -298,14 +293,15 @@ module lm4_cap_mod
       ! Initialize model
       !----------------------------------------------------------------------------
       
-      call init_driver(ctrl_init)
-      
+      call init_driver(lm4_model,ctrl_init)
       
       call land_model_init( land_int_state%From_atm, land_int_state%From_lnd, &
       land_int_state%Time_init, land_int_state%Time_land,                &
       land_int_state%Time_step_land, land_int_state%Time_step_ocean     )
       if (mype == 0) write(0,*) '======== COMPLETED land_model_init =========='
       
+      ! allocate storage for the atm forc data
+      call alloc_atmforc(lm4_model%atm_forc)
       
       !----------------------------------------------------------------------------
       ! advertise fields
@@ -374,9 +370,6 @@ module lm4_cap_mod
       call ESMF_VMGetCurrent(vm=VM,rc=RC)
       call ESMF_VMGet(vm=VM, localPet=mype, rc=rc)
       
-      ! JP: ok to remove now?
-      ! calling again now
-      !call init_driver(ctrl_init)
       
       geomtype = ESMF_GEOMTYPE_GRID
       
@@ -422,22 +415,36 @@ module lm4_cap_mod
    subroutine ModelAdvance(gcomp, rc)
       
       use lm4_driver,           only: sfc_boundary_layer, flux_down_from_atmos
-      use land_model_mod,          only: update_land_model_fast
+      use land_model_mod,       only: update_land_model_fast
       
       ! Arguments
       type(ESMF_GridComp)  :: gcomp
+      type(ESMF_State)     :: importState, exportState
       integer, intent(out) :: rc
       
       ! Local variables
       character(len=*),parameter :: subname=trim(modName)//':(ModelAdvance) '
-      
       integer :: sec
-      
+
       rc = ESMF_SUCCESS
-      call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
+      call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)      
+      
+
+      !-------------------------------------------------------------------------------
+      ! Get import and export states
+      !-------------------------------------------------------------------------------
+      call NUOPC_ModelGet(gcomp, importState=importState, exportState=exportState, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+      !-------------------------------------------------------------------------------
+      ! Get import fields
+      !-------------------------------------------------------------------------------
+      call import_fields(gcomp, land_int_state%From_atm,lm4_model, rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
       
       ! TMP disable for testing
-      !     call get_time (land_int_state%Time_step_land, sec)
+      call get_time (land_int_state%Time_step_land, sec)
       !     call sfc_boundary_layer(real(sec),land_int_state%From_lnd)
       !     call flux_down_from_atmos(land_int_state%From_lnd)      ! JP: needs review of implicit coupling
       !     call update_land_model_fast(land_int_state%From_atm,land_int_state%From_lnd)
@@ -455,6 +462,9 @@ module lm4_cap_mod
       call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
       
       call land_model_end(land_int_state%From_atm, land_int_state%From_lnd)
+
+      ! deallocate storage for the atm forc data
+      call dealloc_atmforc(lm4_model%atm_forc)      
       
    end subroutine ModelFinalize
    

@@ -1,22 +1,27 @@
 module lnd_import_export
 
-  use ESMF                    , only : ESMF_GridComp, ESMF_State, ESMF_Mesh, ESMF_StateGet
-  use ESMF                    , only : ESMF_KIND_R8, ESMF_SUCCESS, ESMF_END_ABORT, ESMF_Finalize
-  use ESMF                    , only : ESMF_MAXSTR, ESMF_LOGMSG_INFO
-  use ESMF                    , only : ESMF_LogWrite, ESMF_LOGMSG_ERROR, ESMF_LogFoundError, ESMF_FAILURE
-  use ESMF                    , only : ESMF_STATEITEM_NOTFOUND, ESMF_StateItem_Flag
-  use ESMF                    , only : operator(/=), operator(==)
-  use NUOPC                   , only : NUOPC_CompAttributeGet, NUOPC_Advertise, NUOPC_IsConnected
-  use NUOPC_Model             , only : NUOPC_ModelGet
-  use lm4_kind_mod            , only : r8 => shr_kind_r8, cx=>shr_kind_cx, cs=>shr_kind_cs
-  use nuopc_lm4_methods       , only : chkerr
+  use ESMF,                     only: ESMF_GridComp, ESMF_State, ESMF_Mesh, ESMF_StateGet
+  use ESMF,                     only: ESMF_KIND_R8, ESMF_SUCCESS, ESMF_END_ABORT, ESMF_Finalize
+  use ESMF,                     only: ESMF_MAXSTR, ESMF_LOGMSG_INFO
+  use ESMF,                     only: ESMF_LogWrite, ESMF_LOGMSG_ERROR, ESMF_LogFoundError, ESMF_FAILURE
+  use ESMF,                     only: ESMF_STATEITEM_NOTFOUND, ESMF_StateItem_Flag
+  use ESMF,                     only: operator(/=), operator(==)
+  use ESMF,                     only : ESMF_StateItem_Flag, ESMF_STATEITEM_FIELD
+  use NUOPC,                    only: NUOPC_CompAttributeGet, NUOPC_Advertise, NUOPC_IsConnected
+  use NUOPC_Model,              only: NUOPC_ModelGet
+  use lm4_kind_mod,             only: r8 => shr_kind_r8, cx=>shr_kind_cx, cs=>shr_kind_cs
+  use lm4_type_mod,             only: lm4_type
+  use land_data_mod,            only: lnd ! global data
+  use land_data_mod,            only: land_data_type, atmos_land_boundary_type  
+  use nuopc_lm4_methods,        only: chkerr
+  use mpp_domains_mod,          only : mpp_pass_sg_to_ug
 
   implicit none
   private ! except
 
   public  :: advertise_fields
   public  :: realize_fields
-  ! public  :: import_fields
+  public  :: import_fields
   ! public  :: export_fields
 
   private :: fldlist_add
@@ -51,123 +56,10 @@ module lnd_import_export
   integer                :: glc_nec          ! number of glc elevation classes
   integer, parameter     :: debug = 0        ! internal debug level
 
-  !! import fields ------------
-  character(*), parameter :: Faxa_lwdn           = 'Faxa_lwdn'
-  character(*), parameter :: inst_land_sea_mask  = 'inst_land_sea_mask'
-  character(*), parameter :: Faxa_swndr          = 'Faxa_swndr'
-  character(*), parameter :: Faxa_swvdr          = 'Faxa_swvdr'
-  character(*), parameter :: Faxa_swndf          = 'Faxa_swndf'
-  character(*), parameter :: Faxa_swvdf          = 'Faxa_swvdf'
-  character(*), parameter :: Faxa_rain           = 'Faxa_rain'
-  character(*), parameter :: Faxa_snow           = 'Faxa_snow'
-  character(*), parameter :: land_mask           = 'land_mask'
-  character(*), parameter :: sea_surface_temperature  = 'sea_surface_temperature'
-
-  character(*), parameter :: Faxa_soiltyp   = 'Faxa_soiltyp'
-  character(*), parameter :: Faxa_vegtype   = 'Faxa_vegtype'
-  character(*), parameter :: Faxa_sigmaf    = 'Faxa_sigmaf'
-  character(*), parameter :: Faxa_sfcemis   = 'Faxa_sfcemis'
-  character(*), parameter :: Faxa_dlwflx    = 'Faxa_dlwflx'
-  character(*), parameter :: Faxa_dswsfc    = 'Faxa_dswsfc'
-  character(*), parameter :: inst_down_sw_flx = 'inst_down_sw_flx'
-  character(*), parameter :: Faxa_snet      = 'Faxa_snet'
-  character(*), parameter :: Faxa_tg3       = 'Faxa_tg3'
-  character(*), parameter :: Faxa_cm        = 'Faxa_cm'
-  character(*), parameter :: Faxa_ch        = 'Faxa_ch'
-  character(*), parameter :: Faxa_prsl1     = 'Faxa_prsl1'
-  character(*), parameter :: Faxa_prslki    = 'Faxa_prslki'
-  character(*), parameter :: Faxa_zf        = 'Faxa_zf'
-  !character(*), parameter :: Faxa_land      = 'Faxa_land'
-  !character(*), parameter :: Faxa_slopetyp  = 'Faxa_slopetyp'
-  character(*), parameter :: Faxa_shdmin    = 'Faxa_shdmin'
-  character(*), parameter :: Faxa_shdmax    = 'Faxa_shdmax'
-  character(*), parameter :: Faxa_snoalb    = 'Faxa_snoalb'
-  character(*), parameter :: Faxa_sfalb     = 'Faxa_sfalb'
-  character(*), parameter :: Faxa_bexppert  = 'Faxa_bexppert'
-  character(*), parameter :: Faxa_xlaipert  = 'Faxa_xlaipert'
-  character(*), parameter :: Faxa_vegfpert  = 'Faxa_vegfpert'
-  character(*), parameter :: Faxa_prsik1    = 'Faxa_prsik1'
-  character(*), parameter :: Faxa_weasd     = 'Faxa_weasd'
-  character(*), parameter :: Faxa_snwdph    = 'Faxa_snwdph'
-  character(*), parameter :: Faxa_tskin     = 'Faxa_tskin'
-  character(*), parameter :: Faxa_tprcp     = 'Faxa_tprcp'
-  character(*), parameter :: Faxa_srflag    = 'Faxa_srflag'
-  ! character(*), parameter :: Faxa_smc       = 'Faxa_smc'
-  ! character(*), parameter :: Faxa_stc       = 'Faxa_stc'
-  ! character(*), parameter :: Faxa_slc       = 'Faxa_slc'
-  character(*), parameter :: Faxa_canopy    = 'Faxa_canopy'
-  character(*), parameter :: Faxa_trans     = 'Faxa_trans'
-  character(*), parameter :: Faxa_tsurf     = 'Faxa_tsurf'
-  character(*), parameter :: Faxa_z0rl      = 'Faxa_z0rl'
-  character(*), parameter :: Faxa_z0pert    = 'Faxa_z0pert'
-  character(*), parameter :: Faxa_ztpert    = 'Faxa_ztpert'
-  character(*), parameter :: Faxa_ustar     = 'Faxa_ustar'  
-  character(*), parameter :: Faxa_wind      = 'Faxa_wind'
-  character(*), parameter :: Faxa_ps        = 'Faxa_ps'
-  character(*), parameter :: Faxa_t1        = 'Faxa_t1'
-  character(*), parameter :: Faxa_q1        = 'Faxa_q1'
-
-  
-  character(*), parameter :: Faxa_albdvis_lnd  = 'Faxa_albdvis_lnd'
-  character(*), parameter :: Faxa_albdnir_lnd  = 'Faxa_albdnir_lnd'
-  character(*), parameter :: Faxa_albivis_lnd  = 'Faxa_albivis_lnd'
-  character(*), parameter :: Faxa_albinir_lnd  = 'Faxa_albinir_lnd'
-  character(*), parameter :: Faxa_adjvisbmd    = 'Faxa_adjvisbmd'
-  character(*), parameter :: Faxa_adjnirbmd    = 'Faxa_adjnirbmd'
-  character(*), parameter :: Faxa_adjvisdfd    = 'Faxa_adjvisdfd'
-  character(*), parameter :: Faxa_adjnirdfd    = 'Faxa_adjnirdfd'
-  character(*), parameter :: Faxa_prslk1       = 'Faxa_prslk1'
-  character(*), parameter :: Faxa_garea        = 'Faxa_garea'
-  
-  !! export fields --------
-  character(*), parameter :: Sl_lfrin         = 'Sl_lfrin'
-  character(*), parameter :: foo_lnd2atmfield = 'foo_lnd2atmfield'
-  ! inouts
-  character(*), parameter :: Fall_weasd  = 'Fall_weasd'
-  character(*), parameter :: Fall_snwdph = 'Fall_snwdph'
-  character(*), parameter :: Fall_tskin  = 'Fall_tskin'
-  character(*), parameter :: Fall_tprcp  = 'Fall_tprcp'
-  character(*), parameter :: Fall_srflag = 'Fall_srflag'
-  character(*), parameter :: Fall_smc    = 'Fall_smc'
-  character(*), parameter :: Fall_stc    = 'Fall_stc'
-  character(*), parameter :: Fall_slc    = 'Fall_slc'
-  character(*), parameter :: Fall_canopy = 'Fall_canopy'
-  character(*), parameter :: Fall_trans  = 'Fall_trans'
-  character(*), parameter :: Fall_tsurf  = 'Fall_tsurf'
-  character(*), parameter :: Fall_z0rl   = 'Fall_z0rl'
-
-  ! noahouts
-  character(*), parameter :: Fall_sncovr1 = 'Fall_sncovr1'
-  character(*), parameter :: Fall_qsurf   = 'Fall_qsurf'
-  character(*), parameter :: Fall_gflux   = 'Fall_gflux'
-  character(*), parameter :: Fall_drain   = 'Fall_drain'
-  character(*), parameter :: Fall_evap    = 'Fall_evap'
-  character(*), parameter :: Fall_hflx    = 'Fall_hflx'
-  character(*), parameter :: Fall_ep      = 'Fall_ep'
-  character(*), parameter :: Fall_runoff  = 'Fall_runoff'
-  character(*), parameter :: Fall_cmm     = 'Fall_cmm'
-  character(*), parameter :: Fall_chh     = 'Fall_chh'
-  character(*), parameter :: Fall_evbs    = 'Fall_evbs'
-  character(*), parameter :: Fall_evcw    = 'Fall_evcw'
-  character(*), parameter :: Fall_sbsno   = 'Fall_sbsno'
-  character(*), parameter :: Fall_snowc   = 'Fall_snowc'
-  character(*), parameter :: Fall_stm     = 'Fall_stm'
-  character(*), parameter :: Fall_snohf   = 'Fall_snohf'
-  character(*), parameter :: Fall_smcwlt2 = 'Fall_smcwlt2'
-  character(*), parameter :: Fall_smcref2 = 'Fall_smcref2'
-  character(*), parameter :: Fall_wet1    = 'Fall_wet1'
-
-  ! diffouts
-  character(*), parameter :: Fall_rb_lnd   = 'Fall_rb_lnd'
-  character(*), parameter :: Fall_fm_lnd   = 'Fall_fm_lnd'
-  character(*), parameter :: Fall_fh_lnd   = 'Fall_fh_lnd'
-  character(*), parameter :: Fall_fm10_lnd = 'Fall_fm10_lnd'
-  character(*), parameter :: Fall_fh2_lnd  = 'Fall_fh2_lnd'
-  character(*), parameter :: Fall_stress   = 'Fall_stress'
-
 
   logical :: send_to_atm = .false.
 
+  character(*),parameter :: modName =  "(lnd_import_export)"
   character(*),parameter :: F01 = "('(lnd_import_export) ',a,i5,2x,i5,2x,d21.14)"
   character(*),parameter :: u_FILE_u = &
        __FILE__
@@ -176,21 +68,11 @@ module lnd_import_export
 contains
 !===============================================================================
 
-!  subroutine advertise_fields(gcomp, flds_scalar_name, glc_present, cism_evolve, rof_prognostic, atm_prognostic, rc)
   subroutine advertise_fields(gcomp, flds_scalar_name,  rc)
-
-    ! use shr_carma_mod     , only : shr_carma_readnl
-    ! use shr_ndep_mod      , only : shr_ndep_readnl
-    ! use shr_fire_emis_mod , only : shr_fire_emis_readnl
-    ! use clm_varctl        , only : ndep_from_cpl
 
     ! input/output variables
     type(ESMF_GridComp)            :: gcomp
     character(len=*) , intent(in)  :: flds_scalar_name
-    ! logical          , intent(in)  :: glc_present
-    ! logical          , intent(in)  :: cism_evolve
-    ! logical          , intent(in)  :: rof_prognostic
-    ! logical          , intent(in)  :: atm_prognostic
     integer          , intent(out) :: rc
 
     ! local variables
@@ -207,56 +89,17 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     send_to_atm = .true.
-
+    
+    !--------------------------------
+    ! Advertise export fields
+    !--------------------------------
 
     ! export to atm
     if (send_to_atm) then
        ! TODO: actually set land frac for this field
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Sl_lfrin     )
+       call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_lfrin'     )
 
-       call fldlist_add(fldsFrLnd_num, fldsFrLnd, foo_lnd2atmfield    )
-       ! inouts
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_weasd       )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_snwdph      )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_tskin       )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_tprcp       )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_srflag      )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_smc         )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_stc         )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_slc         )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_canopy      )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_trans       )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_tsurf       )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_z0rl        )
 
-       ! noahouts
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_sncovr1      )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_qsurf        )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_gflux        )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_drain        )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_evap         )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_hflx         )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_ep           )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_runoff       )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_cmm          )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_chh          )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_evbs         )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_evcw         )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_sbsno        )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_snowc        )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_stm          )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_snohf        )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_smcwlt2      )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_smcref2      )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_wet1         )
-
-       ! diffouts
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_rb_lnd        )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_fm_lnd        )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_fh_lnd        )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_fm10_lnd      )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_fh2_lnd       )
-       call fldlist_add(fldsFrLnd_num, fldsFrlnd, Fall_stress        )
        
     end if
 
@@ -271,75 +114,43 @@ contains
     ! Advertise import fields
     !--------------------------------
 
-    call fldlist_add(fldsToLnd_num, fldsToLnd, trim(flds_scalar_name))
 
     ! from atm
-    call fldlist_add(fldsToLnd_num, fldsToLnd, Faxa_lwdn    )
-    call fldlist_add(fldsToLnd_num, fldsToLnd, inst_land_sea_mask  )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_swndr)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_swvdr)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_swndf)        
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_swvdf)        
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_rain)          
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_snow)
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_z')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_tbot')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_ta')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_tskn')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_pslv')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_prsl')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_pbot')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_shum')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_qa')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_u')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_v')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_ua')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_va')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_exner')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_ustar')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swdn')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_lwdn')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swnet')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_rainc')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_rainl')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_rain')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snow')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snowc')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snowl')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'vfrac')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'zorl')
+    ! needed?
+    !call fldlist_add(fldsToLnd_num, fldsToLnd,'Faxa_garea')
 
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_soiltyp)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_vegtype)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_sigmaf)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_sfcemis)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_dlwflx)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_dswsfc)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,inst_down_sw_flx)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_snet)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_tg3)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_cm)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_ch)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_prsl1)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_prslki)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_zf)
-    !call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_land)
-    !call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_slopetyp)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_shdmin)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_shdmax)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_snoalb)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_sfalb)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_bexppert)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_xlaipert)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_vegfpert)
-    
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_prsik1)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_weasd )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_snwdph)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_tskin )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_tprcp )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_srflag)
-    ! ! call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_smc   )
-    ! ! call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_stc   )
-    ! ! call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_slc   )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_canopy)
-    ! call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_trans )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_tsurf )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_z0rl  ) 
-    ! call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_z0pert) !!
-    ! call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_ztpert)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_ustar )    
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_wind)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_ps)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_t1)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_q1)
-    ! call fldlist_add(fldsToLnd_num, fldsToLnd,land_mask)          
-    ! call fldlist_add(fldsToLnd_num, fldsToLnd,sea_surface_temperature)
-    
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_albdvis_lnd)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_albdnir_lnd)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_albivis_lnd)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_albinir_lnd)
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_adjvisbmd  )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_adjnirbmd  )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_adjvisdfd  )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_adjnirdfd  )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_prslk1     )
-    call fldlist_add(fldsToLnd_num, fldsToLnd,Faxa_garea      )
+    ! additional provided by CDEPS
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swvdf')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swndf')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swvdr')
+    call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swndr')
+
     
 
     ! Now advertise import fields
@@ -571,10 +382,139 @@ contains
 
   end subroutine fldlist_realize
 
-  !===============================================================================
-  subroutine state_getimport_1d(state, fldname, ctsmdata, rc)
 
-    ! fill in ctsm import data for 1d field
+  !===============================================================================
+  subroutine import_fields(gcomp, cplr2land, lm4_model, rc)
+
+   ! input/output variables
+   type(ESMF_GridComp),              intent(in)    :: gcomp
+   type(atmos_land_boundary_type),   intent(inout) :: cplr2land
+   type(lm4_type),                   intent(inout) :: lm4_model
+   integer,                          intent(out)   :: rc
+
+   ! local variables
+   real(r8), dimension(:,:), pointer  :: datar8 
+
+   type(ESMF_State)            :: importState
+   character(len=*), parameter :: subname=trim(modName)//':(import_fields)'
+   ! ----------------------------------------------
+
+   rc = ESMF_SUCCESS
+   call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
+
+   ! Get export state
+   call NUOPC_ModelGet(gcomp, importState=importState, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+   ! -----------------------
+   ! atm input fields
+   ! -----------------------
+
+   allocate(datar8(lnd%is:lnd%ie,lnd%js:lnd%je))
+
+
+   call state_getimport_2d(importState, 'Sa_z',datar8, rc=rc) ! bottom layer height
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%z_bot)
+
+   ! call state_getimport_2d(importState, 'Sa_ta'     , datar8, rc=rc)  ! bottom layer temperature (inst_temp_height_lowest_from_phys)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call state_getimport_2d(importState, 'Sa_tbot'   , datar8, rc=rc)  ! bottom layer temperature (inst_temp_height_lowest)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%t_bot)
+
+   ! call state_getimport_2d(importState, 'Sa_tskn'   , datar8, rc=rc) ! sea surface skin temperature
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+   ! call state_getimport_2d(importState, 'Sa_prsl'   , forc%p_bot, rc=rc) ! pressure at lowest model layer (inst_pres_height_lowest_from_phys)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call state_getimport_2d(importState, 'Sa_pbot', datar8, rc=rc) ! pressure at lowest model layer (inst_pres_height_lowest)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%p_bot)
+
+   ! call state_getimport_2d(importState, 'Sa_pslv'   , forc%slp, rc=rc) ! instantaneous pressure land and sea surface
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_2d(importState, 'Sa_shum'   , cplr2land%, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_2d(importState, 'Sa_qa'     , cplr2land%, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_2d(importState, 'Faxa_swdn' , cplr2land%swdn_flux, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+   call state_getimport_2d(importState, 'Faxa_lwdn' , datar8, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%flux_lw)
+
+   ! call state_getimport_2d(importState, 'Faxa_swnet', forc%flux_sw, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! -----------------------
+   call state_getimport_2d(importState, 'Faxa_swvdf', datar8, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%flux_sw_down_vis_dif)
+
+   ! call state_getimport_2d(importState, 'Faxa_swndf', 
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+   call state_getimport_2d(importState, 'Faxa_swvdr', datar8, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%flux_sw_down_vis_dir)
+
+   ! call state_getimport_2d(importState, 'Faxa_swndr',
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return   
+   ! -----------------------
+
+   call state_getimport_2d(importState, 'Sa_u'      , datar8, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_2d(importState, 'Sa_ua'     , datar8, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%u_bot)
+
+   call state_getimport_2d(importState, 'Sa_v'      , datar8, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! call state_getimport_2d(importState, 'Sa_va'     , datar8, rc=rc)
+   ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%v_bot)
+
+   ! ! call state_getimport_2d(importState, 'Sa_exner'  , cplr2land%, rc=rc)
+   ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! ! call state_getimport_2d(importState, 'Sa_ustar'  , cplr2land%, rc=rc)
+   ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+   call state_getimport_2d(importState, 'Faxa_rain' , datar8, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%lprec)
+
+   ! ! call state_getimport_2d(importState, 'Faxa_rainc', cplr2land%, rc=rc)
+   ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! ! call state_getimport_2d(importState, 'Faxa_rainl', cplr2land%, rc=rc)
+   ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+   call state_getimport_2d(importState, 'Faxa_snow' , datar8, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%fprec)
+
+   ! ! call state_getimport_2d(importState, 'Faxa_snowc', cplr2land%, rc=rc)
+   ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! ! call state_getimport_2d(importState, 'Faxa_snowl', cplr2land%, rc=rc)
+   ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   
+   ! ! call state_getimport_2d(importState, 'vfrac'     , cplr2land%, rc=rc)
+   ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   ! ! call state_getimport_2d(importState, 'zorl'      , cplr2land%, rc=rc)
+   ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   
+   deallocate(datar8)
+
+   call ESMF_LogWrite(subname//' done', ESMF_LOGMSG_INFO)
+
+ end subroutine import_fields
+
+
+
+  !===============================================================================
+  subroutine state_getimport_1d(state, fldname, lm4data_1d, rc)
+
+    ! fill in lm4 import data for 1d field
 
     use ESMF, only : ESMF_LOGERR_PASSTHRU, ESMF_END_ABORT, ESMF_LogFoundError
     use ESMF, only : ESMF_Finalize
@@ -582,65 +522,76 @@ contains
     ! input/output variabes
     type(ESMF_State) , intent(in)    :: state
     character(len=*) , intent(in)    :: fldname
-    real(r8)         , intent(inout) :: ctsmdata(:)
+    real(r8)         , intent(inout) :: lm4data_1d(:)
     integer          , intent(out)   :: rc
 
     ! local variables
     real(r8), pointer :: fldPtr1d(:)
-    integer           :: g
+    type(ESMF_StateItem_Flag)   :: itemType
     character(len=*), parameter :: subname='(lnd_import_export:state_getimport_1d)'
     ! ----------------------------------------------
 
     rc = ESMF_SUCCESS
 
-    call state_getfldptr(State, trim(fldname), fldptr1d=fldptr1d, rc=rc)
+    call ESMF_StateGet(state, itemName=trim(fldname), itemType=itemType, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    do g = 1,size(ctsmdata)
-       ctsmdata(g) = fldptr1d(g)
-    end do
-    !call check_for_nans(ctsmdata, trim(fldname), 1)
+
+    if (itemType == ESMF_STATEITEM_FIELD) then
+
+      call state_getfldptr(State, trim(fldname), fldptr1d=fldptr1d, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      lm4data_1d(:) = fldptr1d(:)
+      !call check_for_nans(lm4data_1d, trim(fldname), 1)
+    else
+      call ESMF_LogWrite(subname//' '//trim(fldname)//' is not in the state!', ESMF_LOGMSG_INFO)
+   end if
+
 
   end subroutine state_getimport_1d
 
   !===============================================================================
-  ! subroutine state_getimport_2d(state, fldname, ctsmdata, rc)
+  subroutine state_getimport_2d(state, fldname, lm4data_2d, rc)
 
-  !   ! fill in ctsm import data for 2d field
+   ! fill in lm4 import data for 2d field, convert to 1d
 
-  !   use ESMF, only : ESMF_LOGERR_PASSTHRU, ESMF_END_ABORT, ESMF_LogFoundError
-  !   use ESMF, only : ESMF_Finalize
+   use ESMF, only : ESMF_LOGERR_PASSTHRU, ESMF_END_ABORT, ESMF_LogFoundError
+   use ESMF, only : ESMF_Finalize
 
-  !   ! input/output variabes
-  !   type(ESMF_State) , intent(in)    :: state
-  !   character(len=*) , intent(in)    :: fldname
-  !   real(r8)         , intent(inout) :: ctsmdata(:,:)
-  !   integer          , intent(out)   :: rc
+   ! input/output variabes
+   type(ESMF_State) , intent(in)    :: state
+   character(len=*) , intent(in)    :: fldname
+   real(r8)         , intent(inout) :: lm4data_2d(:,:)
+   integer          , intent(out)   :: rc
 
-  !   ! local variables
-  !   real(r8), pointer :: fldPtr2d(:,:)
-  !   integer           :: g,n
-  !   character(len=CS) :: cnum
-  !   character(len=*), parameter :: subname='(lnd_import_export:state_getimport_1d)'
-  !   ! ----------------------------------------------
+   ! local variables
+   real(r8), pointer :: fldPtr2d(:,:)
+   type(ESMF_StateItem_Flag)   :: itemType
+   character(len=*), parameter :: subname='(lnd_import_export:state_getimport_2d)'
+   ! ----------------------------------------------
 
-  !   rc = ESMF_SUCCESS
+   rc = ESMF_SUCCESS
 
-  !   call state_getfldptr(state, trim(fldname), fldptr2d=fldptr2d, rc=rc)
-  !   if (ChkErr(rc,__LINE__,u_FILE_u)) return
-  !   do n = 1,size(ctsmdata, dim=2)
-  !      write(cnum,'(i0)') n
-  !      do g = 1,size(ctsmdata,dim=1)
-  !         ctsmdata(g,n) = fldptr2d(n,g)
-  !      end do
-  !      call check_for_nans(ctsmdata(:,n), trim(fldname)//trim(cnum), 1)
-  !   end do
+   call ESMF_StateGet(state, itemName=trim(fldname), itemType=itemType, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-  ! end subroutine state_getimport_2d
+   if (itemType == ESMF_STATEITEM_FIELD) then
+
+     call state_getfldptr(State, trim(fldname), fldptr2d=fldptr2d, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+     lm4data_2d(:,:) = fldptr2d(:,:)
+     !call check_for_nans(lm4data_2d, trim(fldname), 1)
+   else
+     call ESMF_LogWrite(subname//' '//trim(fldname)//' is not in the state!', ESMF_LOGMSG_INFO)
+  end if
+
+
+ end subroutine state_getimport_2d
+
 
   ! !===============================================================================
-  ! subroutine state_setexport_1d(state, fldname, ctsmdata, minus, rc)
+  ! subroutine state_setexport_1d(state, fldname, lm4data, minus, rc)
 
-  !   ! fill in ctsm export data for 1d field
+  !   ! fill in lm4 export data for 1d field
 
   !   use ESMF, only : ESMF_LOGERR_PASSTHRU, ESMF_END_ABORT, ESMF_LogFoundError
   !   use ESMF, only : ESMF_Finalize
@@ -648,7 +599,7 @@ contains
   !   ! input/output variabes
   !   type(ESMF_State) , intent(in) :: state
   !   character(len=*) , intent(in) :: fldname
-  !   real(r8)         , intent(in) :: ctsmdata(:)
+  !   real(r8)         , intent(in) :: lm4data(:)
   !   logical, optional, intent(in) :: minus
   !   integer          , intent(out):: rc
 
@@ -662,60 +613,18 @@ contains
   !   if (ChkErr(rc,__LINE__,u_FILE_u)) return
   !   fldptr1d(:) = 0._r8
   !   if (present(minus)) then
-  !      do g = 1,size(ctsmdata)
-  !         fldptr1d(g) = -ctsmdata(g)
+  !      do g = 1,size(lm4data)
+  !         fldptr1d(g) = -lm4data(g)
   !      end do
   !   else
-  !      do g = 1,size(ctsmdata)
-  !         fldptr1d(g) = ctsmdata(g)
+  !      do g = 1,size(lm4data)
+  !         fldptr1d(g) = lm4data(g)
   !      end do
   !   end if
-  !   call check_for_nans(ctsmdata, trim(fldname), 1)
+  !   call check_for_nans(lm4data, trim(fldname), 1)
 
   ! end subroutine state_setexport_1d
 
-  ! !===============================================================================
-  ! subroutine state_setexport_2d(state, fldname, ctsmdata, minus, rc)
-
-  !   ! fill in ctsm export data for 2d field
-
-  !   use ESMF, only : ESMF_LOGERR_PASSTHRU, ESMF_END_ABORT, ESMF_LogFoundError
-  !   use ESMF, only : ESMF_Finalize
-
-  !   ! input/output variabes
-  !   type(ESMF_State) , intent(in) :: state
-  !   character(len=*) , intent(in) :: fldname
-  !   real(r8)         , intent(in) :: ctsmdata(:,:)
-  !   logical, optional, intent(in) :: minus
-  !   integer          , intent(out):: rc
-
-  !   ! local variables
-  !   real(r8), pointer :: fldPtr2d(:,:)
-  !   integer           :: g, n
-  !   character(len=CS) :: cnum
-  !   character(len=*), parameter :: subname='(lnd_export_export:state_setexport_2d)'
-  !   ! ----------------------------------------------
-
-  !   rc = ESMF_SUCCESS
-
-  !   call state_getfldptr(state, trim(fldname), fldptr2d=fldptr2d, rc=rc)
-  !   if (ChkErr(rc,__LINE__,u_FILE_u)) return
-  !   fldptr2d(:,:) = 0._r8
-  !   do n = 1,size(ctsmdata, dim=2)
-  !      write(cnum,'(i0)') n
-  !      if (present(minus)) then
-  !         do g = 1,size(ctsmdata, dim=1)
-  !            fldptr2d(n,g) = -ctsmdata(g,n)
-  !         end do
-  !      else
-  !         do g = 1,size(ctsmdata, dim=1)
-  !            fldptr2d(n,g) = ctsmdata(g,n)
-  !         end do
-  !      end if
-  !      call check_for_nans(ctsmdata(:,n), trim(fldname)//trim(cnum), 1)
-  !   end do
-
-  ! end subroutine state_setexport_2d
 
   !===============================================================================
   subroutine state_getfldptr(State, fldname, fldptr1d, fldptr2d, rc)
@@ -727,6 +636,9 @@ contains
     use ESMF , only : ESMF_State, ESMF_Field, ESMF_Mesh, ESMF_FieldStatus_Flag
     use ESMF , only : ESMF_StateGet, ESMF_FieldGet, ESMF_MeshGet
     use ESMF , only : ESMF_FIELDSTATUS_COMPLETE, ESMF_FAILURE
+    ! TMP DEBUG
+    use ESMF , only : ESMF_ArraySpec
+    ! END TMP DEBUG
 
     ! input/output variables
     type(ESMF_State),             intent(in)    :: State
@@ -741,20 +653,27 @@ contains
     character(len=*), parameter :: subname='(lnd_import_export:state_getfldptr)'
     ! ----------------------------------------------
 
+    ! TMP DEBUG VARS
+    type(ESMF_ArraySpec) :: arrayspec
+    ! END TMP DEBUG VARS
+
     rc = ESMF_SUCCESS
 
     call ESMF_StateGet(State, itemName=trim(fldname), field=lfield, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     if (present(fldptr1d)) then
-       if (.not.associated(fldptr1d)) then
-          write(*,*) 'fldptr1d not associated'
-       endif
+
+      ! JP TMP DEBUG
+      ! call ESMF_FieldGet(lfield, arrayspec=arrayspec, rc=rc)
+      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      ! call ESMF_ArraySpecPrint(arrayspec, rc)
+      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+      ! END JP TMP DEBUG
+
        call ESMF_FieldGet(lfield, farrayPtr=fldptr1d, rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     else if (present(fldptr2d)) then
-       if (.not.associated(fldptr2d)) then
-          write(*,*) 'fldptr2d not associated'
-       endif
        call ESMF_FieldGet(lfield, farrayPtr=fldptr2d, rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     else

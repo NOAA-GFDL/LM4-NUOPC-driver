@@ -3,9 +3,9 @@ module lm4_driver
   !use machine, only: kind_phys
 !#include <fms_platform.h>  ! for r8_kind
   
-  use proc_bounds,        only: procbounds_type, control_init_type
+  use proc_bounds,        only: control_init_type
   use mpp_domains_mod,    only: domain2d
-  use lm4_type_mod
+  use lm4_type_mod,       only: lm4_type
   use land_data_mod,      only: land_data_type, atmos_land_boundary_type, lnd
 
   implicit none
@@ -21,7 +21,7 @@ module lm4_driver
   type(control_init_type),  public :: ctrl_init
 
   
-  public :: init_driver, run_driver, end_driver
+  public :: init_driver, end_driver
   public :: sfc_boundary_layer, flux_down_from_atmos
   
   ! ---- namelist with default values ------------------------------------------
@@ -35,8 +35,8 @@ module lm4_driver
   logical :: alt_gustiness         = .false. !< An alternaive formulation for gustiness calculation.  A minimum bound on the wind
                                              !! speed used influx calculations, with the bound equal to gust_const
 
-  real    :: gust_const            =  1.0 !< Constant for alternative gustiness calculation
-  real    :: gust_min              =  0.0 !< Minimum gustiness used when alt_gustiness is .FALSE.
+  real    :: gust_const            =  1.0    !< Constant for alternative gustiness calculation
+  real    :: gust_min              =  0.0    !< Minimum gustiness used when alt_gustiness is .FALSE.
 
   ! --- namelist of vars originally from flux exchange nml
   real :: z_ref_heat =  2. !< Reference height (meters) for temperature and relative humidity diagnostics (t_ref, rh_ref, del_h, del_q)
@@ -60,14 +60,16 @@ module lm4_driver
 contains
 
   !subroutine init_driver(procbounds)
-  subroutine init_driver(ctrl_init)
+  subroutine init_driver(lm4_model,ctrl_init)
 
     use mpp_domains_mod,    only: domain2d, mpp_get_compute_domain
     use mpp_mod,            only: mpp_pe, mpp_root_pe
     use land_domain_mod,    only: domain_create
     use block_control_mod,  only: block_control_type, define_blocks_packed
     !use land_restart_mod,   only: sfc_prop_restart_read, sfc_prop_transfer
-    type(control_init_type), intent(out)  ::   ctrl_init
+
+    type(lm4_type),          intent(inout) :: lm4_model ! land model's variable type
+    type(control_init_type), intent(out)   :: ctrl_init
 
     ! ---------------
     ! local
@@ -113,7 +115,7 @@ contains
     lm4_model%control%iec = iec
     lm4_model%control%jsc = jsc
     lm4_model%control%jec = jec
-    lm4_model%static%im   = im
+    !lm4_model%static%im   = im
     !call lm4_model%Create(im)
 
     
@@ -127,29 +129,6 @@ contains
     
   end subroutine init_driver
 
-  ! ---------------------------------------
-  subroutine run_driver(lm4_model)
-
-    type(lm4_type),        intent(inout) :: lm4_model(:) ! land model's variable type
-
-    ! ! local
-    real                   :: dt   ! Timestep
-    type(land_data_type)   :: Land ! GFDL derived data type to specify land boundary data
-    type(atmos_land_boundary_type)  :: Atm  ! GFDL derived data type to specify atmosphere boundary data
-    !real(kind_phys)         :: foodata(noah_model%static%im)
-    ! !
-
-    !     )
-    !!
-    
-    call sfc_boundary_layer(dt,Land)
-    !call flux_down_from_atmos(Land,Atm)
-
-    ! ! Actually run land model
-    ! call update_land_model_fast ( Atmos_land_boundary, Land )
-
-    !end associate
-  end subroutine run_driver
 
   ! ---------------------------------------
   subroutine sfc_boundary_layer( dt,Land )
