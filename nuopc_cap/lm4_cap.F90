@@ -23,7 +23,7 @@ module lm4_cap_mod
    use fms_mod,              only: fms_init, fms_end, uppercase
    use mpp_mod,              only: mpp_error,FATAL, WARNING
    use diag_manager_mod,     only: diag_manager_init, diag_manager_end, &
-   diag_manager_set_time_end
+                                   diag_manager_set_time_end
    
    use lm4_driver,           only: init_driver
    use land_model_mod,       only: land_model_init, land_model_end
@@ -33,9 +33,9 @@ module lm4_cap_mod
    use monin_obukhov_mod,    only: monin_obukhov_init
    
    use time_manager_mod,     only: time_type, set_calendar_type, set_date,    &
-   set_time, get_time,                        &
-   THIRTY_DAY_MONTHS, JULIAN, GREGORIAN,      &
-   NOLEAP, NO_CALENDAR
+                                   set_time, get_time,                        &
+                                   THIRTY_DAY_MONTHS, JULIAN, GREGORIAN,      &
+                                   NOLEAP, NO_CALENDAR
    use sat_vapor_pres_mod,   only: sat_vapor_pres_init
    use proc_bounds,          only: procbounds, control_init_type
    
@@ -462,6 +462,8 @@ module lm4_cap_mod
       call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
       
       call land_model_end(land_int_state%From_atm, land_int_state%From_lnd)
+
+      call diag_manager_end(land_int_state%Time_land)
 
       ! deallocate storage for the atm forc data
       call dealloc_atmforc(lm4_model%atm_forc)      
