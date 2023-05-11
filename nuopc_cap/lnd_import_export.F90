@@ -94,6 +94,8 @@ contains
     ! Advertise export fields
     !--------------------------------
 
+    ! TODO: Sl_lfrin needed by mediator
+    
     ! export to atm
     if (send_to_atm) then
        ! TODO: actually set land frac for this field
@@ -416,6 +418,9 @@ contains
    call state_getimport_2d(importState, 'Sa_z',datar8, rc=rc) ! bottom layer height
    if (ChkErr(rc,__LINE__,u_FILE_u)) return
    call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%z_bot)
+   ! to check 2d data, send_data(id, datar8)
+   ! but first register id in init with register_diag_field
+
 
    ! call state_getimport_2d(importState, 'Sa_ta'     , datar8, rc=rc)  ! bottom layer temperature (inst_temp_height_lowest_from_phys)
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
