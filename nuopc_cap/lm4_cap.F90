@@ -16,8 +16,9 @@ module lm4_cap_mod
    use NUOPC_Model,          only: NUOPC_ModelGet
 
    use lm4_kind_mod,         only: r8 => shr_kind_r8, cl=>shr_kind_cl
-   !use lm4_type_mod,         only: atm_forc_type, alloc_atmforc, dealloc_atmforc
    use lm4_type_mod,         only: lm4_type, alloc_atmforc, dealloc_atmforc
+   use lm4_type_mod,         only: alloc_atmforc2d, dealloc_atmforc2d ! TMP DEBUG
+
    use nuopc_lm4_methods,    only: chkerr
    use lnd_import_export,    only: advertise_fields, realize_fields, import_fields
    use fms_mod,              only: fms_init, fms_end, uppercase
@@ -308,6 +309,8 @@ contains
       ! allocate storage for the atm forc data
       call alloc_atmforc(lm4_model%atm_forc)
 
+      call alloc_atmforc2d(lm4_model%atm_forc2d) ! TMP DEBUG
+
       !----------------------------------------------------------------------------
       ! advertise fields
       !----------------------------------------------------------------------------
@@ -452,7 +455,7 @@ contains
 
       ! option to write out diag history of imports
       if (debug_cap > 0) then
-         call debug_diag()
+         call debug_diag(land_int_state%Time_land, lm4_model)
       endif
 
       ! TMP disable for testing
@@ -479,6 +482,8 @@ contains
 
       ! deallocate storage for the atm forc data
       call dealloc_atmforc(lm4_model%atm_forc)
+
+      call dealloc_atmforc2d(lm4_model%atm_forc2d) ! TMP DEBUG
 
    end subroutine ModelFinalize
 

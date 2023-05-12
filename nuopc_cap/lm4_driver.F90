@@ -854,16 +854,21 @@ contains
    ! ----------------------------------------
    ! Write out diagnostic history
    ! ----------------------------------------
-   subroutine debug_diag()
+   subroutine debug_diag(lm4_time,lm4_model)
+      
       use mpp_domains_mod,  only : mpp_get_ntile_count
       use diag_manager_mod, only : diag_axis_init, register_static_field, &
-         register_diag_field, diag_field_add_attribute, send_data
+                                   register_diag_field, diag_field_add_attribute, send_data
+      use time_manager_mod,     only: time_type
 
+
+      type(time_type), intent(in)   :: lm4_time
+      type(lm4_type), intent(inout) :: lm4_model
       !integer, intent(out) :: id_cellarea
 
       integer :: id_cellarea
       ! fields to be written out
-      integer :: id_sw_down_vis_dif
+      integer :: id_swdn_vf, id_t_bot, id_p_bot
       ! other local vars
       integer :: id_lon, id_lat, id_lonb, id_latb
       integer :: i
@@ -900,15 +905,38 @@ contains
          call diag_field_add_attribute(id_cellarea,'cell_methods','area: sum')
 
          ! here try to add another field
-         id_sw_down_vis_dif = register_diag_field( 'lm4_dbug_diag', 'sw_down_vis_dif', &
-            (/id_lon, id_lat/), lnd%time, 'shortwave downwelling vis. diffuse radiation', &
+         id_swdn_vf = register_diag_field( 'lm4_dbug_diag', 'sw_down_vis_dif', &
+            (/id_lon, id_lat/), lm4_time,  'shortwave downwelling vis. diffuse radiation', &
             'W/m2', missing_value=-1.0e+20 )
+         id_t_bot = register_diag_field( 'lm4_dbug_diag', 't_bot', &
+            (/id_lon, id_lat/), lm4_time, 'bottom temperature', &
+            'K', missing_value=-1.0e+20 )
+         id_p_bot = register_diag_field( 'lm4_dbug_diag', 'p_bot', &
+            (/id_lon, id_lat/), lm4_time, 'bottom pressure', &
+            'Pa', missing_value=-1.0e+20 )
 
-         ! send out data to be written
-         if ( id_cellarea > 0 ) used = send_data ( id_cellarea, lnd%sg_cellarea, lnd%time )
-         used = send_data ( id_sw_down_vis_dif, &
-            lm4_model%atm_forc%flux_sw_down_vis_dif, lnd%time )
-            
+         ! send out data to be written ----------------------------
+         if (id_cellarea > 0) used = send_data(id_cellarea, lnd%sg_cellarea, lm4_time)
+         if (id_swdn_vf > 0)  used = send_data(id_swdn_vf,  lm4_model%atm_forc2d%flux_sw_down_vis_dif, lm4_time)
+         if (id_t_bot > 0)    used = send_data(id_t_bot,    lm4_model%atm_forc2d%t_bot, lm4_time)
+         if (id_p_bot > 0)    used = send_data(id_p_bot,    lm4_model%atm_forc2d%p_bot, lm4_time)
+
+         ! TMP DEBUG
+         ! check if pointer address is mapped:
+
+
+         ! write out min, max, mean of lm4_model%atm_forc%t_bot
+         write(*,*) 'lm4_model%atm_forc%t_bot = ', minval(lm4_model%atm_forc%t_bot), &
+            maxval(lm4_model%atm_forc%t_bot), sum(lm4_model%atm_forc%t_bot)/size(lm4_model%atm_forc%t_bot)
+         
+         ! write out min, max, mean of lm4_model%atm_forc2d%t_bot
+         write(*,*) 'lm4_model%atm_forc2d%t_bot = ', minval(lm4_model%atm_forc2d%t_bot), &
+            maxval(lm4_model%atm_forc2d%t_bot), sum(lm4_model%atm_forc2d%t_bot)/size(lm4_model%atm_forc2d%t_bot)
+         
+         !write(*,*) 'lm4_model%atm_forc%t_bot(ls) = ', lm4_model%atm_forc%t_bot(lnd%ls)
+         !write(*,*) 'lm4_model%atm_forc2d%t_bot(is,ij) = ', lm4_model%atm_forc2d%t_bot(lnd%is,lnd%js)
+         ! END TMP DEBUG         
+
       endif ! first_call
 
 

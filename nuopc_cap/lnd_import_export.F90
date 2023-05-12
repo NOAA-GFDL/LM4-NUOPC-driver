@@ -95,7 +95,7 @@ contains
     !--------------------------------
 
     ! TODO: Sl_lfrin needed by mediator
-    
+
     ! export to atm
     if (send_to_atm) then
        ! TODO: actually set land frac for this field
@@ -418,15 +418,26 @@ contains
    call state_getimport_2d(importState, 'Sa_z',datar8, rc=rc) ! bottom layer height
    if (ChkErr(rc,__LINE__,u_FILE_u)) return
    call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%z_bot)
-   ! to check 2d data, send_data(id, datar8)
-   ! but first register id in init with register_diag_field
 
+   lm4_model%atm_forc2d%z_bot = datar8 ! TMP DEBUG
 
    ! call state_getimport_2d(importState, 'Sa_ta'     , datar8, rc=rc)  ! bottom layer temperature (inst_temp_height_lowest_from_phys)
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
    call state_getimport_2d(importState, 'Sa_tbot'   , datar8, rc=rc)  ! bottom layer temperature (inst_temp_height_lowest)
    if (ChkErr(rc,__LINE__,u_FILE_u)) return
    call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%t_bot)
+
+   lm4_model%atm_forc2d%t_bot = datar8 ! TMP DEBUG
+
+   ! ! TMP DEBUG
+   ! ! print out some of of datar8:
+   ! write(*,*) 'datar8(is,ij) = ', datar8(lnd%is,lnd%js)
+   ! ! print out some of of lm4_model%atm_forc%t_bot:
+   ! write(*,*) 'lm4_model%atm_forc%t_bot(ls) = ', lm4_model%atm_forc%t_bot(lnd%ls)
+   ! lm4_model%atm_forc2d%t_bot = datar8
+   ! ! print out some of of lm4_model%atm_forc2d%t_bot:
+   ! write(*,*) 'lm4_model%atm_forc2d%t_bot(is,ij) = ', lm4_model%atm_forc2d%t_bot(lnd%is,lnd%js)
+   ! ! END TMP DEBUG
 
    ! call state_getimport_2d(importState, 'Sa_tskn'   , datar8, rc=rc) ! sea surface skin temperature
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -436,6 +447,8 @@ contains
    call state_getimport_2d(importState, 'Sa_pbot', datar8, rc=rc) ! pressure at lowest model layer (inst_pres_height_lowest)
    if (ChkErr(rc,__LINE__,u_FILE_u)) return
    call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%p_bot)
+
+   lm4_model%atm_forc2d%p_bot = datar8 ! TMP DEBUG
 
    ! call state_getimport_2d(importState, 'Sa_pslv'   , forc%slp, rc=rc) ! instantaneous pressure land and sea surface
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -456,6 +469,8 @@ contains
    call state_getimport_2d(importState, 'Faxa_swvdf', datar8, rc=rc)
    if (ChkErr(rc,__LINE__,u_FILE_u)) return
    call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%flux_sw_down_vis_dif)
+
+   lm4_model%atm_forc2d%flux_sw_down_vis_dif = datar8 ! TMP DEBUG
 
    ! call state_getimport_2d(importState, 'Faxa_swndf', 
    ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -507,7 +522,7 @@ contains
    ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
    ! ! call state_getimport_2d(importState, 'zorl'      , cplr2land%, rc=rc)
    ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-   
+      
    deallocate(datar8)
 
    call ESMF_LogWrite(subname//' done', ESMF_LOGMSG_INFO)
