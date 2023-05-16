@@ -868,14 +868,14 @@ contains
 
       integer :: id_cellarea
       ! fields to be written out
-      integer :: id_swdn_vf, id_t_bot, id_p_bot
+      integer :: id_swdn_vf, id_z_bot, id_t_bot, id_p_bot
       ! other local vars
       integer :: id_lon, id_lat, id_lonb, id_latb
       integer :: i
       logical :: used
       logical :: first_call = .true.
 
-      ! if first call, initialize output on structure grid, with cell_area
+      ! only run if first call, initialize output on structure grid, with cell_area
       if (first_call) then
          first_call = .false.
 
@@ -914,28 +914,16 @@ contains
          id_p_bot = register_diag_field( 'lm4_dbug_diag', 'p_bot', &
             (/id_lon, id_lat/), lm4_time, 'bottom pressure', &
             'Pa', missing_value=-1.0e+20 )
+         id_z_bot = register_diag_field( 'lm4_dbug_diag', 'z_bot', &
+            (/id_lon, id_lat/), lm4_time, 'bottom depth', &
+            'm', missing_value=-1.0e+20 )
 
          ! send out data to be written ----------------------------
          if (id_cellarea > 0) used = send_data(id_cellarea, lnd%sg_cellarea, lm4_time)
          if (id_swdn_vf > 0)  used = send_data(id_swdn_vf,  lm4_model%atm_forc2d%flux_sw_down_vis_dif, lm4_time)
          if (id_t_bot > 0)    used = send_data(id_t_bot,    lm4_model%atm_forc2d%t_bot, lm4_time)
-         if (id_p_bot > 0)    used = send_data(id_p_bot,    lm4_model%atm_forc2d%p_bot, lm4_time)
-
-         ! TMP DEBUG
-         ! check if pointer address is mapped:
-
-
-         ! write out min, max, mean of lm4_model%atm_forc%t_bot
-         write(*,*) 'lm4_model%atm_forc%t_bot = ', minval(lm4_model%atm_forc%t_bot), &
-            maxval(lm4_model%atm_forc%t_bot), sum(lm4_model%atm_forc%t_bot)/size(lm4_model%atm_forc%t_bot)
-         
-         ! write out min, max, mean of lm4_model%atm_forc2d%t_bot
-         write(*,*) 'lm4_model%atm_forc2d%t_bot = ', minval(lm4_model%atm_forc2d%t_bot), &
-            maxval(lm4_model%atm_forc2d%t_bot), sum(lm4_model%atm_forc2d%t_bot)/size(lm4_model%atm_forc2d%t_bot)
-         
-         !write(*,*) 'lm4_model%atm_forc%t_bot(ls) = ', lm4_model%atm_forc%t_bot(lnd%ls)
-         !write(*,*) 'lm4_model%atm_forc2d%t_bot(is,ij) = ', lm4_model%atm_forc2d%t_bot(lnd%is,lnd%js)
-         ! END TMP DEBUG         
+         if (id_p_bot > 0)    used = send_data(id_p_bot,    lm4_model%atm_forc2d%p_bot, lm4_time)   
+         if (id_z_bot > 0)    used = send_data(id_z_bot,    lm4_model%atm_forc2d%z_bot, lm4_time)
 
       endif ! first_call
 
