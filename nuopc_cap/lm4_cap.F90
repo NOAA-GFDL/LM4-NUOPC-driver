@@ -300,17 +300,18 @@ contains
       !----------------------------------------------------------------------------
 
       call init_driver(lm4_model,ctrl_init)
-
+     
       call land_model_init( land_int_state%From_atm, land_int_state%From_lnd, &
          land_int_state%Time_init, land_int_state%Time_land,                &
          land_int_state%Time_step_land, land_int_state%Time_step_ocean     )
-
+      
       call ESMF_LogWrite('======== COMPLETED land_model_init ==========', ESMF_LOGMSG_INFO)
 
       ! allocate storage for the atm forc data
       call alloc_atmforc(lm4_model%atm_forc)
-
-      call alloc_atmforc2d(lm4_model%atm_forc2d) ! TMP DEBUG
+      if (debug_cap > 0) then
+         call alloc_atmforc2d(lm4_model%atm_forc2d) ! TMP DEBUG
+      endif
 
       !----------------------------------------------------------------------------
       ! advertise fields
@@ -414,11 +415,17 @@ contains
       endif
 
 
-      ! ---------------------
+      ! ------------------------------------
       ! Realize the actively coupled fields
-      ! ---------------------
+      ! ------------------------------------
       call realize_fields(gcomp, grid=lndGrid, flds_scalar_name=flds_scalar_name, &
          flds_scalar_num=flds_scalar_num, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+      ! ---------------------
+      ! Create export state
+      ! ---------------------
+      call export_fields(gcomp,rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
    end subroutine InitializeRealize
@@ -483,8 +490,9 @@ contains
 
       ! deallocate storage for the atm forc data
       call dealloc_atmforc(lm4_model%atm_forc)
-
-      call dealloc_atmforc2d(lm4_model%atm_forc2d) ! TMP DEBUG
+      if (debug_cap > 0) then
+         call dealloc_atmforc2d(lm4_model%atm_forc2d) ! TMP DEBUG
+      endif
 
    end subroutine ModelFinalize
 
