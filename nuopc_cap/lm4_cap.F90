@@ -304,7 +304,8 @@ contains
       call land_model_init( land_int_state%From_atm, land_int_state%From_lnd, &
          land_int_state%Time_init, land_int_state%Time_land,                &
          land_int_state%Time_step_land, land_int_state%Time_step_ocean     )
-      if (mype == 0) write(0,*) '======== COMPLETED land_model_init =========='
+
+      call ESMF_LogWrite('======== COMPLETED land_model_init ==========', ESMF_LOGMSG_INFO)
 
       ! allocate storage for the atm forc data
       call alloc_atmforc(lm4_model%atm_forc)
