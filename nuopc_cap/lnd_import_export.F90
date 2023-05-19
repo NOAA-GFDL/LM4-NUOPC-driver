@@ -552,7 +552,7 @@ contains
       if (ChkErr(rc,__LINE__,u_FILE_u)) return 
       
       ! export to mediator
-      call state_setexport_2d(exportState, 'Sl_lfrin', lnd%sg_landfrac)
+      call state_setexport_2d(exportState, 'Sl_lfrin', lnd%sg_landfrac,rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
 
@@ -653,13 +653,13 @@ contains
      ! ----------------------------------------------
 
 
-     call state_getfldptr(state, trim(fldname), fldptr1d=fldptr2d, rc=rc)
+     call state_getfldptr(state, trim(fldname), fldptr2d=fldptr2d, rc=rc)
      if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
       if (present(minus)) then
-         fldptr1d(:,:) = -lm4data(:,:)
+         fldptr2d(:,:) = -lm4data(:,:)
       else
-         fldptr1d(:,:) = lm4data(:,:)
+         fldptr2d(:,:) = lm4data(:,:)
       end if
 
    end subroutine state_setexport_2d
