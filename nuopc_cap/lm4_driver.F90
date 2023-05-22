@@ -1,7 +1,7 @@
 module lm4_driver
 
-   !use machine, only: kind_phys
-   !#include <fms_platform.h>  ! for r8_kind
+   !! Routines to prepare and run the land model
+   !! ------------------------------------------
 
    use proc_bounds,        only: control_init_type
    use mpp_domains_mod,    only: domain2d
@@ -19,7 +19,7 @@ module lm4_driver
    type(domain2D),           public :: land_domain
    type(control_init_type),  public :: ctrl_init
 
-
+   public :: lm4_nml_read
    public :: init_driver, end_driver
    public :: sfc_boundary_layer, flux_down_from_atmos
    public :: debug_diag
@@ -59,7 +59,67 @@ module lm4_driver
 
 contains
 
-   !subroutine init_driver(procbounds)
+   ! Read in lm4 namelist
+   ! ---------------------------------------
+   subroutine lm4_nml_read(lm4_model)
+
+      use fms_mod,             only: check_nml_error, close_file, file_exist
+      use mpp_mod,             only: mpp_pe, mpp_root_pe
+#ifdef INTERNAL_FILE_NML
+      use mpp_mod,             only: input_nml_file
+#else
+      use fms_mod,             only: open_namelist_file
+#endif
+
+      type(lm4_type),          intent(inout) :: lm4_model ! land model's variable type
+      ! ------------------------------------------
+
+      ! namelist variables for lm4
+      ! ------------------------------------------
+      ! grid, domain, and blocking
+      integer           :: lm4_debug = 0        ! debug flag for lm4 (0=off, 1=low, 2=high)
+      integer           :: npx = 0, npy = 0
+      integer           :: ntiles = 0
+      integer           :: layout(2) = (/0,0/)
+      character(len=64) :: grid      = 'none'
+      integer           :: blocksize = -1
+
+
+      ! for namelist read
+      integer :: unit, io, ierr
+      namelist /lm4_nml/ grid, npx, npy, layout, ntiles, &
+         blocksize, lm4_debug
+
+      ! -------------------------------------------
+      ! read in namelist
+
+      if ( file_exist('input.nml')) then
+#ifdef INTERNAL_FILE_NML
+         read(input_nml_file, nml=lm4_nml, iostat=io)
+         ierr = check_nml_error(io, 'lm4_nml')
+#else
+         unit = open_namelist_file ( )
+         ierr=1
+         do while (ierr /= 0)
+            read(unit, nml=lm4_nml, iostat=io)
+            ierr = check_nml_error(io,'lm4_nml')
+         enddo
+         call close_file(unit)
+#endif
+      endif
+
+      lm4_model%nml%lm4_debug = lm4_debug
+      lm4_model%nml%grid      = grid
+      lm4_model%nml%blocksize = blocksize
+      lm4_model%nml%npx       = npx
+      lm4_model%nml%npy       = npy
+      lm4_model%nml%layout    = layout
+      lm4_model%nml%ntiles    = ntiles
+
+
+
+   end subroutine lm4_nml_read
+
    subroutine init_driver(lm4_model,ctrl_init)
 
       use mpp_domains_mod,    only: domain2d, mpp_get_compute_domain
@@ -855,10 +915,10 @@ contains
    ! Write out diagnostic history
    ! ----------------------------------------
    subroutine debug_diag(lm4_time,lm4_model)
-      
+
       use mpp_domains_mod,  only : mpp_get_ntile_count
       use diag_manager_mod, only : diag_axis_init, register_static_field, &
-                                   register_diag_field, diag_field_add_attribute, send_data
+         register_diag_field, diag_field_add_attribute, send_data
       use time_manager_mod,     only: time_type
 
 
@@ -922,7 +982,7 @@ contains
          if (id_cellarea > 0) used = send_data(id_cellarea, lnd%sg_cellarea, lm4_time)
          if (id_swdn_vf > 0)  used = send_data(id_swdn_vf,  lm4_model%atm_forc2d%flux_sw_down_vis_dif, lm4_time)
          if (id_t_bot > 0)    used = send_data(id_t_bot,    lm4_model%atm_forc2d%t_bot, lm4_time)
-         if (id_p_bot > 0)    used = send_data(id_p_bot,    lm4_model%atm_forc2d%p_bot, lm4_time)   
+         if (id_p_bot > 0)    used = send_data(id_p_bot,    lm4_model%atm_forc2d%p_bot, lm4_time)
          if (id_z_bot > 0)    used = send_data(id_z_bot,    lm4_model%atm_forc2d%z_bot, lm4_time)
 
       endif ! first_call

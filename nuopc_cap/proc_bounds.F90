@@ -1,4 +1,4 @@
-!!! This should bprobably be cleaned up or removed
+!!! TODO: This should probably be cleaned up and/or moved
 
 module proc_bounds
 
@@ -20,16 +20,16 @@ module proc_bounds
   type control_init_type
      ! modelled after FV3 GFS init and control types
 
+     ! namelist variables
+     ! ------------------------------------------
+
+     integer           :: lm4_debug    ! debug flag for lm4 (0=off, 1=low, 2=high)
      ! grid, domain, and blocking
-     integer           :: npx, npy
+     integer           :: npx, npy     
      integer           :: ntiles
      integer           :: layout(2)
      character(len=64) :: grid
      integer           :: blocksize
-
-     ! land model params
-     integer :: ivegsrc
-     integer :: isot
 
      ! run
      logical   :: first_time  ! flag for first time step
@@ -37,13 +37,7 @@ module proc_bounds
      ! MPI stuff
      integer :: me                                ! my MPI-rank
      integer :: master                            ! master MPI-rank
-    ! !integer :: tile_num                          ! tile number for this MPI rank
-    ! integer :: isc                               ! starting i-index for this MPI-domain
-    ! integer :: jsc                               ! starting j-index for this MPI-domain
-    ! integer :: nx                                ! number of points in i-dir for this MPI rank
-    ! integer :: ny                                ! number of points in j-dir for this MPI rank
-    ! integer, pointer :: blksz(:)                 ! for explicit data blocking
-    ! character(len=64) :: fn_nml                  ! namelist filename
+
 
   contains
     procedure :: init  => control_initialize
@@ -53,7 +47,6 @@ module proc_bounds
 
 contains
 
-!  subroutine control_initialize(Model,fn_nml,me,master,tile_num,isc, jsc, nx, ny,blksz)
   subroutine control_initialize(Model)
 
     use fms_mod,             only: check_nml_error, close_file, file_exist
@@ -71,19 +64,17 @@ contains
     ! namelist variables
     ! ------------------------------------------
     ! grid, domain, and blocking
+    integer           :: lm4_debug = 0
     integer           :: npx = 0, npy = 0, ntiles = 0
     integer           :: layout(2) = (/0,0/)
     character(len=64) :: grid      = 'none'
     integer           :: blocksize = -1
-    ! land model params
-    integer :: ivegsrc  = -1
-    integer :: isot     = -1
 
 
     ! for namelist read
     integer :: unit, io, ierr
     namelist /lm4_nml/ grid, npx, npy, layout, ntiles, &
-         blocksize, ivegsrc, isot
+         blocksize, lm4_debug
     
     ! -------------------------------------------
     ! read in namelist
@@ -103,14 +94,13 @@ contains
 #endif
     endif
 
+    Model%lm4_debug = lm4_debug
     Model%grid      = grid
     Model%blocksize = blocksize
     Model%npx       = npx
     Model%npy       = npy
     Model%layout    = layout
     Model%ntiles    = ntiles
-    Model%ivegsrc   = ivegsrc
-    Model%isot      = isot
     !--- MPI parameters
     Model%me        =  mpp_pe()
     Model%master    =  mpp_root_pe()

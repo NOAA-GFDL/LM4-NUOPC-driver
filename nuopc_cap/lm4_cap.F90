@@ -26,11 +26,9 @@ module lm4_cap_mod
    use diag_manager_mod,     only: diag_manager_init, diag_manager_end, &
       diag_manager_set_time_end
 
-   use lm4_driver,           only: init_driver
-   use lm4_driver,           only: debug_diag
+   use lm4_driver,           only: lm4_nml_read, init_driver, debug_diag
 
    use land_model_mod,       only: land_model_init, land_model_end
-
    use land_data_mod,        only: land_data_type, atmos_land_boundary_type, lnd
    use constants_mod,        only: constants_init
    use monin_obukhov_mod,    only: monin_obukhov_init
@@ -183,6 +181,7 @@ contains
       rc = ESMF_SUCCESS
 
       call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
+      
 
       ! allocate component's internal state
       allocate(land_int_state,stat=rc)
@@ -222,6 +221,20 @@ contains
          label ='calendar:', &
          default='gregorian',rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+      ! Read lm4 namelist
+      call lm4_nml_read(lm4_model)
+
+      ! if lm4_model%nml%debug is set, and > 0, write out namelist variables read in 
+      if (mype == 0 .and. lm4_model%nml%debug > 0) then
+         write(*,*) 'lm4_model%nml%grid: '     ,lm4_model%nml%grid
+         write(*,*) 'lm4_model%nml%npx: '      ,lm4_model%nml%npx
+         write(*,*) 'lm4_model%nml%npy: '      ,lm4_model%nml%npy
+         write(*,*) 'lm4_model%nml%layout: '   ,lm4_model%nml%layout
+         write(*,*) 'lm4_model%nml%ntiles: '   ,lm4_model%nml%ntiles
+         write(*,*) 'lm4_model%nml%blocksize: ',lm4_model%nml%blocksize
+      endif
+
 
 
       !----------------------------------------------------------------------------

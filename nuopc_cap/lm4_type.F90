@@ -2,6 +2,16 @@ module lm4_type_mod
    ! TODO: clean up
    public
 
+   type :: lm4_nml_type
+      integer           :: lm4_debug    ! debug flag for lm4 (0=off, 1=low, 2=high)
+      ! grid, domain, and blocking
+      integer           :: npx, npy     
+      integer           :: ntiles
+      integer           :: layout(2)
+      character(len=64) :: grid
+      integer           :: blocksize
+   end type lm4_nml_type
+
    type :: lm4_control_type
       logical   :: first_time  ! flag for first time step
       integer   :: mype
@@ -71,6 +81,7 @@ module lm4_type_mod
 
 
    type :: lm4_type
+      type(lm4_nml_type)     :: nml
       type(lm4_control_type) :: control
       type(atm_forc_type)    :: atm_forc
       type(atm_forc2d_type)  :: atm_forc2d ! TMP DEBUG
