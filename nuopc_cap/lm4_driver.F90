@@ -3,7 +3,6 @@ module lm4_driver
    !! Routines to prepare and run the land model
    !! ------------------------------------------
 
-   use proc_bounds,        only: control_init_type
    use mpp_domains_mod,    only: domain2d
    use lm4_type_mod,       only: lm4_type
    use land_data_mod,      only: land_data_type, atmos_land_boundary_type, lnd
@@ -17,7 +16,6 @@ module lm4_driver
 
    type(lm4_type),           public :: lm4_model
    type(domain2D),           public :: land_domain
-   type(control_init_type),  public :: ctrl_init
 
    public :: lm4_nml_read
    public :: init_driver, end_driver
@@ -120,7 +118,7 @@ contains
 
    end subroutine lm4_nml_read
 
-   subroutine init_driver(lm4_model,ctrl_init)
+   subroutine init_driver(lm4_model)
 
       use mpp_domains_mod,    only: domain2d, mpp_get_compute_domain
       use mpp_mod,            only: mpp_pe, mpp_root_pe
@@ -129,7 +127,6 @@ contains
       !use land_restart_mod,   only: sfc_prop_restart_read, sfc_prop_transfer
 
       type(lm4_type),          intent(inout) :: lm4_model ! land model's variable type
-      type(control_init_type), intent(out)   :: ctrl_init
 
       ! ---------------
       ! local
@@ -141,20 +138,8 @@ contains
 
       integer :: isc, iec, jsc, jec
 
-
-      call ctrl_init%init()
-
-      if (mpp_pe() == mpp_root_pe()) then
-         write(*,*) 'ctrl_init%grid: '     ,ctrl_init%grid
-         write(*,*) 'ctrl_init%npx: '      ,ctrl_init%npx
-         write(*,*) 'ctrl_init%npy: '      ,ctrl_init%npy
-         write(*,*) 'ctrl_init%layout: '   ,ctrl_init%layout
-         write(*,*) 'ctrl_init%ntiles: '   ,ctrl_init%ntiles
-         write(*,*) 'ctrl_init%blocksize: ',ctrl_init%blocksize
-      end if
-
       ! FMS domain creation:
-      call domain_create(ctrl_init, land_domain)
+      call domain_create(lm4_model%nml, land_domain)
 
       call mpp_get_compute_domain(land_domain,isc,iec,jsc,jec)
       ! use LM4's data type, using just a part of land_data_init
@@ -169,7 +154,7 @@ contains
 
       ! Create blocks, but again, not currently using
       call define_blocks_packed('land_model', Lnd_block, isc, iec, jsc, jec, 1, &
-         ctrl_init%blocksize, block_message)
+         lm4_model%nml%blocksize, block_message)
 
       lm4_model%control%isc = isc
       lm4_model%control%iec = iec

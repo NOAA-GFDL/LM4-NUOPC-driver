@@ -38,7 +38,6 @@ module lm4_cap_mod
       THIRTY_DAY_MONTHS, JULIAN, GREGORIAN,      &
       NOLEAP, NO_CALENDAR
    use sat_vapor_pres_mod,   only: sat_vapor_pres_init
-   use proc_bounds,          only: procbounds, control_init_type
 
    implicit none
    private ! except
@@ -62,7 +61,6 @@ module lm4_cap_mod
 
    type(land_internalstate_type),pointer,save :: land_int_state
    type(land_internalstate_wrapper),save      :: wrap
-   type(control_init_type), save              :: ctrl_init
 
    integer :: date_init(6)
 
@@ -225,8 +223,8 @@ contains
       ! Read lm4 namelist
       call lm4_nml_read(lm4_model)
 
-      ! if lm4_model%nml%debug is set, and > 0, write out namelist variables read in 
-      if (mype == 0 .and. lm4_model%nml%debug > 0) then
+      ! if lm4_model%nml%lm4_debug is set, and > 0, write out namelist variables read in 
+      if (mype == 0 .and. lm4_model%nml%lm4_debug > 0) then
          write(*,*) 'lm4_model%nml%grid: '     ,lm4_model%nml%grid
          write(*,*) 'lm4_model%nml%npx: '      ,lm4_model%nml%npx
          write(*,*) 'lm4_model%nml%npy: '      ,lm4_model%nml%npy
@@ -312,7 +310,7 @@ contains
       ! Initialize model
       !----------------------------------------------------------------------------
 
-      call init_driver(lm4_model,ctrl_init)
+      call init_driver(lm4_model)
      
       call land_model_init( land_int_state%From_atm, land_int_state%From_lnd, &
          land_int_state%Time_init, land_int_state%Time_land,                &
@@ -360,7 +358,6 @@ contains
    !===============================================================================
    subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
 
-      use proc_bounds, only : procbounds, control_init_type
       use fms_io_mod,         only: field_exist, read_data
 
       ! input/output variables
@@ -379,7 +376,6 @@ contains
       integer,dimension(2,6)  :: decomptile                  !define delayout for the 6 cubed-sphere tiles
       type(ESMF_Grid)         :: lndGrid
       character(50)           :: gridchoice
-      !type (control_init_type)::   ctrl_init
 
 
       !! tmp debug
@@ -389,17 +385,6 @@ contains
 
       rc = ESMF_SUCCESS
       call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
-
-      !! TMP DEBUG
-      if (debug_cap > 0) then
-         call ESMF_VMGetCurrent(vm=VM,rc=RC)
-         call ESMF_VMGet(vm=VM, localPet=mype, rc=rc)
-
-         ! write out ctrl_init%layout
-         if (mype == 0) then
-            write(0,*) "ctrl_init%layout is:", ctrl_init%layout
-         endif
-      endif
 
       !geomtype = ESMF_GEOMTYPE_GRID
 
@@ -411,8 +396,8 @@ contains
 
 
       do tl=1,6
-         decomptile(1,tl) = ctrl_init%layout(1)
-         decomptile(2,tl) = ctrl_init%layout(2)
+         decomptile(1,tl) = lm4_model%nml%layout(1)
+         decomptile(2,tl) = lm4_model%nml%layout(2)
          decompflagPTile(:,tl) = (/ESMF_DECOMP_SYMMEDGEMAX,ESMF_DECOMP_SYMMEDGEMAX/)
       enddo
 
