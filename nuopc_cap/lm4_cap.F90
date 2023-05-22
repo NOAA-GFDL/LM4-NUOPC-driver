@@ -83,8 +83,8 @@ module lm4_cap_mod
 
    !type(ESMF_GeomType_Flag) :: geomtype
 
-   ! internal debug level
-   integer, parameter     :: debug_cap = 1
+   ! LM4 debug level
+   integer, parameter     :: debug_cap = 0
 
    !===============================================================================
 contains
@@ -222,9 +222,10 @@ contains
 
       ! Read lm4 namelist
       call lm4_nml_read(lm4_model)
+      debug_cap = lm4_model%nml%lm4_debug
 
       ! if lm4_model%nml%lm4_debug is set, and > 0, write out namelist variables read in 
-      if (mype == 0 .and. lm4_model%nml%lm4_debug > 0) then
+      if (mype == 0 .and. debug_cap > 0) then
          write(*,*) 'lm4_model%nml%grid: '     ,lm4_model%nml%grid
          write(*,*) 'lm4_model%nml%npx: '      ,lm4_model%nml%npx
          write(*,*) 'lm4_model%nml%npy: '      ,lm4_model%nml%npy
@@ -375,12 +376,8 @@ contains
       integer                 :: tl
       integer,dimension(2,6)  :: decomptile                  !define delayout for the 6 cubed-sphere tiles
       type(ESMF_Grid)         :: lndGrid
-      character(50)           :: gridchoice
 
 
-      !! tmp debug
-      integer :: mype
-      type(ESMF_VM)      :: vm
       !-------------------------------------------------------------------------------
 
       rc = ESMF_SUCCESS

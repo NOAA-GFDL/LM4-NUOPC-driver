@@ -404,6 +404,8 @@ contains
       rc = ESMF_SUCCESS
       call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
 
+      debug = lm4_model%nml%lm4_debug
+
       ! Get import state
       call NUOPC_ModelGet(gcomp, importState=importState, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -418,8 +420,9 @@ contains
       call state_getimport_2d(importState, 'Sa_z',datar8, rc=rc) ! bottom layer height
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
       call mpp_pass_sg_to_ug(lnd%ug_domain, datar8, lm4_model%atm_forc%z_bot)
-
-      lm4_model%atm_forc2d%z_bot = datar8 ! TMP DEBUG
+      if (debug > 0) then
+         lm4_model%atm_forc2d%z_bot = datar8 
+      end if
 
       ! call state_getimport_2d(importState, 'Sa_ta'     , datar8, rc=rc)  ! bottom layer temperature (inst_temp_height_lowest_from_phys)
       ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -739,15 +742,6 @@ contains
       call ESMF_StateGet(State, itemName=trim(fldname), field=lfield, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
       if (present(fldptr1d)) then
-
-         ! JP TMP DEBUG
-         ! call ESMF_FieldGet(lfield, arrayspec=arrayspec, rc=rc)
-         ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-         ! call ESMF_ArraySpecPrint(arrayspec, rc)
-         ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
-         ! END JP TMP DEBUG
-
          call ESMF_FieldGet(lfield, farrayPtr=fldptr1d, rc=rc)
          if (ChkErr(rc,__LINE__,u_FILE_u)) return
       else if (present(fldptr2d)) then
