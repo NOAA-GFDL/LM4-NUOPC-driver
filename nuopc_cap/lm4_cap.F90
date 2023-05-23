@@ -78,13 +78,13 @@ module lm4_cap_mod
    character(len=CL)      :: flds_scalar_name = ''
    integer                :: flds_scalar_num = 0
 
-   character(*),parameter :: modName =  "(lm4_cap_mod)"
+   character(*),parameter       :: modName =  "(lm4_cap_mod)"
    character(len=*) , parameter :: u_FILE_u =  __FILE__
 
    !type(ESMF_GeomType_Flag) :: geomtype
 
    ! LM4 debug level
-   integer, parameter     :: debug_cap = 0
+   integer :: debug_cap 
 
    !===============================================================================
 contains
@@ -226,6 +226,7 @@ contains
 
       ! if lm4_model%nml%lm4_debug is set, and > 0, write out namelist variables read in 
       if (mype == 0 .and. debug_cap > 0) then
+         write(*,*) 'lm4_model%nml%lm4_debug: ',lm4_model%nml%lm4_debug
          write(*,*) 'lm4_model%nml%grid: '     ,lm4_model%nml%grid
          write(*,*) 'lm4_model%nml%npx: '      ,lm4_model%nml%npx
          write(*,*) 'lm4_model%nml%npy: '      ,lm4_model%nml%npy

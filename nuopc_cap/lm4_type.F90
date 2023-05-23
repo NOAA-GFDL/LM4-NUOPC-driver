@@ -94,10 +94,10 @@ module lm4_type_mod
 contains
 
    subroutine dealloc_atmforc(bnd)
-
+      !! for every variable in atm_forc_type, if associated, deallocate
+      
       type(atm_forc_type), intent(inout) :: bnd
 
-      ! for every variable in atm_forc_type, if associated, deallocate
       if (associated(bnd%t_bot)) deallocate(bnd%t_bot)
       if (associated(bnd%z_bot)) deallocate(bnd%z_bot)
       if (associated(bnd%p_bot)) deallocate(bnd%p_bot)
@@ -125,13 +125,12 @@ contains
 
    subroutine alloc_atmforc(bnd)
       ! must be called after land_data_init
+
       use land_data_mod, only : lnd
 
       type(atm_forc_type), intent(inout) :: bnd
 
-
       call dealloc_atmforc(bnd)
-
 
       allocate( bnd%t_bot(lnd%ls:lnd%le) )
       allocate( bnd%z_bot(lnd%ls:lnd%le) )

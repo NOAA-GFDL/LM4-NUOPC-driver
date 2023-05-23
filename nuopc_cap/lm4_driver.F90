@@ -55,6 +55,16 @@ module lm4_driver
    ! variables for between subroutines
    real, allocatable, dimension(:)   :: ex_flux_u
 
+   !! integers for diag manager fields (TODO: clean up)
+   !! --------------------------------------------------
+   integer :: id_cellarea
+   ! fields to be written out
+   integer :: id_swdn_vf, id_z_bot, id_t_bot, id_p_bot, &
+              id_u_bot, id_v_bot, id_lprec, id_fprec,   &
+              id_flux_lw, id_flux_sw_dn_vdf, id_flux_sw_dn_vr
+   ! other vars
+   integer :: id_lon, id_lat, id_lonb, id_latb   
+
 contains
 
    ! Read in lm4 namelist
@@ -911,18 +921,15 @@ contains
       type(lm4_type), intent(inout) :: lm4_model
       !integer, intent(out) :: id_cellarea
 
-      integer :: id_cellarea
-      ! fields to be written out
-      integer :: id_swdn_vf, id_z_bot, id_t_bot, id_p_bot
-      ! other local vars
-      integer :: id_lon, id_lat, id_lonb, id_latb
       integer :: i
       logical :: used
       logical :: first_call = .true.
 
-      ! only run if first call, initialize output on structure grid, with cell_area
+      ! only run if first call, 
       if (first_call) then
          first_call = .false.
+
+         ! initialize output on structure grid, with cell_area
 
          if(mpp_get_ntile_count(lnd%sg_domain)==1) then
             ! grid has just one tile, so we assume that the grid is regular lat-lon
@@ -949,7 +956,7 @@ contains
             'total area in grid cell', 'm2', missing_value=-1.0 )
          call diag_field_add_attribute(id_cellarea,'cell_methods','area: sum')
 
-         ! here try to add another field
+         ! register other fields on structured grid
          id_swdn_vf = register_diag_field( 'lm4_dbug_diag', 'sw_down_vis_dif', &
             (/id_lon, id_lat/), lm4_time,  'shortwave downwelling vis. diffuse radiation', &
             'W/m2', missing_value=-1.0e+20 )
@@ -963,12 +970,41 @@ contains
             (/id_lon, id_lat/), lm4_time, 'bottom depth', &
             'm', missing_value=-1.0e+20 )
 
+         id_u_bot = register_diag_field( 'lm4_dbug_diag', 'u_bot', &
+            (/id_lon, id_lat/), lm4_time, 'bottom u velocity', &
+            'm/s', missing_value=-1.0e+20 )
+         id_v_bot = register_diag_field( 'lm4_dbug_diag', 'v_bot', &
+            (/id_lon, id_lat/), lm4_time, 'bottom v velocity', &
+            'm/s', missing_value=-1.0e+20 )
+         id_lprec = register_diag_field( 'lm4_dbug_diag', 'lprec', &
+            (/id_lon, id_lat/), lm4_time, 'liquid precipitation', &
+            'kg/m2/s', missing_value=-1.0e+20 )
+         id_fprec = register_diag_field( 'lm4_dbug_diag', 'fprec', &
+            (/id_lon, id_lat/), lm4_time, 'frozen precipitation', &
+            'kg/m2/s', missing_value=-1.0e+20 )
+         id_flux_lw = register_diag_field( 'lm4_dbug_diag', 'flux_lw', &
+            (/id_lon, id_lat/), lm4_time, 'longwave flux down', &
+            'W/m2', missing_value=-1.0e+20 )
+         id_flux_sw_dn_vdf = register_diag_field( 'lm4_dbug_diag', 'flux_sw_down_vis_dif', &
+            (/id_lon, id_lat/), lm4_time, 'vis. diff. shortwave flux down', &
+            'W/m2', missing_value=-1.0e+20 )
+         id_flux_sw_dn_vr = register_diag_field( 'lm4_dbug_diag', 'flux_sw_down_vis_dir', &
+            (/id_lon, id_lat/), lm4_time, 'vis. dir. shortwave flux down', &
+            'W/m2', missing_value=-1.0e+20 )
+
          ! send out data to be written ----------------------------
          if (id_cellarea > 0) used = send_data(id_cellarea, lnd%sg_cellarea, lm4_time)
          if (id_swdn_vf > 0)  used = send_data(id_swdn_vf,  lm4_model%atm_forc2d%flux_sw_down_vis_dif, lm4_time)
          if (id_t_bot > 0)    used = send_data(id_t_bot,    lm4_model%atm_forc2d%t_bot, lm4_time)
          if (id_p_bot > 0)    used = send_data(id_p_bot,    lm4_model%atm_forc2d%p_bot, lm4_time)
          if (id_z_bot > 0)    used = send_data(id_z_bot,    lm4_model%atm_forc2d%z_bot, lm4_time)
+         if (id_u_bot > 0)    used = send_data(id_u_bot,    lm4_model%atm_forc2d%u_bot, lm4_time)
+         if (id_v_bot > 0)    used = send_data(id_v_bot,    lm4_model%atm_forc2d%v_bot, lm4_time)
+         if (id_lprec > 0)    used = send_data(id_lprec,    lm4_model%atm_forc2d%lprec, lm4_time)
+         if (id_fprec > 0)    used = send_data(id_fprec,    lm4_model%atm_forc2d%fprec, lm4_time)
+         if (id_flux_lw > 0)  used = send_data(id_flux_lw,  lm4_model%atm_forc2d%flux_lw, lm4_time)
+         if (id_flux_sw_dn_vdf > 0) used = send_data(id_flux_sw_dn_vdf, lm4_model%atm_forc2d%flux_sw_down_vis_dif, lm4_time)
+         if (id_flux_sw_dn_vr > 0)  used = send_data(id_flux_sw_dn_vr,  lm4_model%atm_forc2d%flux_sw_down_vis_dir, lm4_time)
 
       endif ! first_call
 
