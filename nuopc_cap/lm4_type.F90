@@ -1,5 +1,4 @@
 module lm4_type_mod
-   ! TODO: clean up
 
    use land_data_mod,    only: land_data_type, atmos_land_boundary_type
    use time_manager_mod, only: time_type
@@ -35,7 +34,7 @@ module lm4_type_mod
       !slp       => NULL(), &   ! sea level pressure, N/m2 
          gust        => NULL(), &   ! gustiness, m/s
          coszen      => NULL(), &   ! cosine of zenith angle
-         tprec       => NULL(), &   ! total precipitation,  kg/m2/s
+         totprec     => NULL(), &   ! total precipitation,  kg/m2/s
          lprec       => NULL(), &   ! liquid precipitation, kg/m2/s
          fprec       => NULL(), &   ! frozen precipitation, kg/m2/s          
       ! LM4 doesn't need net SW
@@ -64,7 +63,7 @@ module lm4_type_mod
          p_surf      => NULL(), &   ! surface pressure, N/m2
       ! LM4 doesn't need slp
       !slp       => NULL(), &   ! sea level pressure, N/m2
-         tprec       => NULL(), &   ! total precipitation,  kg/m2/s
+         totprec     => NULL(), &   ! total precipitation,  kg/m2/s
          lprec       => NULL(), &   ! liquid precipitation, kg/m2/s
          fprec       => NULL(), &   ! frozen precipitation, kg/m2/s          
          gust        => NULL(), &   ! gustiness, m/s
@@ -131,7 +130,7 @@ contains
       if (associated(bnd%flux_sw_vis)) deallocate(bnd%flux_sw_vis)
       if (associated(bnd%flux_sw_vis_dir)) deallocate(bnd%flux_sw_vis_dir)
       if (associated(bnd%flux_sw_vis_dif)) deallocate(bnd%flux_sw_vis_dif)
-      if (associated(bnd%tprec)) deallocate(bnd%tprec)
+      if (associated(bnd%totprec)) deallocate(bnd%totprec)
       if (associated(bnd%lprec)) deallocate(bnd%lprec)
       if (associated(bnd%fprec)) deallocate(bnd%fprec)
 
@@ -166,7 +165,7 @@ contains
       allocate( bnd%flux_sw_vis(lnd%ls:lnd%le) )
       allocate( bnd%flux_sw_vis_dir(lnd%ls:lnd%le) )
       allocate( bnd%flux_sw_vis_dif(lnd%ls:lnd%le) )
-      allocate( bnd%tprec(lnd%ls:lnd%le) )
+      allocate( bnd%totprec(lnd%ls:lnd%le) )
       allocate( bnd%lprec(lnd%ls:lnd%le) )
       allocate( bnd%fprec(lnd%ls:lnd%le) )
 
@@ -198,7 +197,7 @@ contains
       if (associated(bnd%flux_sw_vis)) deallocate(bnd%flux_sw_vis)
       if (associated(bnd%flux_sw_vis_dir)) deallocate(bnd%flux_sw_vis_dir)
       if (associated(bnd%flux_sw_vis_dif)) deallocate(bnd%flux_sw_vis_dif)
-      if (associated(bnd%tprec)) deallocate(bnd%tprec)
+      if (associated(bnd%totprec)) deallocate(bnd%totprec)
       if (associated(bnd%lprec)) deallocate(bnd%lprec)
       if (associated(bnd%fprec)) deallocate(bnd%fprec)
    end subroutine dealloc_atmforc2d
@@ -231,7 +230,7 @@ contains
       allocate( bnd%flux_sw_vis(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%flux_sw_vis_dir(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%flux_sw_vis_dif(lnd%is:lnd%ie,lnd%js:lnd%je) )
-      allocate( bnd%tprec(lnd%is:lnd%ie,lnd%js:lnd%je) )
+      allocate( bnd%totprec(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%lprec(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%fprec(lnd%is:lnd%ie,lnd%js:lnd%je) )
    end subroutine alloc_atmforc2d

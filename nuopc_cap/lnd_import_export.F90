@@ -27,7 +27,7 @@ module lnd_import_export
    public  :: realize_fields
    public  :: import_fields
    public  :: export_fields
-   !public  :: correct_import_fields
+   public  :: correct_import_fields
 
    private :: fldlist_add
    private :: fldlist_realize
@@ -125,7 +125,7 @@ contains
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swnet')
       ! call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_rainc')
       ! call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_rainl')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_rain')
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_rain')     
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snow')
       ! call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snowc')
       ! call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snowl')
@@ -386,8 +386,6 @@ contains
       integer,                          intent(out)   :: rc
 
       ! local variables
-      real(r8), dimension(:,:), pointer  :: datar8
-
       type(ESMF_State)            :: importState
       character(len=*), parameter :: subname=trim(modName)//':(import_fields)'
       ! ----------------------------------------------
@@ -406,9 +404,6 @@ contains
       !  need to convert to LM4's 1d Unstructured Grid
       ! -----------------------
 
-
-      allocate(datar8(lnd%is:lnd%ie,lnd%js:lnd%je))
-
       if (ie_debug > 0) then ! want both U.G. and S.G. data
          call state_getimport_2d(importState, 'Sa_z',       lm4data_1d=lm4_model%atm_forc%z_bot,   lm4data_2d=lm4_model%atm_forc2d%z_bot,   rc=rc)
          !call state_getimport_2d(importState, 'Sa_ta',      lm4data_1d=lm4_model%atm_forc%t_bot,   lm4data_2d=lm4_model%atm_forc2d%t_bot, rc=rc)
@@ -419,7 +414,7 @@ contains
          ! call state_getimport_2d(importState, 'Sa_pslv'
          call state_getimport_2d(importState, 'Sa_u',       lm4data_1d=lm4_model%atm_forc%u_bot,   lm4data_2d=lm4_model%atm_forc2d%u_bot,   rc=rc)
          call state_getimport_2d(importState, 'Sa_v',       lm4data_1d=lm4_model%atm_forc%v_bot,   lm4data_2d=lm4_model%atm_forc2d%v_bot,   rc=rc)
-         call state_getimport_2d(importState, 'Faxa_rain',  lm4data_1d=lm4_model%atm_forc%tprec,   lm4data_2d=lm4_model%atm_forc2d%tprec,   rc=rc)
+         call state_getimport_2d(importState, 'Faxa_rain',  lm4data_1d=lm4_model%atm_forc%totprec,   lm4data_2d=lm4_model%atm_forc2d%totprec,   rc=rc)
          call state_getimport_2d(importState, 'Faxa_snow',  lm4data_1d=lm4_model%atm_forc%fprec,   lm4data_2d=lm4_model%atm_forc2d%fprec,   rc=rc)
          call state_getimport_2d(importState, 'Faxa_lwdn',  lm4data_1d=lm4_model%atm_forc%flux_lw, lm4data_2d=lm4_model%atm_forc2d%flux_lw, rc=rc)
          call state_getimport_2d(importState, 'Faxa_swvdf', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dif, &
@@ -436,8 +431,8 @@ contains
          ! call state_getimport_2d(importState, 'Sa_pslv'
          call state_getimport_2d(importState, 'Sa_u',       lm4data_1d=lm4_model%atm_forc%u_bot, rc=rc)
          call state_getimport_2d(importState, 'Sa_v',       lm4data_1d=lm4_model%atm_forc%v_bot, rc=rc)
-         call state_getimport_2d(importState, 'Faxa_rain',  lm4data_1d=lm4_model%atm_forc%tprec, rc=rc)
-         call state_getimport_2d(importState, 'Faxa_snow',  lm4data_1d=lm4_model%atm_forc%fprec, rc=rc)
+         ! call state_getimport_2d(importState, 'Faxa_rain',  lm4data_1d=lm4_model%atm_forc%totprec, rc=rc)  ! total precip
+         ! call state_getimport_2d(importState, 'Faxa_snow',  lm4data_1d=lm4_model%atm_forc%fprec, rc=rc)
          call state_getimport_2d(importState, 'Faxa_lwdn',  lm4data_1d=lm4_model%atm_forc%flux_lw, rc=rc)
          call state_getimport_2d(importState, 'Faxa_swvdf', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dif, rc=rc)
          call state_getimport_2d(importState, 'Faxa_swvdr', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dir, rc=rc)
@@ -483,24 +478,74 @@ contains
       ! ! call state_getimport_2d(importState, 'zorl'      , cplr2land%, rc=rc)
       ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-      deallocate(datar8)
-
       call ESMF_LogWrite(subname//' done', ESMF_LOGMSG_INFO)
 
    end subroutine import_fields
 
    !=============================================================================
 
-   ! subroutine correct_import_fields(gcomp, cplr2land, lm4_model, rc)
-   !    !! This routine "corrects" the imported fields from the atmosphere into what the land model expects
+   subroutine correct_import_fields(gcomp, lm4_model, rc)
+      !! This routine imports and "corrects" the fields from the atmosphere that need to be 
+      !! altered somehow into what the land model expects
 
-   !    ! input/output variables
-   !    type(ESMF_GridComp),              intent(in)    :: gcomp
-   !    type(atmos_land_boundary_type),   intent(inout) :: cplr2land
-   !    type(lm4_type),                   intent(inout) :: lm4_model
-   !    integer,                          intent(out)   :: rc
+      ! input/output variables
+      type(ESMF_GridComp), intent(in)    :: gcomp
+      type(lm4_type),      intent(inout) :: lm4_model
+      integer,             intent(out)   :: rc
 
-   ! end subroutine correct_import_fields
+      ! local variables
+      type(ESMF_State)                  :: importState
+      character(len=*),       parameter :: subname=trim(modName)//':(correct_import_fields)'
+      real(r8), dimension(:), pointer   :: tmp_ug_data ! temp unstructured grid data
+
+      ! ----------------------------------------------
+
+      allocate(tmp_ug_data(lnd%ls:lnd%le))
+
+      !! precip
+      !! ---------------------------------------------------------------------      
+      ! rain
+      if (check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_rain')) then
+         ! have total precip
+         call state_getimport_2d(importState, 'Faxa_rain',  lm4data_1d=lm4_model%atm_forc%totprec, rc=rc)          
+      elseif ( ( check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_rainc') ) .and. &
+                ( check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_rainl') ) ) then
+         ! have convective and large-scale total precip
+         call state_getimport_2d(importState, 'Faxa_rainc',  lm4data_1d=lm4_model%atm_forc%totprec, rc=rc)
+         call state_getimport_2d(importState, 'Faxa_rainl',  lm4data_1d=tmp_ug_data, rc=rc)
+         lm4_model%atm_forc%totprec = lm4_model%atm_forc%totprec + tmp_ug_data
+      else
+         ! don't have total precip
+         call ESMF_LogWrite(trim(subname)//": Don't have Faxa_rain, or Faxa_rainc+Faxa_rainl for Total Precip.", &
+            ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__)
+         call ESMF_Finalize(endflag=ESMF_END_ABORT)
+      endif    
+
+      ! snow
+      if (check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_snow')) then
+         ! have snow precip
+         call state_getimport_2d(importState, 'Faxa_snow',  lm4data_1d=lm4_model%atm_forc%fprec, rc=rc) 
+      elseif ( ( check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_snowc') ) .and. &
+         ( check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_snowl') ) ) then
+         ! have convective and large-scale snow precip
+         call state_getimport_2d(importState, 'Faxa_snowc',  lm4data_1d=lm4_model%atm_forc%fprec, rc=rc)
+         call state_getimport_2d(importState, 'Faxa_snowl',  lm4data_1d=tmp_ug_data, rc=rc)
+         lm4_model%atm_forc%fprec = lm4_model%atm_forc%fprec + tmp_ug_data
+      else
+         ! don't have snow precip
+         ! TODO: want to have FMS Coupler's precip scaling functionality here
+         call ESMF_LogWrite(trim(subname)//": Don't have Faxa_snow, or Faxa_snowc+Faxa_snowl for Snow Precip.", &
+            ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__)
+         call ESMF_Finalize(endflag=ESMF_END_ABORT)
+      endif
+
+      ! have total and snow precip, so can calculate rain precip
+      lm4_model%atm_forc%lprec = lm4_model%atm_forc%totprec - lm4_model%atm_forc%fprec
+
+
+      deallocate(tmp_ug_data)
+
+   end subroutine correct_import_fields
 
    !===============================================================================
    subroutine export_fields(gcomp, rc)
@@ -691,7 +736,6 @@ contains
       else
          call ESMF_LogWrite(trim(subname)//": either fldptr1d or fldptr2d must be an input argument", &
             ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__)
-
          call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
       end if

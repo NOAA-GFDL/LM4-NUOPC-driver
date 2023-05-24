@@ -20,7 +20,8 @@ module lm4_cap_mod
    use lm4_type_mod,         only: alloc_atmforc2d, dealloc_atmforc2d ! TMP DEBUG
 
    use nuopc_lm4_methods,    only: chkerr
-   use lnd_import_export,    only: advertise_fields, realize_fields, import_fields, export_fields
+   use lnd_import_export,    only: advertise_fields, realize_fields, &
+                                   import_fields, correct_import_fields, export_fields
    use fms_mod,              only: fms_init, fms_end, uppercase
    use mpp_mod,              only: mpp_error,FATAL, WARNING
    use diag_manager_mod,     only: diag_manager_init, diag_manager_end, &
@@ -433,11 +434,8 @@ contains
       call import_fields(gcomp, lm4_model%From_atm,lm4_model, rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-      ! !-------------------------------------------------------------------------------
-      ! ! Make corrections to imported fields
-      ! !-------------------------------------------------------------------------------
-      ! call correct_import_fields(gcomp, lm4_model%From_atm,lm4_model, rc)
-      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      call correct_import_fields(gcomp, lm4_model, rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
 
       ! option to write out diag history of imports
