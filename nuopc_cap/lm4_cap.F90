@@ -46,22 +46,6 @@ module lm4_cap_mod
 
    type(lm4_type) :: lm4_model
 
-   type land_internalstate_type
-      type(land_data_type)           :: From_lnd ! data from land
-      type(atmos_land_boundary_type) :: From_atm ! data from atm
-      type(time_type)                :: Time_land, Time_init, Time_end,  &
-         Time_step_land, Time_step_ocean, &
-         Time_restart, Time_step_restart, &
-         Time_atstart
-   end type land_internalstate_type
-
-   type land_internalstate_wrapper
-      type(land_internalstate_type), pointer :: ptr
-   end type land_internalstate_wrapper
-
-   type(land_internalstate_type),pointer,save :: land_int_state
-   type(land_internalstate_wrapper),save      :: wrap
-
    integer :: date_init(6)
 
    ! Module public routines
@@ -179,14 +163,6 @@ contains
       rc = ESMF_SUCCESS
 
       call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
-      
-
-      ! allocate component's internal state
-      allocate(land_int_state,stat=rc)
-      ! attach internals state
-      wrap%ptr => land_int_state
-      call ESMF_GridCompSetInternalState(gcomp, wrap, rc)
-      if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
       call ESMF_GridCompGet(gcomp, vm=vm, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -220,7 +196,7 @@ contains
          default='gregorian',rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
-      ! Read lm4 namelist
+      ! Read lm4 namelist into lm4_model%nml
       call lm4_nml_read(lm4_model)
       debug_cap = lm4_model%nml%lm4_debug
 
@@ -271,7 +247,7 @@ contains
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
       if ( date_init(1) == 0 ) date_init = date
-      land_int_state%Time_init  = set_date (date_init(1), date_init(2), date_init(3), &
+      lm4_model%Time_init  = set_date (date_init(1), date_init(2), date_init(3), &
          date_init(4), date_init(5), date_init(6))
       if(mype==0) write(*,'(A,6I5)') 'Land StartTime=',date_init
 
@@ -283,7 +259,7 @@ contains
 
       if(mype==0) write(*,'(A,6I5)') 'Land CurrTime =',date
 
-      land_int_state%Time_land = set_date (date(1), date(2), date(3),  &
+      lm4_model%Time_land = set_date (date(1), date(2), date(3),  &
          date(4), date(5), date(6))
 
       date_end=0
@@ -293,20 +269,20 @@ contains
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
       if ( date_end(1) == 0 ) date_end = date
-      land_int_state%Time_end   = set_date (date_end(1), date_end(2), date_end(3),  &
+      lm4_model%Time_end   = set_date (date_end(1), date_end(2), date_end(3),  &
          date_end(4), date_end(5), date_end(6))
       if(mype==0) write(*,'(A,6I5)') 'Land StopTime =',date_end
 
-      call diag_manager_set_time_end(land_int_state%Time_end)
+      call diag_manager_set_time_end(lm4_model%Time_end)
 
       CALL ESMF_TimeIntervalGet(RunDuration, S=Run_length, RC=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
       call diag_manager_init (TIME_INIT=date)
-      call diag_manager_set_time_end(land_int_state%Time_end)
+      call diag_manager_set_time_end(lm4_model%Time_end)
 
       call ESMF_ConfigGetAttribute(config=CF, value=dt_atmos, label ='dt_atmos:',   rc=rc)
-      land_int_state%Time_step_land = set_time (dt_atmos,0)
+      lm4_model%Time_step_land = set_time (dt_atmos,0)
 
       !----------------------------------------------------------------------------
       ! Initialize model
@@ -314,9 +290,9 @@ contains
 
       call init_driver(lm4_model)
      
-      call land_model_init( land_int_state%From_atm, land_int_state%From_lnd, &
-         land_int_state%Time_init, land_int_state%Time_land,                &
-         land_int_state%Time_step_land, land_int_state%Time_step_ocean     )
+      call land_model_init( lm4_model%From_atm, lm4_model%From_lnd, &
+         lm4_model%Time_init, lm4_model%Time_land,                &
+         lm4_model%Time_step_land, lm4_model%Time_step_ocean     )
       
       call ESMF_LogWrite('======== COMPLETED land_model_init ==========', ESMF_LOGMSG_INFO)
 
@@ -454,19 +430,26 @@ contains
       !-------------------------------------------------------------------------------
       ! Get import fields
       !-------------------------------------------------------------------------------
-      call import_fields(gcomp, land_int_state%From_atm,lm4_model, rc)
+      call import_fields(gcomp, lm4_model%From_atm,lm4_model, rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+      ! !-------------------------------------------------------------------------------
+      ! ! Make corrections to imported fields
+      ! !-------------------------------------------------------------------------------
+      ! call correct_import_fields(gcomp, lm4_model%From_atm,lm4_model, rc)
+      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
 
       ! option to write out diag history of imports
       if (debug_cap > 0) then
-         call debug_diag(land_int_state%Time_land, lm4_model)
+         call debug_diag(lm4_model%Time_land, lm4_model)
       endif
 
       ! TMP disable for testing
-      call get_time (land_int_state%Time_step_land, sec)
-      !     call sfc_boundary_layer(real(sec),land_int_state%From_lnd)
-      !     call flux_down_from_atmos(land_int_state%From_lnd)      ! JP: needs review of implicit coupling
-      !     call update_land_model_fast(land_int_state%From_atm,land_int_state%From_lnd)
+      call get_time (lm4_model%Time_step_land, sec)
+      !     call sfc_boundary_layer(real(sec),lm4_model%From_lnd)
+      !     call flux_down_from_atmos(lm4_model%From_lnd)      ! JP: needs review of implicit coupling
+      !     call update_land_model_fast(lm4_model%From_atm,lm4_model%From_lnd)
 
    end subroutine ModelAdvance
 
@@ -480,9 +463,9 @@ contains
       rc = ESMF_SUCCESS
       call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
 
-      call land_model_end(land_int_state%From_atm, land_int_state%From_lnd)
+      call land_model_end(lm4_model%From_atm, lm4_model%From_lnd)
 
-      call diag_manager_end(land_int_state%Time_land)
+      call diag_manager_end(lm4_model%Time_land)
 
       ! deallocate storage for the atm forc data
       call dealloc_atmforc(lm4_model%atm_forc)

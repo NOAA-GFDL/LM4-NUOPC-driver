@@ -1,5 +1,9 @@
 module lm4_type_mod
    ! TODO: clean up
+
+   use land_data_mod,    only: land_data_type, atmos_land_boundary_type
+   use time_manager_mod, only: time_type
+
    public
 
    type :: lm4_nml_type
@@ -21,59 +25,62 @@ module lm4_type_mod
    ! type for atmospheric forcing data, based off atmos_solo_land's atmos_data_type
    type, public :: atm_forc_type
       real, pointer, dimension(:) ::  &
-         t_bot     => NULL(), &   ! temperature at the atm. bottom, degK
-         z_bot     => NULL(), &   ! altitude of the atm. bottom above sfc., m
-         p_bot     => NULL(), &   ! pressure at the atm. bottom, N/m2
-         u_bot     => NULL(), &   ! zonal wind at the atm. bottom, m/s
-         v_bot     => NULL(), &   ! merid. wind at the atm. bottom, m/s
-         p_surf    => NULL(), &   ! surface pressure, N/m2
+         t_bot       => NULL(), &   ! temperature at the atm. bottom, degK
+         z_bot       => NULL(), &   ! altitude of the atm. bottom above sfc., m
+         p_bot       => NULL(), &   ! pressure at the atm. bottom, N/m2
+         u_bot       => NULL(), &   ! zonal wind at the atm. bottom, m/s
+         v_bot       => NULL(), &   ! merid. wind at the atm. bottom, m/s
+         p_surf      => NULL(), &   ! surface pressure, N/m2
       ! LM4 doesn't need slp
-      !slp       => NULL(), &   ! sea level pressure, N/m2
-         gust      => NULL(), &   ! gustiness, m/s
-         coszen    => NULL(), &   ! cosine of zenith angle
-      ! LM4 doesn't need
+      !slp       => NULL(), &   ! sea level pressure, N/m2 
+         gust        => NULL(), &   ! gustiness, m/s
+         coszen      => NULL(), &   ! cosine of zenith angle
+         tprec       => NULL(), &   ! total precipitation,  kg/m2/s
+         lprec       => NULL(), &   ! liquid precipitation, kg/m2/s
+         fprec       => NULL(), &   ! frozen precipitation, kg/m2/s          
+      ! LM4 doesn't need net SW
       !flux_sw   => NULL(), &   ! SW radiation flux (net), W/m2
-         flux_lw   => NULL(), &   ! LW radiation flux (down), W/m2
-         flux_sw_dir => NULL(),&
-         flux_sw_dif => NULL(),&
+         flux_lw     => NULL(), &   ! LW radiation flux (down), W/m2
+         flux_sw_dir => NULL(), &
+         flux_sw_dif => NULL(), &        
          flux_sw_down_vis_dir   => NULL(), &
          flux_sw_down_vis_dif   => NULL(), &
          flux_sw_down_total_dir => NULL(), &
          flux_sw_down_total_dif => NULL(), &
          flux_sw_vis            => NULL(), &
          flux_sw_vis_dir        => NULL(), &
-         flux_sw_vis_dif        => NULL(), &
-         lprec     => NULL(), &   ! liquid precipitation, kg/m2/s
-         fprec     => NULL()      ! frozen precipitation, kg/m2/s
+         flux_sw_vis_dif        => NULL()
+
    end type atm_forc_type
 
    ! TMP DEBUG
    type, public :: atm_forc2d_type
       real, pointer, dimension(:,:) ::  &
-         t_bot     => NULL(), &   ! temperature at the atm. bottom, degK
-         z_bot     => NULL(), &   ! altitude of the atm. bottom above sfc., m
-         p_bot     => NULL(), &   ! pressure at the atm. bottom, N/m2
-         u_bot     => NULL(), &   ! zonal wind at the atm. bottom, m/s
-         v_bot     => NULL(), &   ! merid. wind at the atm. bottom, m/s
-         p_surf    => NULL(), &   ! surface pressure, N/m2
+         t_bot       => NULL(), &   ! temperature at the atm. bottom, degK
+         z_bot       => NULL(), &   ! altitude of the atm. bottom above sfc., m
+         p_bot       => NULL(), &   ! pressure at the atm. bottom, N/m2
+         u_bot       => NULL(), &   ! zonal wind at the atm. bottom, m/s
+         v_bot       => NULL(), &   ! merid. wind at the atm. bottom, m/s
+         p_surf      => NULL(), &   ! surface pressure, N/m2
       ! LM4 doesn't need slp
       !slp       => NULL(), &   ! sea level pressure, N/m2
-         gust      => NULL(), &   ! gustiness, m/s
-         coszen    => NULL(), &   ! cosine of zenith angle
+         tprec       => NULL(), &   ! total precipitation,  kg/m2/s
+         lprec       => NULL(), &   ! liquid precipitation, kg/m2/s
+         fprec       => NULL(), &   ! frozen precipitation, kg/m2/s          
+         gust        => NULL(), &   ! gustiness, m/s
+         coszen      => NULL(), &   ! cosine of zenith angle
       ! LM4 doesn't need
       !flux_sw   => NULL(), &   ! SW radiation flux (net), W/m2
          flux_lw   => NULL(), &   ! LW radiation flux (down), W/m2
-         flux_sw_dir => NULL(),&
-         flux_sw_dif => NULL(),&
+         flux_sw_dir => NULL(), &
+         flux_sw_dif => NULL(), &
          flux_sw_down_vis_dir   => NULL(), &
          flux_sw_down_vis_dif   => NULL(), &
          flux_sw_down_total_dir => NULL(), &
          flux_sw_down_total_dif => NULL(), &
          flux_sw_vis            => NULL(), &
          flux_sw_vis_dir        => NULL(), &
-         flux_sw_vis_dif        => NULL(), &
-         lprec     => NULL(), &   ! liquid precipitation, kg/m2/s
-         fprec     => NULL()      ! frozen precipitation, kg/m2/s
+         flux_sw_vis_dif        => NULL()
    end type atm_forc2d_type
    ! END TMP DEBUG
 
@@ -81,12 +88,18 @@ module lm4_type_mod
 
 
    type :: lm4_type
-      type(lm4_nml_type)     :: nml
-      type(lm4_control_type) :: control
-      type(atm_forc_type)    :: atm_forc
-      type(atm_forc2d_type)  :: atm_forc2d ! TMP DEBUG
+      type(lm4_nml_type)             :: nml        ! namelist
+      type(lm4_control_type)         :: control
+      type(atm_forc_type)            :: atm_forc   ! data from atm 
+      type(atm_forc2d_type)          :: atm_forc2d ! TMP DEBUG
+      ! these are passed to the land model's routines:
+      type(land_data_type)           :: From_lnd   ! data from land
+      type(atmos_land_boundary_type) :: From_atm   ! data from atm      
+      type(time_type)                :: Time_land, Time_init, Time_end,  &
+                                        Time_step_land, Time_step_ocean, &
+                                        Time_restart, Time_step_restart, &
+                                        Time_atstart      
       !contains
-
       !   procedure, public  :: Create
 
    end type lm4_type
@@ -118,6 +131,7 @@ contains
       if (associated(bnd%flux_sw_vis)) deallocate(bnd%flux_sw_vis)
       if (associated(bnd%flux_sw_vis_dir)) deallocate(bnd%flux_sw_vis_dir)
       if (associated(bnd%flux_sw_vis_dif)) deallocate(bnd%flux_sw_vis_dif)
+      if (associated(bnd%tprec)) deallocate(bnd%tprec)
       if (associated(bnd%lprec)) deallocate(bnd%lprec)
       if (associated(bnd%fprec)) deallocate(bnd%fprec)
 
@@ -152,6 +166,7 @@ contains
       allocate( bnd%flux_sw_vis(lnd%ls:lnd%le) )
       allocate( bnd%flux_sw_vis_dir(lnd%ls:lnd%le) )
       allocate( bnd%flux_sw_vis_dif(lnd%ls:lnd%le) )
+      allocate( bnd%tprec(lnd%ls:lnd%le) )
       allocate( bnd%lprec(lnd%ls:lnd%le) )
       allocate( bnd%fprec(lnd%ls:lnd%le) )
 
@@ -159,7 +174,6 @@ contains
 
    ! TMP DEBUG
    subroutine dealloc_atmforc2d(bnd)
-      ! must be called after land_data_init
       use land_data_mod, only : lnd
 
       type(atm_forc2d_type), intent(inout) :: bnd
@@ -184,6 +198,7 @@ contains
       if (associated(bnd%flux_sw_vis)) deallocate(bnd%flux_sw_vis)
       if (associated(bnd%flux_sw_vis_dir)) deallocate(bnd%flux_sw_vis_dir)
       if (associated(bnd%flux_sw_vis_dif)) deallocate(bnd%flux_sw_vis_dif)
+      if (associated(bnd%tprec)) deallocate(bnd%tprec)
       if (associated(bnd%lprec)) deallocate(bnd%lprec)
       if (associated(bnd%fprec)) deallocate(bnd%fprec)
    end subroutine dealloc_atmforc2d
@@ -216,6 +231,7 @@ contains
       allocate( bnd%flux_sw_vis(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%flux_sw_vis_dir(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%flux_sw_vis_dif(lnd%is:lnd%ie,lnd%js:lnd%je) )
+      allocate( bnd%tprec(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%lprec(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%fprec(lnd%is:lnd%ie,lnd%js:lnd%je) )
    end subroutine alloc_atmforc2d
