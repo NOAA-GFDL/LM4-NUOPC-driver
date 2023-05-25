@@ -123,12 +123,12 @@ contains
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swdn')
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_lwdn')
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swnet')
-      ! call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_rainc')
-      ! call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_rainl')
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_rainc')
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_rainl')
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_rain')     
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snow')
-      ! call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snowc')
-      ! call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snowl')
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snowc')
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snowl')
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'vfrac')
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'zorl')
       ! needed?
@@ -265,7 +265,7 @@ contains
 
       ! input/output variables
       type(ESMF_State)    , intent(inout) :: state
-      type(fld_list_type) , intent(in)    :: fldList(:)
+      type(fld_list_type) , intent(inout) :: fldList(:)
       integer             , intent(in)    :: numflds
       character(len=*)    , intent(in)    :: flds_scalar_name
       integer             , intent(in)    :: flds_scalar_num
@@ -325,7 +325,7 @@ contains
             if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
             !! Set flag for connected fields
-            !fldList(n)%connected = .true.
+            fldList(n)%connected = .true.
 
          else
             if (stdname /= trim(flds_scalar_name)) then
@@ -404,24 +404,7 @@ contains
       !  need to convert to LM4's 1d Unstructured Grid
       ! -----------------------
 
-      if (ie_debug > 0) then ! want both U.G. and S.G. data
-         call state_getimport_2d(importState, 'Sa_z',       lm4data_1d=lm4_model%atm_forc%z_bot,   lm4data_2d=lm4_model%atm_forc2d%z_bot,   rc=rc)
-         !call state_getimport_2d(importState, 'Sa_ta',      lm4data_1d=lm4_model%atm_forc%t_bot,   lm4data_2d=lm4_model%atm_forc2d%t_bot, rc=rc)
-         call state_getimport_2d(importState, 'Sa_tbot',    lm4data_1d=lm4_model%atm_forc%t_bot,   lm4data_2d=lm4_model%atm_forc2d%t_bot,   rc=rc)
-         ! call state_getimport_2d(importState, 'Sa_tskn'
-         ! call state_getimport_2d(importState, 'Sa_prsl',   lm4data_1d=lm4_model%atm_forc%prsl,    lm4data_2d=lm4_model%atm_forc2d%prsl ,rc=rc)
-         call state_getimport_2d(importState, 'Sa_pbot',    lm4data_1d=lm4_model%atm_forc%p_bot,   lm4data_2d=lm4_model%atm_forc2d%p_bot,   rc=rc)
-         ! call state_getimport_2d(importState, 'Sa_pslv'
-         call state_getimport_2d(importState, 'Sa_u',       lm4data_1d=lm4_model%atm_forc%u_bot,   lm4data_2d=lm4_model%atm_forc2d%u_bot,   rc=rc)
-         call state_getimport_2d(importState, 'Sa_v',       lm4data_1d=lm4_model%atm_forc%v_bot,   lm4data_2d=lm4_model%atm_forc2d%v_bot,   rc=rc)
-         call state_getimport_2d(importState, 'Faxa_rain',  lm4data_1d=lm4_model%atm_forc%totprec,   lm4data_2d=lm4_model%atm_forc2d%totprec,   rc=rc)
-         call state_getimport_2d(importState, 'Faxa_snow',  lm4data_1d=lm4_model%atm_forc%fprec,   lm4data_2d=lm4_model%atm_forc2d%fprec,   rc=rc)
-         call state_getimport_2d(importState, 'Faxa_lwdn',  lm4data_1d=lm4_model%atm_forc%flux_lw, lm4data_2d=lm4_model%atm_forc2d%flux_lw, rc=rc)
-         call state_getimport_2d(importState, 'Faxa_swvdf', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dif, &
-            lm4data_2d=lm4_model%atm_forc2d%flux_sw_down_vis_dif, rc=rc)
-         call state_getimport_2d(importState, 'Faxa_swvdr', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dir, &
-            lm4data_2d=lm4_model%atm_forc2d%flux_sw_down_vis_dir, rc=rc)
-      else ! want only Unstructured Grid data
+      ! Get Unstructured Grid data
          call state_getimport_2d(importState, 'Sa_z',       lm4data_1d=lm4_model%atm_forc%z_bot, rc=rc)
          !call state_getimport_2d(importState, 'Sa_ta', lm4data_1d=lm4_model%atm_forc%t_bot, rc=rc)
          call state_getimport_2d(importState, 'Sa_tbot',    lm4data_1d=lm4_model%atm_forc%t_bot, rc=rc)
@@ -436,6 +419,22 @@ contains
          call state_getimport_2d(importState, 'Faxa_lwdn',  lm4data_1d=lm4_model%atm_forc%flux_lw, rc=rc)
          call state_getimport_2d(importState, 'Faxa_swvdf', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dif, rc=rc)
          call state_getimport_2d(importState, 'Faxa_swvdr', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dir, rc=rc)
+
+      if (ie_debug > 0) then ! Also want Structured Grid data
+         call state_getimport_2d(importState, 'Sa_z',       lm4data_2d=lm4_model%atm_forc2d%z_bot,   rc=rc)
+         !call state_getimport_2d(importState, 'Sa_ta',      lm4data_2d=lm4_model%atm_forc2d%t_bot, rc=rc)
+         call state_getimport_2d(importState, 'Sa_tbot',    lm4data_2d=lm4_model%atm_forc2d%t_bot,   rc=rc)
+         ! call state_getimport_2d(importState, 'Sa_tskn'
+         ! call state_getimport_2d(importState, 'Sa_prsl',   lm4data_2d=lm4_model%atm_forc2d%prsl ,rc=rc)
+         call state_getimport_2d(importState, 'Sa_pbot',    lm4data_2d=lm4_model%atm_forc2d%p_bot,   rc=rc)
+         ! call state_getimport_2d(importState, 'Sa_pslv'
+         call state_getimport_2d(importState, 'Sa_u',       lm4data_2d=lm4_model%atm_forc2d%u_bot,   rc=rc)
+         call state_getimport_2d(importState, 'Sa_v',       lm4data_2d=lm4_model%atm_forc2d%v_bot,   rc=rc)
+         call state_getimport_2d(importState, 'Faxa_rain',  lm4data_2d=lm4_model%atm_forc2d%totprec, rc=rc)
+         call state_getimport_2d(importState, 'Faxa_snow',  lm4data_2d=lm4_model%atm_forc2d%fprec,   rc=rc)
+         call state_getimport_2d(importState, 'Faxa_lwdn',  lm4data_2d=lm4_model%atm_forc2d%flux_lw, rc=rc)
+         call state_getimport_2d(importState, 'Faxa_swvdf', lm4data_2d=lm4_model%atm_forc2d%flux_sw_down_vis_dif, rc=rc)
+         call state_getimport_2d(importState, 'Faxa_swvdr', lm4data_2d=lm4_model%atm_forc2d%flux_sw_down_vis_dir, rc=rc)
       end if
 
       ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -450,7 +449,6 @@ contains
       ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
       ! -----------------------
 
-
       ! call state_getimport_2d(importState, 'Faxa_swndf',
       ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
@@ -461,16 +459,6 @@ contains
       ! ! call state_getimport_2d(importState, 'Sa_exner'  , cplr2land%, rc=rc)
       ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
       ! ! call state_getimport_2d(importState, 'Sa_ustar'  , cplr2land%, rc=rc)
-      ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
-      ! ! call state_getimport_2d(importState, 'Faxa_rainc', cplr2land%, rc=rc)
-      ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-      ! ! call state_getimport_2d(importState, 'Faxa_rainl', cplr2land%, rc=rc)
-      ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
-      ! ! call state_getimport_2d(importState, 'Faxa_snowc', cplr2land%, rc=rc)
-      ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-      ! ! call state_getimport_2d(importState, 'Faxa_snowl', cplr2land%, rc=rc)
       ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
       ! ! call state_getimport_2d(importState, 'vfrac'     , cplr2land%, rc=rc)
@@ -500,7 +488,17 @@ contains
 
       ! ----------------------------------------------
 
+      rc = ESMF_SUCCESS
+      call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
+
+      ie_debug = lm4_model%nml%lm4_debug
+
+      ! Get import state
+      call NUOPC_ModelGet(gcomp, importState=importState, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
       allocate(tmp_ug_data(lnd%ls:lnd%le))
+
 
       !! precip
       !! ---------------------------------------------------------------------      
@@ -516,7 +514,6 @@ contains
          lm4_model%atm_forc%totprec = lm4_model%atm_forc%totprec + tmp_ug_data
       else
          ! don't have total precip
-         call ESMF_LogWrite(trim(subname)//": Don't have Faxa_rain, or Faxa_rainc+Faxa_rainl for Total Precip.", &
             ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__)
          call ESMF_Finalize(endflag=ESMF_END_ABORT)
       endif    
@@ -702,9 +699,6 @@ contains
       use ESMF , only : ESMF_State, ESMF_Field, ESMF_Mesh, ESMF_FieldStatus_Flag
       use ESMF , only : ESMF_StateGet, ESMF_FieldGet, ESMF_MeshGet
       use ESMF , only : ESMF_FIELDSTATUS_COMPLETE, ESMF_FAILURE
-      ! TMP DEBUG
-      use ESMF , only : ESMF_ArraySpec
-      ! END TMP DEBUG
 
       ! input/output variables
       type(ESMF_State),             intent(in)    :: State
@@ -719,9 +713,6 @@ contains
       character(len=*), parameter :: subname='(lnd_import_export:state_getfldptr)'
       ! ----------------------------------------------
 
-      ! TMP DEBUG VARS
-      type(ESMF_ArraySpec) :: arrayspec
-      ! END TMP DEBUG VARS
 
       rc = ESMF_SUCCESS
 
