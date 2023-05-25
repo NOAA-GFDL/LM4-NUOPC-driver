@@ -431,7 +431,7 @@ contains
       !-------------------------------------------------------------------------------
       ! Get import fields
       !-------------------------------------------------------------------------------
-      call import_fields(gcomp, lm4_model%From_atm,lm4_model, rc)
+      call import_fields(gcomp, lm4_model, rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
       call correct_import_fields(gcomp, lm4_model, rc)
@@ -440,7 +440,7 @@ contains
 
       ! option to write out diag history of imports
       if (debug_cap > 0) then
-         call debug_diag(lm4_model%Time_land, lm4_model)
+         call debug_diag(lm4_model)
       endif
 
       ! TMP disable for testing
