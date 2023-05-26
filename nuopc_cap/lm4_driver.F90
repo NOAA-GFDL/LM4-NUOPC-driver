@@ -269,7 +269,7 @@ contains
             ex_b_star   ,  &
             ex_u_star   ,  &
             ex_wind     ,  &
-            ex_z_atm    ,  &
+            !ex_z_atm    ,  &
 
             ex_e_t_n    ,  &
             ex_e_q_n    ,  &
@@ -287,15 +287,7 @@ contains
       !  integer :: is,ie,l,j
       !  integer :: isc,iec,jsc,jec
 
-         integer :: isphum = 1       !< index of specific humidity tracer in tracer table
-
-      ! leave existing variable names in place for future exchange grid functionality
-      associate ( &
-         ex_t_atm => lm4_model%atm_forc%t_bot, &
-         ex_p_atm => lm4_model%atm_forc%p_bot, &
-         ex_u_atm => lm4_model%atm_forc%u_bot, &
-         ex_v_atm => lm4_model%atm_forc%v_bot  &
-         )
+      integer :: isphum = 1       !< index of specific humidity tracer in tracer table
 
       !  ! JP TMP TEST INPUTS
       !  !inputs for SF  
@@ -345,18 +337,30 @@ contains
 
       ! JP end
     
-    call surface_flux_1d (&
-         ex_t_atm(lnd%ls:lnd%le), ex_tr_atm(lnd%ls:lnd%le,isphum),  ex_u_atm(lnd%ls:lnd%le), ex_v_atm(lnd%ls:lnd%le),  &
-         ex_p_atm(lnd%ls:lnd%le),  ex_z_atm(lnd%ls:lnd%le), ex_p_surf(lnd%ls:lnd%le),ex_t_surf(lnd%ls:lnd%le), &
-         ex_t_ca(lnd%ls:lnd%le),  ex_tr_surf(lnd%ls:lnd%le,isphum), ex_u_surf(lnd%ls:lnd%le), ex_v_surf(lnd%ls:lnd%le), &
-         ex_rough_mom(lnd%ls:lnd%le), ex_rough_heat(lnd%ls:lnd%le), ex_rough_moist(lnd%ls:lnd%le), ex_rough_scale(lnd%ls:lnd%le),    &
-         ex_gust(lnd%ls:lnd%le),  ex_flux_t(lnd%ls:lnd%le), ex_flux_tr(lnd%ls:lnd%le,isphum), ex_flux_lw(lnd%ls:lnd%le), &
+    call surface_flux_1d ( &
+         ! inputs
+         lm4_model%atm_forc%t_bot,                                      &
+         ex_tr_atm(lnd%ls:lnd%le,isphum),                               & !! TODO: bottom layer Q
+         lm4_model%atm_forc%u_bot, lm4_model%atm_forc%v_bot,            &
+         lm4_model%atm_forc%p_bot,  lm4_model%atm_forc%z_bot,           &
+         ex_p_surf(lnd%ls:lnd%le),ex_t_surf(lnd%ls:lnd%le),             & !! TODO: surface T and P
+         ex_t_ca(lnd%ls:lnd%le),                                        & !! TODO: Air temp at the canopy
+         ! inout         
+         ex_tr_surf(lnd%ls:lnd%le,isphum),                              & !! TODO surface Q (this is INOUT)
+         ! more inputs         
+         ex_u_surf(lnd%ls:lnd%le), ex_v_surf(lnd%ls:lnd%le),            & !! TODO surface wind
+         ex_rough_mom(lnd%ls:lnd%le), ex_rough_heat(lnd%ls:lnd%le),     & !! TODO rough lengths
+         ex_rough_moist(lnd%ls:lnd%le), ex_rough_scale(lnd%ls:lnd%le),  & !! TODO Moisture roughness length and scale factor
+         ex_gust(lnd%ls:lnd%le),                                        & !! TODO gustiness 
+         ! outputs
+         ex_flux_t(lnd%ls:lnd%le), ex_flux_tr(lnd%ls:lnd%le,isphum),    & !! SH and Evap (Q) fluxes
+         ex_flux_lw(lnd%ls:lnd%le), &
          ex_flux_u(lnd%ls:lnd%le), ex_flux_v(lnd%ls:lnd%le), ex_cd_m(lnd%ls:lnd%le),   ex_cd_t(lnd%ls:lnd%le), &
          ex_cd_q(lnd%ls:lnd%le),   ex_wind(lnd%ls:lnd%le),   ex_u_star(lnd%ls:lnd%le), ex_b_star(lnd%ls:lnd%le), &
          ex_q_star(lnd%ls:lnd%le), ex_dhdt_surf(lnd%ls:lnd%le), ex_dedt_surf(lnd%ls:lnd%le), &
          ex_dfdtr_surf(lnd%ls:lnd%le,isphum),  ex_drdt_surf(lnd%ls:lnd%le),  ex_dhdt_atm(lnd%ls:lnd%le), &
          ex_dfdtr_atm(lnd%ls:lnd%le,isphum),  ex_dtaudu_atm(lnd%ls:lnd%le), ex_dtaudv_atm(lnd%ls:lnd%le),       &
-         dt,                                                             &
+         dt,                                                            & !! timestep doesn't seem to be used
          ex_land(lnd%ls:lnd%le), ex_seawater(lnd%ls:lnd%le) .gt. 0.0,  ex_avail(lnd%ls:lnd%le)            )
 
 
@@ -365,7 +369,7 @@ contains
    zrefh = z_ref_heat
 
 
-   call mo_profile ( zrefm, zrefh, ex_z_atm(lnd%ls:lnd%le), ex_rough_mom(lnd%ls:lnd%le), &
+   call mo_profile ( zrefm, zrefh, lm4_model%atm_forc%z_bot, ex_rough_mom(lnd%ls:lnd%le), &
       ex_rough_heat(lnd%ls:lnd%le), ex_rough_moist(lnd%ls:lnd%le),          &
       ex_u_star(lnd%ls:lnd%le), ex_b_star(lnd%ls:lnd%le), ex_q_star(lnd%ls:lnd%le),        &
       ex_del_m(lnd%ls:lnd%le), ex_del_h(lnd%ls:lnd%le), ex_del_q(lnd%ls:lnd%le), ex_avail(lnd%ls:lnd%le)  )
@@ -373,8 +377,8 @@ contains
    do i = lnd%ls,lnd%le
       ex_u10(i) = 0.
       if(ex_avail(i)) then
-         ex_ref_u(i) = ex_u_surf(i) + (ex_u_atm(i)-ex_u_surf(i)) * ex_del_m(i)
-         ex_ref_v(i) = ex_v_surf(i) + (ex_v_atm(i)-ex_v_surf(i)) * ex_del_m(i)
+         ex_ref_u(i) = ex_u_surf(i) + (lm4_model%atm_forc%u_bot(i)-ex_u_surf(i)) * ex_del_m(i)
+         ex_ref_v(i) = ex_v_surf(i) + (lm4_model%atm_forc%v_bot(i)-ex_v_surf(i)) * ex_del_m(i)
          ex_u10(i) = sqrt(ex_ref_u(i)**2 + ex_ref_v(i)**2)
       endif
    enddo
@@ -409,7 +413,7 @@ contains
       !=======================================================================
       ! [7] diagnostics section
 
-   call mo_profile ( zrefm, zrefh, ex_z_atm(lnd%ls:lnd%le),   ex_rough_mom(lnd%ls:lnd%le), &
+   call mo_profile ( zrefm, zrefh, lm4_model%atm_forc%z_bot,   ex_rough_mom(lnd%ls:lnd%le), &
       ex_rough_heat(lnd%ls:lnd%le), ex_rough_moist(lnd%ls:lnd%le),          &
       ex_u_star(lnd%ls:lnd%le), ex_b_star(lnd%ls:lnd%le), ex_q_star(lnd%ls:lnd%le),        &
       ex_del_m(lnd%ls:lnd%le), ex_del_h(lnd%ls:lnd%le), ex_del_q(lnd%ls:lnd%le), ex_avail(lnd%ls:lnd%le)  )
@@ -427,7 +431,7 @@ contains
    do i = lnd%ls,lnd%le
       ex_t_ref(i) = 200.
       if(ex_avail(i)) &
-         ex_t_ref(i) = ex_t_ca(i) + (ex_t_atm(i)-ex_t_ca(i)) * ex_del_h(i)
+         ex_t_ref(i) = ex_t_ca(i) + (lm4_model%atm_forc%t_bot(i)-ex_t_ca(i)) * ex_del_h(i)
    enddo
    call compute_qs (ex_t_ref(lnd%ls:lnd%le), ex_p_surf(lnd%ls:lnd%le), ex_qs_ref(lnd%ls:lnd%le), q = ex_ref(lnd%ls:lnd%le))
    call compute_qs (ex_t_ref(lnd%ls:lnd%le), ex_p_surf(lnd%ls:lnd%le), ex_qs_ref_cmip(lnd%ls:lnd%le),  &
@@ -443,8 +447,6 @@ contains
 
    ! lots of send_data stuff originally here, removed
    ! TODO: get diag history write back in
-
-      end associate
 
    end subroutine sfc_boundary_layer
 

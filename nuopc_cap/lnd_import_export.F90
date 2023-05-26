@@ -1,8 +1,8 @@
+!!===============================================================================
+!! This module contains the import and export routines for the land model, and
+!! related helper routines.
+!!===============================================================================
 module lnd_import_export
-!-------------------------------------------------------------------------------
-! This module contains the import and export routines for the land model, and
-! related helper routines.
-!-------------------------------------------------------------------------------
 
    use ESMF,                     only: ESMF_GridComp, ESMF_State, ESMF_Mesh, ESMF_StateGet
    use ESMF,                     only: ESMF_KIND_R8, ESMF_SUCCESS, ESMF_END_ABORT, ESMF_Finalize
@@ -58,8 +58,8 @@ module lnd_import_export
 
 !===============================================================================
 contains
-!===============================================================================
 
+   !===============================================================================
    subroutine advertise_fields(gcomp, flds_scalar_name,  rc)
 
       ! input/output variables
@@ -337,6 +337,7 @@ contains
          end if
       end do
 
+   ! TODO: do I need 2 contains?
    contains  !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
       subroutine SetScalarField(field, flds_scalar_name, flds_scalar_num, rc)
@@ -376,7 +377,8 @@ contains
    end subroutine fldlist_realize
 
 
-   !===============================================================================
+   ! Import fields that do not need to be altered for the land model
+   !!===============================================================================
    subroutine import_fields(gcomp, lm4_model, rc)
 
       ! input/output variables
@@ -404,33 +406,35 @@ contains
       ! -----------------------
 
       ! Get Unstructured Grid data
-         call state_getimport_2d(importState, 'Sa_z',       lm4data_1d=lm4_model%atm_forc%z_bot, rc=rc)
-         !call state_getimport_2d(importState, 'Sa_ta', lm4data_1d=lm4_model%atm_forc%t_bot, rc=rc)
-         call state_getimport_2d(importState, 'Sa_tbot',    lm4data_1d=lm4_model%atm_forc%t_bot, rc=rc)
-         ! call state_getimport_2d(importState, 'Sa_tskn'
-         ! call state_getimport_2d(importState, 'Sa_prsl', lm4data_1d=lm4_model%atm_forc%prsl, rc=rc)
-         call state_getimport_2d(importState, 'Sa_pbot',    lm4data_1d=lm4_model%atm_forc%p_bot, rc=rc)
-         ! call state_getimport_2d(importState, 'Sa_pslv'
-         call state_getimport_2d(importState, 'Sa_u',       lm4data_1d=lm4_model%atm_forc%u_bot, rc=rc)
-         call state_getimport_2d(importState, 'Sa_v',       lm4data_1d=lm4_model%atm_forc%v_bot, rc=rc)
-         ! call state_getimport_2d(importState, 'Faxa_rain',  lm4data_1d=lm4_model%atm_forc%totprec, rc=rc)  ! total precip
-         ! call state_getimport_2d(importState, 'Faxa_snow',  lm4data_1d=lm4_model%atm_forc%fprec, rc=rc)
+         call state_getimport_2d(importState, 'Sa_z',       lm4data_1d=lm4_model%atm_forc%z_bot, rc=rc)  ! bottom layer height
+         call state_getimport_2d(importState, 'Sa_tbot',    lm4data_1d=lm4_model%atm_forc%t_bot, rc=rc)  ! bottom layer temperature 
+         call state_getimport_2d(importState, 'Sa_ta',      lm4data_1d=lm4_model%atm_forc%t_bot, rc=rc)  ! bottom layer temperature (active UFS atm)
+         ! call state_getimport_2d(importState, 'Sa_tskn' ...                                            ! surface skin temperature
+         call state_getimport_2d(importState, 'Sa_pbot',    lm4data_1d=lm4_model%atm_forc%p_bot, rc=rc)  ! bottom layer pressure
+         call state_getimport_2d(importState, 'Sa_prsl',    lm4data_1d=lm4_model%atm_forc%p_bot, rc=rc)  ! bottom layer pressure (active UFS atm)
+         call state_getimport_2d(importState, 'Sa_u',       lm4data_1d=lm4_model%atm_forc%u_bot, rc=rc)  ! bottom layer zonal wind
+         call state_getimport_2d(importState, 'Sa_v',       lm4data_1d=lm4_model%atm_forc%v_bot, rc=rc)  ! bottom layer meridional wind
+         call state_getimport_2d(importState, 'Sa_ua',      lm4data_1d=lm4_model%atm_forc%u_bot, rc=rc)  ! bottom layer zonal wind (active UFS atm)
+         call state_getimport_2d(importState, 'Sa_uv',      lm4data_1d=lm4_model%atm_forc%v_bot, rc=rc)  ! bottom layer meridional wind (active UFS atm)       
+         call state_getimport_2d(importState, 'Sa_shum',    lm4data_1d=lm4_model%atm_forc%q_bot, rc=rc)  ! bottom layer specific humidity
+         call state_getimport_2d(importState, 'Sa_qa',      lm4data_1d=lm4_model%atm_forc%q_bot, rc=rc)  ! bottom layer specific humidity (active UFS atm)
+         call state_getimport_2d(importState, 'Sa_pslv',    lm4data_1d=lm4_model%atm_forc%p_surf, rc=rc) ! surface pressure
          call state_getimport_2d(importState, 'Faxa_lwdn',  lm4data_1d=lm4_model%atm_forc%flux_lw, rc=rc)
          call state_getimport_2d(importState, 'Faxa_swvdf', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dif, rc=rc)
          call state_getimport_2d(importState, 'Faxa_swvdr', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dir, rc=rc)
 
       if (ie_debug > 0) then ! Also want Structured Grid data
          call state_getimport_2d(importState, 'Sa_z',       lm4data_2d=lm4_model%atm_forc2d%z_bot,   rc=rc)
-         !call state_getimport_2d(importState, 'Sa_ta',      lm4data_2d=lm4_model%atm_forc2d%t_bot, rc=rc)
          call state_getimport_2d(importState, 'Sa_tbot',    lm4data_2d=lm4_model%atm_forc2d%t_bot,   rc=rc)
+         call state_getimport_2d(importState, 'Sa_ta',      lm4data_2d=lm4_model%atm_forc2d%t_bot,    rc=rc)
          ! call state_getimport_2d(importState, 'Sa_tskn'
-         ! call state_getimport_2d(importState, 'Sa_prsl',   lm4data_2d=lm4_model%atm_forc2d%prsl ,rc=rc)
          call state_getimport_2d(importState, 'Sa_pbot',    lm4data_2d=lm4_model%atm_forc2d%p_bot,   rc=rc)
-         ! call state_getimport_2d(importState, 'Sa_pslv'
+         call state_getimport_2d(importState, 'Sa_prsl',    lm4data_2d=lm4_model%atm_forc2d%p_bot, rc=rc)
          call state_getimport_2d(importState, 'Sa_u',       lm4data_2d=lm4_model%atm_forc2d%u_bot,   rc=rc)
          call state_getimport_2d(importState, 'Sa_v',       lm4data_2d=lm4_model%atm_forc2d%v_bot,   rc=rc)
-         !call state_getimport_2d(importState, 'Faxa_rain',  lm4data_2d=lm4_model%atm_forc2d%totprec, rc=rc)
-         !call state_getimport_2d(importState, 'Faxa_snow',  lm4data_2d=lm4_model%atm_forc2d%fprec,   rc=rc)
+         call state_getimport_2d(importState, 'Sa_ua',      lm4data_2d=lm4_model%atm_forc2d%u_bot,   rc=rc)
+         call state_getimport_2d(importState, 'Sa_uv',      lm4data_2d=lm4_model%atm_forc2d%v_bot,   rc=rc)
+         call state_getimport_2d(importState, 'Sa_pslv',    lm4data_2d=lm4_model%atm_forc2d%p_surf,  rc=rc)
          call state_getimport_2d(importState, 'Faxa_lwdn',  lm4data_2d=lm4_model%atm_forc2d%flux_lw, rc=rc)
          call state_getimport_2d(importState, 'Faxa_swvdf', lm4data_2d=lm4_model%atm_forc2d%flux_sw_down_vis_dif, rc=rc)
          call state_getimport_2d(importState, 'Faxa_swvdr', lm4data_2d=lm4_model%atm_forc2d%flux_sw_down_vis_dir, rc=rc)
@@ -469,11 +473,11 @@ contains
 
    end subroutine import_fields
 
-   !=============================================================================
-
+   !! Imports and "corrects" the fields from the atmosphere that need to be 
+   !! altered somehow into what the land model expects
+   !!=============================================================================
    subroutine correct_import_fields(gcomp, lm4_model, rc)
-      !! This routine imports and "corrects" the fields from the atmosphere that need to be 
-      !! altered somehow into what the land model expects
+
 
       ! input/output variables
       type(ESMF_GridComp), intent(in)    :: gcomp

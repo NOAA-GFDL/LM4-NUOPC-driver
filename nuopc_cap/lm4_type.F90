@@ -29,16 +29,17 @@ module lm4_type_mod
          p_bot       => NULL(), &   ! pressure at the atm. bottom, N/m2
          u_bot       => NULL(), &   ! zonal wind at the atm. bottom, m/s
          v_bot       => NULL(), &   ! merid. wind at the atm. bottom, m/s
+         q_bot       => NULL(), &   ! specific humidity at the atm. bottom, kg/kg
          p_surf      => NULL(), &   ! surface pressure, N/m2
-      ! LM4 doesn't need slp
-      !slp       => NULL(), &   ! sea level pressure, N/m2 
+         ! LM4 doesn't need slp
+         !slp       => NULL(), &   ! sea level pressure, N/m2 
          gust        => NULL(), &   ! gustiness, m/s
          coszen      => NULL(), &   ! cosine of zenith angle
          totprec     => NULL(), &   ! total precipitation,  kg/m2/s
          lprec       => NULL(), &   ! liquid precipitation, kg/m2/s
          fprec       => NULL(), &   ! frozen precipitation, kg/m2/s          
-      ! LM4 doesn't need net SW
-      !flux_sw   => NULL(), &   ! SW radiation flux (net), W/m2
+         ! LM4 doesn't need net SW
+         !flux_sw   => NULL(), &   ! SW radiation flux (net), W/m2
          flux_lw     => NULL(), &   ! LW radiation flux (down), W/m2
          flux_sw_dir => NULL(), &
          flux_sw_dif => NULL(), &        
@@ -60,6 +61,7 @@ module lm4_type_mod
          p_bot       => NULL(), &   ! pressure at the atm. bottom, N/m2
          u_bot       => NULL(), &   ! zonal wind at the atm. bottom, m/s
          v_bot       => NULL(), &   ! merid. wind at the atm. bottom, m/s
+         q_bot       => NULL(), &   ! specific humidity at the atm. bottom, kg/kg
          p_surf      => NULL(), &   ! surface pressure, N/m2
       ! LM4 doesn't need slp
       !slp       => NULL(), &   ! sea level pressure, N/m2
@@ -115,6 +117,7 @@ contains
       if (associated(bnd%p_bot)) deallocate(bnd%p_bot)
       if (associated(bnd%u_bot)) deallocate(bnd%u_bot)
       if (associated(bnd%v_bot)) deallocate(bnd%v_bot)
+      if (associated(bnd%q_bot)) deallocate(bnd%q_bot)
       if (associated(bnd%p_surf)) deallocate(bnd%p_surf)
       !if (associated(bnd%slp)) deallocate(bnd%slp)
       if (associated(bnd%gust)) deallocate(bnd%gust)
@@ -150,6 +153,7 @@ contains
       allocate( bnd%p_bot(lnd%ls:lnd%le) )
       allocate( bnd%u_bot(lnd%ls:lnd%le) )
       allocate( bnd%v_bot(lnd%ls:lnd%le) )
+      allocate( bnd%q_bot(lnd%ls:lnd%le) )
       allocate( bnd%p_surf(lnd%ls:lnd%le) )
       !allocate( bnd%slp(lnd%ls:lnd%le) )
       allocate( bnd%gust(lnd%ls:lnd%le) )
@@ -182,6 +186,7 @@ contains
       if (associated(bnd%p_bot)) deallocate(bnd%p_bot)
       if (associated(bnd%u_bot)) deallocate(bnd%u_bot)
       if (associated(bnd%v_bot)) deallocate(bnd%v_bot)
+      if (associated(bnd%q_bot)) deallocate(bnd%q_bot)
       if (associated(bnd%p_surf)) deallocate(bnd%p_surf)
       !if (associated(bnd%slp)) deallocate(bnd%slp)
       if (associated(bnd%gust)) deallocate(bnd%gust)
@@ -215,6 +220,7 @@ contains
       allocate( bnd%p_bot(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%u_bot(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%v_bot(lnd%is:lnd%ie,lnd%js:lnd%je) )
+      allocate( bnd%q_bot(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%p_surf(lnd%is:lnd%ie,lnd%js:lnd%je) )
       !allocate( bnd%slp(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%gust(lnd%is:lnd%ie,lnd%js:lnd%je) )

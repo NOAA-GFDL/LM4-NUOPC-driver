@@ -1076,49 +1076,49 @@ subroutine update_land_model_fast ( cplr2land, land2cplr )
         ISa_dn_dif(BAND_NIR) = cplr2land%sw_flux_down_total_dif(l,k)&
                               -cplr2land%sw_flux_down_vis_dif(l,k)
 
-        !! JP TMP OVERRIDE WITH 'FAKE' DATA TO TEST
-        !JP  land_data_type, (l,k)           1           1
-        land2cplr%tile_size       =  1.0000000000000000     
-        land2cplr%t_surf          =  270.54386737743420     
-        land2cplr%t_ca            =  269.86644797824840     
-        land2cplr%albedo          = 0.15826881726873737     
-        land2cplr%albedo_vis_dir  =  7.7811967963887577E-002
-        land2cplr%albedo_nir_dir  = 0.29261073512077934     
-        land2cplr%albedo_vis_dif  =  5.4301613118517653E-002
-        land2cplr%albedo_nir_dif  = 0.20835095287176489     
-        land2cplr%rough_mom       =  5.1347954578381906E-002
-        land2cplr%rough_heat      =  6.9491899764860393E-003
-        land2cplr%rough_scale     =  5.1347954578381906E-002
-        !JP  land_data_type, (l,k,:)
-        !land2cplr%tr(l,k,:)       =  (/4.3367478554857448E-004,   2.4963609756558374E-003/)
-        !JP atmos_land_boundary_type, (l,k)           1           1
-        cplr2land%t_flux                  =  29.512907717864699     
-        cplr2land%lw_flux                 = -63.388078010144710     
-        cplr2land%lwdn_flux               =  240.55634562174478     
-        cplr2land%sw_flux                 =  0.0000000000000000     
-        cplr2land%swdn_flux               =  0.0000000000000000     
-        cplr2land%lprec                   =  0.0000000000000000     
-        cplr2land%fprec                   =  0.0000000000000000     
-        cplr2land%tprec                   =  268.32330322265625     
-        cplr2land%sw_flux_down_vis_dir    =  0.0000000000000000     
-        cplr2land%sw_flux_down_total_dir  =  0.0000000000000000     
-        cplr2land%sw_flux_down_vis_dif    =  0.0000000000000000     
-        cplr2land%sw_flux_down_total_dif  =  0.0000000000000000     
-        cplr2land%dhdt                    =  26.938493619768689     
-        cplr2land%dhdq                    =  0.0000000000000000     
-        cplr2land%drdt                    =  4.4938283255610951     
-        cplr2land%cd_m                    =  4.3027751027215786E-003
-        cplr2land%cd_t                    =  3.3905248339519425E-003
-        cplr2land%ustar                   = 0.40684715968476554     
-        cplr2land%bstar                   =  2.1082581678579862E-003
-        cplr2land%wind                    =  6.2023599254253963     
-        cplr2land%z_bot                   =  35.000000000000000     
-        cplr2land%drag_q                  =  2.1029255356263123E-002
-        cplr2land%p_surf                  =  99394.434895833343     
-        !JP atmos_land_boundary_type, (l,k,:)           1           1
-        !cplr2land%tr_flux   = (/3.3084531224076005E-009,   4.5415203708870930E-006 /)
-        !cplr2land%dfdtr     = (/2.6814289157032819E-002,   2.6814289157032819E-002 /)
-        !! JP END TMP
+      !   !! JP TMP OVERRIDE WITH 'FAKE' DATA TO TEST
+      !   !JP  land_data_type, (l,k)           1           1
+      !   land2cplr%tile_size       =  1.0000000000000000     
+      !   land2cplr%t_surf          =  270.54386737743420     
+      !   land2cplr%t_ca            =  269.86644797824840     
+      !   land2cplr%albedo          = 0.15826881726873737     
+      !   land2cplr%albedo_vis_dir  =  7.7811967963887577E-002
+      !   land2cplr%albedo_nir_dir  = 0.29261073512077934     
+      !   land2cplr%albedo_vis_dif  =  5.4301613118517653E-002
+      !   land2cplr%albedo_nir_dif  = 0.20835095287176489     
+      !   land2cplr%rough_mom       =  5.1347954578381906E-002
+      !   land2cplr%rough_heat      =  6.9491899764860393E-003
+      !   land2cplr%rough_scale     =  5.1347954578381906E-002
+      !   !JP  land_data_type, (l,k,:)
+      !   !land2cplr%tr(l,k,:)       =  (/4.3367478554857448E-004,   2.4963609756558374E-003/)
+      !   !JP atmos_land_boundary_type, (l,k)           1           1
+      !   cplr2land%t_flux                  =  29.512907717864699     
+      !   cplr2land%lw_flux                 = -63.388078010144710     
+      !   cplr2land%lwdn_flux               =  240.55634562174478     
+      !   cplr2land%sw_flux                 =  0.0000000000000000     
+      !   cplr2land%swdn_flux               =  0.0000000000000000     
+      !   cplr2land%lprec                   =  0.0000000000000000     
+      !   cplr2land%fprec                   =  0.0000000000000000     
+      !   cplr2land%tprec                   =  268.32330322265625     
+      !   cplr2land%sw_flux_down_vis_dir    =  0.0000000000000000     
+      !   cplr2land%sw_flux_down_total_dir  =  0.0000000000000000     
+      !   cplr2land%sw_flux_down_vis_dif    =  0.0000000000000000     
+      !   cplr2land%sw_flux_down_total_dif  =  0.0000000000000000     
+      !   cplr2land%dhdt                    =  26.938493619768689     
+      !   cplr2land%dhdq                    =  0.0000000000000000     
+      !   cplr2land%drdt                    =  4.4938283255610951     
+      !   cplr2land%cd_m                    =  4.3027751027215786E-003
+      !   cplr2land%cd_t                    =  3.3905248339519425E-003
+      !   cplr2land%ustar                   = 0.40684715968476554     
+      !   cplr2land%bstar                   =  2.1082581678579862E-003
+      !   cplr2land%wind                    =  6.2023599254253963     
+      !   cplr2land%z_bot                   =  35.000000000000000     
+      !   cplr2land%drag_q                  =  2.1029255356263123E-002
+      !   cplr2land%p_surf                  =  99394.434895833343     
+      !   !JP atmos_land_boundary_type, (l,k,:)           1           1
+      !   !cplr2land%tr_flux   = (/3.3084531224076005E-009,   4.5415203708870930E-006 /)
+      !   !cplr2land%dfdtr     = (/2.6814289157032819E-002,   2.6814289157032819E-002 /)
+      !   !! JP END TMP
         
         call update_land_model_fast_0d(tile, l, k, land2cplr, &
            cplr2land%lprec(l,k),  cplr2land%fprec(l,k), cplr2land%tprec(l,k), &
