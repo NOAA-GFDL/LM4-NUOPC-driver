@@ -320,7 +320,6 @@ subroutine land_data_init(layout, io_layout, time, dt_fast, dt_slow, mask_table,
   call get_grid_cell_area    ('LND',lnd%sg_face,lnd%sg_cellarea, domain=lnd%sg_domain)
   call get_grid_comp_area    ('LND',lnd%sg_face,lnd%sg_area,     domain=lnd%sg_domain)
   lnd%sg_landfrac = lnd%sg_area/lnd%sg_cellarea
-  !! JP TODO: MAKE landfrac binary if hooked up to CMEPS?
   
   ! set local coordinates arrays -- temporary, till such time as the global arrays
   ! are not necessary

@@ -1,27 +1,22 @@
 module land_domain_mod
+  !! Defines the land domain for the LM4 model.
+  !! -------------------------------------------
 
   use mpp_mod
   use mpp_domains_mod
-  use fms_mod,             only: open_namelist_file, &
-       check_nml_error, close_file, file_exist
+
   implicit none
-  !type(domain2D) :: land_domain
-
-  !! NEED TO GET from nml: npx,npy, layout
-  !! halo = 0
-
-  integer :: f_unit, ios, ierr
-
+ 
   public domain_create
   
 contains
 
-  subroutine domain_create(ctrl_init, land_domain)
+  subroutine domain_create(nml, land_domain)
 
-    use proc_bounds,   only: control_init_type
+    use lm4_type_mod, only: lm4_nml_type
     
-    type(control_init_type), intent(in)  :: ctrl_init
-    type(domain2d)         , intent(out) :: land_domain
+    type(lm4_nml_type), intent(in) :: nml
+    type(domain2d), intent(out)    :: land_domain
 
     integer, allocatable :: pe_start(:), pe_end(:)
     integer :: n
@@ -30,14 +25,14 @@ contains
     call mpp_domains_init()
 
     !--- define mosaic for domain
-    allocate(pe_start(ctrl_init%ntiles))
-    allocate(pe_end(ctrl_init%ntiles))
-    do n = 1, ctrl_init%ntiles
-       pe_start(n) = mpp_root_pe() + (n-1)*ctrl_init%layout(1)*ctrl_init%layout(2)
-       pe_end(n)   = mpp_root_pe() +     n*ctrl_init%layout(1)*ctrl_init%layout(2)-1
+    allocate(pe_start(nml%ntiles))
+    allocate(pe_end(nml%ntiles))
+    do n = 1, nml%ntiles
+       pe_start(n) = mpp_root_pe() + (n-1)*nml%layout(1)*nml%layout(2)
+       pe_end(n)   = mpp_root_pe() +     n*nml%layout(1)*nml%layout(2)-1
     enddo
     
-    call define_cubic_mosaic(land_domain, ctrl_init%npx-1, ctrl_init%npy-1, ctrl_init%layout, pe_start, pe_end, halo)
+    call define_cubic_mosaic(land_domain, nml%npx-1, nml%npy-1, nml%layout, pe_start, pe_end, halo)
     deallocate(pe_start)
     deallocate(pe_end)
 
@@ -46,10 +41,10 @@ contains
 
 
 
-  ! This subroutine is copied from FMS/test_fms/test_mpp_domains.F90
-  ! and modified to make it simpler to use.
-  ! domain_decomp in fv_mp_mod.F90 does something similar, but it does a
-  ! few other unnecessary things (and requires more arguments).
+  !! This subroutine is copied from FMS/test_fms/test_mpp_domains.F90
+  !! and modified to make it simpler to use.
+  !! domain_decomp in fv_mp_mod.F90 does something similar, but it does a
+  !! few other unnecessary things (and requires more arguments).
   subroutine define_cubic_mosaic(domain, ni, nj, layout, pe_start, pe_end, halo)
     type(domain2d), intent(inout) :: domain
     integer,        intent(in)    :: ni, nj
