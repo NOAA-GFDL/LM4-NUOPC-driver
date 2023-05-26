@@ -1,7 +1,6 @@
+!! Routines to prepare and run the land model
+!! ============================================================================
 module lm4_driver
-
-   !! Routines to prepare and run the land model
-   !! ------------------------------------------
 
    use mpp_domains_mod,    only: domain2d
    use lm4_type_mod,       only: lm4_type
@@ -55,8 +54,7 @@ module lm4_driver
    ! variables for between subroutines
    real, allocatable, dimension(:)   :: ex_flux_u
 
-   !! integers for diag manager fields (TODO: clean up)
-   !! --------------------------------------------------
+   ! integers for diag manager fields (TODO: clean up)
    integer :: id_cellarea
    ! fields to be written out
    integer :: id_swdn_vf, id_z_bot, id_t_bot, id_p_bot, &
@@ -67,8 +65,8 @@ module lm4_driver
 
 contains
 
-   ! Read in lm4 namelist
-   ! ---------------------------------------
+   !! Read in lm4 namelist
+   !! ============================================================================
    subroutine lm4_nml_read(lm4_model)
 
       use fms_mod,             only: check_nml_error, close_file, file_exist
@@ -80,11 +78,9 @@ contains
 #endif
 
       type(lm4_type),          intent(inout) :: lm4_model ! land model's variable type
-      ! ------------------------------------------
 
       ! namelist variables for lm4
       ! ------------------------------------------
-      ! grid, domain, and blocking
       integer           :: lm4_debug = 0        ! debug flag for lm4 (0=off, 1=low, 2=high)
       integer           :: npx = 0, npy = 0
       integer           :: ntiles = 0
@@ -98,7 +94,6 @@ contains
       namelist /lm4_nml/ grid, npx, npy, layout, ntiles, &
          blocksize, lm4_debug
 
-      ! -------------------------------------------
       ! read in namelist
 
       if ( file_exist('input.nml')) then
@@ -126,8 +121,9 @@ contains
 
    end subroutine lm4_nml_read
 
-   ! ---------------------------------------
+   !! ============================================================================
    subroutine init_driver(lm4_model)
+      !! TODO: cleanup unused code
 
       use mpp_domains_mod,    only: domain2d, mpp_get_compute_domain
       use mpp_mod,            only: mpp_pe, mpp_root_pe
@@ -159,18 +155,11 @@ contains
       ! jsc = lnd%js
       ! jec = lnd%je
 
-      im = (iec-isc+1)*(jec-jsc+1)
+      !im = (iec-isc+1)*(jec-jsc+1)
 
-      ! Create blocks, but again, not currently using
-      call define_blocks_packed('land_model', Lnd_block, isc, iec, jsc, jec, 1, &
-         lm4_model%nml%blocksize, block_message)
-
-      lm4_model%control%isc = isc
-      lm4_model%control%iec = iec
-      lm4_model%control%jsc = jsc
-      lm4_model%control%jec = jec
-      !lm4_model%static%im   = im
-      !call lm4_model%Create(im)
+      ! ! Create blocks, but again, not currently using
+      ! call define_blocks_packed('land_model', Lnd_block, isc, iec, jsc, jec, 1, &
+      !    lm4_model%nml%blocksize, block_message)
 
 
       ! ! Restart read of sfc_data
@@ -183,186 +172,183 @@ contains
 
    end subroutine init_driver
 
+   !! ============================================================================
+   !! Adapted from GFDL atm_land_ice_flux_exchange,
+   !! stripped down to be "land only" on
+   !! unstructured grid, returns
+   !! explicit fluxes as well as derivatives 
+   !! used to compute an implicit flux correction.
+   !! ============================================================================
+   subroutine sfc_boundary_layer( dt,lm4_model )
 
-  ! ---------------------------------------
-  subroutine sfc_boundary_layer( dt,Land )
-   ! -----------------------------------------------
-   ! Adapted from GFDL atm_land_ice_flux_exchange,
-   ! stripped down to be "land only" on
-   ! unstructured grid, returns
-   ! explicit fluxes as well as derivatives 
-   ! used to compute an implicit flux correction.
-   ! -----------------------------------------------
 
       use sat_vapor_pres_mod, only: compute_qs
       use monin_obukhov_mod,  only: mo_profile
 
-      real,                  intent(in)     :: dt   !< Time step
-      type(land_data_type),  intent(inout)  :: Land !< A derived data type to specify land boundary data
-      ! JP NOTE, do I need atmos_data_type here?
-
+      real,                  intent(in)     :: dt        ! Time step
+      type(lm4_type),        intent(inout)  :: lm4_model ! land model's variable type
+      !type(land_data_type),  intent(inout)  :: Land ! A derived data type to specify land boundary data
    
-   !  !! blocking not used for now
-   !  integer :: nblocks = 1
-   !  integer :: my_nblocks = 1
+      !  !! blocking not used for now
+      !  integer :: nblocks = 1
+      !  integer :: my_nblocks = 1
+      !  integer, allocatable :: block_start(:), block_end(:)
 
-   !  integer, allocatable :: block_start(:), block_end(:)
-
-    real    :: zrefm, zrefh
+      real    :: zrefm, zrefh
     
-    real, dimension(lnd%ls:lnd%le) :: &
-      ex_albedo,             &
-      ex_albedo_vis_dir,     &
-      ex_albedo_nir_dir,     &
-      ex_albedo_vis_dif,     &
-      ex_albedo_nir_dif,     &
-      ex_land_frac,          &
-      ex_t_atm,              &
-      ex_p_atm,              &
-      ex_u_atm, ex_v_atm,    &
-      ex_gust,               &
-      ex_t_surf4,            &
-      ex_u_surf, ex_v_surf,  &
-      ex_rough_mom, ex_rough_heat, ex_rough_moist, &
-      ex_rough_scale,        &
-      ex_q_star,             &
-      ex_cd_q,               &
-      ex_ref, ex_ref_u, ex_ref_v, ex_u10, &
-      ex_ref2,               &
-      ex_t_ref,              &
-      ex_qs_ref,             &
-      ex_qs_ref_cmip,        &
-      ex_del_m,              &
-      ex_del_h,              &
-      ex_del_q,              &
-      ex_frac_open_sea
-
-    
-    real, dimension(lnd%ls:lnd%le,1) :: &
-      ex_tr_atm,  &
-      ex_tr_surf,    & !< near-surface tracer fields
-      ex_flux_tr,    & !< tracer fluxes
-      ex_dfdtr_surf, & !< d(tracer flux)/d(surf tracer)
-      ex_dfdtr_atm,  & !< d(tracer flux)/d(atm tracer)
-      ex_e_tr_n,     & !< coefficient in implicit scheme
-      ex_f_tr_delt_n   !< coefficient in implicit scheme
-    
-    !! -- These were originally allocatable:
-    !!
-
-    logical, dimension(lnd%ls:lnd%le) :: &
-         ex_avail,     &   !< true where data on exchange grid are available
-         ex_land           !< true if exchange grid cell is over land
-
-    real, dimension(lnd%ls:lnd%le) :: &
-         ex_t_surf   ,  &
-         ex_t_surf_miz, &
-         ex_p_surf   ,  &
-         !ex_slp      ,  &
-         ex_t_ca     ,  &
-         ex_dhdt_surf,  &
-         ex_dedt_surf,  &
-         ex_dqsatdt_surf,  &
-         ex_drdt_surf,  &
-         ex_dhdt_atm ,  &
-         ex_flux_t   ,  &
-         ex_flux_lw  ,  &
-         ex_drag_q   ,  &
-         ex_f_t_delt_n, &
-
-      ! MOD these were moved from local ! so they can be passed to flux down
-      !ex_flux_u,    &
-         ex_flux_v,    &
-         ex_dtaudu_atm,&
-         ex_dtaudv_atm,&
-         ex_seawater,  &
-
-      ! values added for LM3
-         ex_cd_t     ,  &
-         ex_cd_m     ,  &
-         ex_b_star   ,  &
-         ex_u_star   ,  &
-         ex_wind     ,  &
-         ex_z_atm    ,  &
-
-         ex_e_t_n    ,  &
-         ex_e_q_n    ,  &
-
-      !
-         ex_albedo_fix,        &
-         ex_albedo_vis_dir_fix,&
-         ex_albedo_nir_dir_fix,&
-         ex_albedo_vis_dif_fix,&
-         ex_albedo_nir_dif_fix
+      real, dimension(lnd%ls:lnd%le) :: &
+         ex_albedo,             &
+         ex_albedo_vis_dir,     &
+         ex_albedo_nir_dir,     &
+         ex_albedo_vis_dif,     &
+         ex_albedo_nir_dif,     &
+         ex_land_frac,          &
+         !ex_t_atm,              &
+         !ex_p_atm,              &
+         !ex_u_atm, ex_v_atm,    &
+         ex_gust,               &
+         ex_t_surf4,            &
+         ex_u_surf, ex_v_surf,  &
+         ex_rough_mom, ex_rough_heat, ex_rough_moist, &
+         ex_rough_scale,        &
+         ex_q_star,             &
+         ex_cd_q,               &
+         ex_ref, ex_ref_u, ex_ref_v, ex_u10, &
+         ex_ref2,               &
+         ex_t_ref,              &
+         ex_qs_ref,             &
+         ex_qs_ref_cmip,        &
+         ex_del_m,              &
+         ex_del_h,              &
+         ex_del_q,              &
+         ex_frac_open_sea
 
     
-    integer :: tr, n, m ! tracer indices
-    integer :: i
-   !  integer :: is,ie,l,j
-   !  integer :: isc,iec,jsc,jec
-
-      integer :: isphum = 1       !< index of specific humidity tracer in tracer table
-
-   !  ! IS this smart?
-   !  is = 1
-   !  ie = im
-   !  allocate(block_start(nblocks), block_end(nblocks))
+      real, dimension(lnd%ls:lnd%le,1) :: &
+         ex_tr_atm,  &
+         ex_tr_surf,    & !< near-surface tracer fields
+         ex_flux_tr,    & !< tracer fluxes
+         ex_dfdtr_surf, & !< d(tracer flux)/d(surf tracer)
+         ex_dfdtr_atm,  & !< d(tracer flux)/d(atm tracer)
+         ex_e_tr_n,     & !< coefficient in implicit scheme
+         ex_f_tr_delt_n   !< coefficient in implicit scheme
     
-   !  block_start = is
-   !  block_end   = im
+      !! -- These were originally allocatable:
+      !!
 
-   !  ! JP TMP TEST INPUTS
-   !  !inputs for SF  
-   !  ex_t_atm          =  271.41292317708337       
-   !  ex_tr_atm         =  3.0431489770611133E-003  
-   !  ex_u_atm          =  7.0392669041951503       
-   !  ex_v_atm          =  0.0000000000000000       
-   !  ex_p_atm          =  98525.662918221846       
-   !  ex_z_atm          =  35.000000000000000       
-   !  ex_p_surf         =  99102.075520833343       
-   !  ex_t_surf         =  271.50000000000000       
-   !  ex_t_ca           =  271.50000000000000       
-   !  ex_tr_surf        =  3.0431489770611133E-003  
-   !  ex_u_surf         =  0.0000000000000000       
-   !  ex_v_surf         =  0.0000000000000000       
-   !  ex_rough_mom      =  4.0000000000000002E-004  
-   !  ex_rough_heat     =  4.0000000000000002E-004  
-   !  ex_rough_moist    =  4.0000000000000002E-004  
-   !  ex_rough_scale    =  4.0000000000000002E-004  
-   !  ex_gust           =  1.7101884060819572       
-   !  !output for SF    
-   !  ex_flux_t         =  0.0 !6.9108420445825020E-310  
-   !  ex_flux_tr        =  0.0 !4.6641074035543975E-310  
-   !  ex_flux_lw        =  0.0 !6.9108420445809210E-310  
-   !  ex_flux_u         =  0.0 !6.9108420445793400E-310  
-   !  ex_flux_v         =  0.0 !6.9108420445801305E-310  
-   !  ex_cd_m           =  0.0000000000000000       
-   !  ex_cd_t           =  0.0000000000000000       
-   !  ex_cd_q           =  0.0000000000000000       
-   !  ex_wind           =  0.0 !6.9108420445809210E-310  
-   !  ex_u_star         =  0.0 !6.9108420445825020E-310  
-   !  ex_b_star         =  0.0 !1.1386981270908381E-313  
-   !  ex_q_star         =  0.0 !1.1386980991267226E-313  
-   !  ex_dhdt_surf      =  0.0 !6.9108420445809210E-310  
-   !  ex_dedt_surf      =  0.0 !1.1386980880102456E-313  
-   !  ex_dfdtr_surf     =  0.0 !2.4319443209713317E-152  
-   !  ex_drdt_surf      =  0.0 !6.9108420445809210E-310  
-   !  ex_dhdt_atm       =  0.0 !1.1386981288200679E-313  
-   !  ex_dfdtr_atm      =  0.0 !0.0000000000000000       
-   !  ex_dtaudu_atm     =  0.0 !6.9108420445825020E-310  
-   !  ex_dtaudv_atm     =  0.0 !6.9108420445809210E-310  
-   !  !dt                = 1800.0000000000000
-   !  ex_land           = .TRUE.
-   !  ex_seawater       = 0.0
-   !  !ex_seawater .gt. 0.0 T F
-   !  ex_avail          = .TRUE.
+      logical, dimension(lnd%ls:lnd%le) :: &
+            ex_avail,     &   !< true where data on exchange grid are available
+            ex_land           !< true if exchange grid cell is over land
 
-    ! JP end
+      real, dimension(lnd%ls:lnd%le) :: &
+            ex_t_surf   ,  &
+            ex_t_surf_miz, &
+            ex_p_surf   ,  &
+            !ex_slp      ,  &
+            ex_t_ca     ,  &
+            ex_dhdt_surf,  &
+            ex_dedt_surf,  &
+            ex_dqsatdt_surf,  &
+            ex_drdt_surf,  &
+            ex_dhdt_atm ,  &
+            ex_flux_t   ,  &
+            ex_flux_lw  ,  &
+            ex_drag_q   ,  &
+            ex_f_t_delt_n, &
+
+         ! MOD these were moved from local ! so they can be passed to flux down
+         !ex_flux_u,    &
+            ex_flux_v,    &
+            ex_dtaudu_atm,&
+            ex_dtaudv_atm,&
+            ex_seawater,  &
+
+         ! values added for LM3
+            ex_cd_t     ,  &
+            ex_cd_m     ,  &
+            ex_b_star   ,  &
+            ex_u_star   ,  &
+            ex_wind     ,  &
+            ex_z_atm    ,  &
+
+            ex_e_t_n    ,  &
+            ex_e_q_n    ,  &
+
+         !
+            ex_albedo_fix,        &
+            ex_albedo_vis_dir_fix,&
+            ex_albedo_nir_dir_fix,&
+            ex_albedo_vis_dif_fix,&
+            ex_albedo_nir_dif_fix
+
+    
+      integer :: tr, n, m ! tracer indices
+      integer :: i
+      !  integer :: is,ie,l,j
+      !  integer :: isc,iec,jsc,jec
+
+         integer :: isphum = 1       !< index of specific humidity tracer in tracer table
+
+      ! leave existing variable names in place for future exchange grid functionality
+      associate ( &
+         ex_t_atm => lm4_model%atm_forc%t_bot, &
+         ex_p_atm => lm4_model%atm_forc%p_bot, &
+         ex_u_atm => lm4_model%atm_forc%u_bot, &
+         ex_v_atm => lm4_model%atm_forc%v_bot  &
+         )
+
+      !  ! JP TMP TEST INPUTS
+      !  !inputs for SF  
+      !  ex_t_atm          =  271.41292317708337       
+      !  ex_tr_atm         =  3.0431489770611133E-003  
+      !  ex_u_atm          =  7.0392669041951503       
+      !  ex_v_atm          =  0.0000000000000000       
+      !  ex_p_atm          =  98525.662918221846       
+      !  ex_z_atm          =  35.000000000000000       
+      !  ex_p_surf         =  99102.075520833343       
+      !  ex_t_surf         =  271.50000000000000       
+      !  ex_t_ca           =  271.50000000000000       
+      !  ex_tr_surf        =  3.0431489770611133E-003  
+      !  ex_u_surf         =  0.0000000000000000       
+      !  ex_v_surf         =  0.0000000000000000       
+      !  ex_rough_mom      =  4.0000000000000002E-004  
+      !  ex_rough_heat     =  4.0000000000000002E-004  
+      !  ex_rough_moist    =  4.0000000000000002E-004  
+      !  ex_rough_scale    =  4.0000000000000002E-004  
+      !  ex_gust           =  1.7101884060819572       
+      !  !output for SF    
+      !  ex_flux_t         =  0.0 !6.9108420445825020E-310  
+      !  ex_flux_tr        =  0.0 !4.6641074035543975E-310  
+      !  ex_flux_lw        =  0.0 !6.9108420445809210E-310  
+      !  ex_flux_u         =  0.0 !6.9108420445793400E-310  
+      !  ex_flux_v         =  0.0 !6.9108420445801305E-310  
+      !  ex_cd_m           =  0.0000000000000000       
+      !  ex_cd_t           =  0.0000000000000000       
+      !  ex_cd_q           =  0.0000000000000000       
+      !  ex_wind           =  0.0 !6.9108420445809210E-310  
+      !  ex_u_star         =  0.0 !6.9108420445825020E-310  
+      !  ex_b_star         =  0.0 !1.1386981270908381E-313  
+      !  ex_q_star         =  0.0 !1.1386980991267226E-313  
+      !  ex_dhdt_surf      =  0.0 !6.9108420445809210E-310  
+      !  ex_dedt_surf      =  0.0 !1.1386980880102456E-313  
+      !  ex_dfdtr_surf     =  0.0 !2.4319443209713317E-152  
+      !  ex_drdt_surf      =  0.0 !6.9108420445809210E-310  
+      !  ex_dhdt_atm       =  0.0 !1.1386981288200679E-313  
+      !  ex_dfdtr_atm      =  0.0 !0.0000000000000000       
+      !  ex_dtaudu_atm     =  0.0 !6.9108420445825020E-310  
+      !  ex_dtaudv_atm     =  0.0 !6.9108420445809210E-310  
+      !  !dt                = 1800.0000000000000
+      !  ex_land           = .TRUE.
+      !  ex_seawater       = 0.0
+      !  !ex_seawater .gt. 0.0 T F
+      !  ex_avail          = .TRUE.
+
+      ! JP end
     
     call surface_flux_1d (&
          ex_t_atm(lnd%ls:lnd%le), ex_tr_atm(lnd%ls:lnd%le,isphum),  ex_u_atm(lnd%ls:lnd%le), ex_v_atm(lnd%ls:lnd%le),  &
          ex_p_atm(lnd%ls:lnd%le),  ex_z_atm(lnd%ls:lnd%le), ex_p_surf(lnd%ls:lnd%le),ex_t_surf(lnd%ls:lnd%le), &
-         ex_t_ca(lnd%ls:lnd%le),  ex_tr_surf(lnd%ls:lnd%le,isphum), ex_u_surf(lnd%ls:lnd%le), ex_v_surf(lnd%ls:lnd%le), &                                          &
+         ex_t_ca(lnd%ls:lnd%le),  ex_tr_surf(lnd%ls:lnd%le,isphum), ex_u_surf(lnd%ls:lnd%le), ex_v_surf(lnd%ls:lnd%le), &
          ex_rough_mom(lnd%ls:lnd%le), ex_rough_heat(lnd%ls:lnd%le), ex_rough_moist(lnd%ls:lnd%le), ex_rough_scale(lnd%ls:lnd%le),    &
          ex_gust(lnd%ls:lnd%le),  ex_flux_t(lnd%ls:lnd%le), ex_flux_tr(lnd%ls:lnd%le,isphum), ex_flux_lw(lnd%ls:lnd%le), &
          ex_flux_u(lnd%ls:lnd%le), ex_flux_v(lnd%ls:lnd%le), ex_cd_m(lnd%ls:lnd%le),   ex_cd_t(lnd%ls:lnd%le), &
@@ -374,16 +360,17 @@ contains
          ex_land(lnd%ls:lnd%le), ex_seawater(lnd%ls:lnd%le) .gt. 0.0,  ex_avail(lnd%ls:lnd%le)            )
 
 
-      !! ....
-      zrefm = 10.0
-      zrefh = z_ref_heat
+   !! ....
+   zrefm = 10.0
+   zrefh = z_ref_heat
 
 
    call mo_profile ( zrefm, zrefh, ex_z_atm(lnd%ls:lnd%le), ex_rough_mom(lnd%ls:lnd%le), &
       ex_rough_heat(lnd%ls:lnd%le), ex_rough_moist(lnd%ls:lnd%le),          &
       ex_u_star(lnd%ls:lnd%le), ex_b_star(lnd%ls:lnd%le), ex_q_star(lnd%ls:lnd%le),        &
       ex_del_m(lnd%ls:lnd%le), ex_del_h(lnd%ls:lnd%le), ex_del_q(lnd%ls:lnd%le), ex_avail(lnd%ls:lnd%le)  )
-   do i = lnd%ls:lnd%le
+
+   do i = lnd%ls,lnd%le
       ex_u10(i) = 0.
       if(ex_avail(i)) then
          ex_ref_u(i) = ex_u_surf(i) + (ex_u_atm(i)-ex_u_surf(i)) * ex_del_m(i)
@@ -393,7 +380,7 @@ contains
    enddo
 
 
-   do i = lnd%ls:lnd%le
+   do i = lnd%ls,lnd%le
       if(ex_avail(i)) ex_drag_q(i) = ex_wind(i)*ex_cd_q(i)
       ! [6] get mean quantities on atmosphere grid
       ! [6.1] compute t surf for radiation
@@ -402,7 +389,7 @@ contains
 
     ! [6.3] save atmos albedo fix and old albedo (for downward SW flux calculations)
     ! on exchange grid
-   do i = lnd%ls:lnd%le
+   do i = lnd%ls,lnd%le
       ex_albedo_fix(i) = 0.
       ex_albedo_vis_dir_fix(i) = 0.
       ex_albedo_nir_dir_fix(i) = 0.
@@ -411,7 +398,7 @@ contains
    enddo
 
 
-   do i = lnd%ls:lnd%le
+   do i = lnd%ls,lnd%le
       ex_albedo_fix(i) = (1.0-ex_albedo(i)) / (1.0-ex_albedo_fix(i))
       ex_albedo_vis_dir_fix(i) = (1.0-ex_albedo_vis_dir(i)) / (1.0-ex_albedo_vis_dir_fix(i))
       ex_albedo_nir_dir_fix(i) = (1.0-ex_albedo_nir_dir(i)) / (1.0-ex_albedo_nir_dir_fix(i))
@@ -431,13 +418,13 @@ contains
    !cjg     if ( id_rh_ref > 0 .or. id_rh_ref_land > 0 .or. &
    !cjg          id_rh_ref_cmip > 0 .or. &
    !cjg          id_q_ref > 0 .or. id_q_ref_land >0 ) then
-   do i = lnd%ls:lnd%le
+   do i = lnd%ls,lnd%le
       ex_ref(i) = 1.0e-06
       if (ex_avail(i)) &
          ex_ref(i)   = ex_tr_surf(i,isphum) + (ex_tr_atm(i,isphum)-ex_tr_surf(i,isphum)) * ex_del_q(i)
    enddo
 
-   do i = lnd%ls:lnd%le
+   do i = lnd%ls,lnd%le
       ex_t_ref(i) = 200.
       if(ex_avail(i)) &
          ex_t_ref(i) = ex_t_ca(i) + (ex_t_atm(i)-ex_t_ca(i)) * ex_del_h(i)
@@ -445,7 +432,7 @@ contains
    call compute_qs (ex_t_ref(lnd%ls:lnd%le), ex_p_surf(lnd%ls:lnd%le), ex_qs_ref(lnd%ls:lnd%le), q = ex_ref(lnd%ls:lnd%le))
    call compute_qs (ex_t_ref(lnd%ls:lnd%le), ex_p_surf(lnd%ls:lnd%le), ex_qs_ref_cmip(lnd%ls:lnd%le),  &
       q = ex_ref(lnd%ls:lnd%le), es_over_liq_and_ice = .true.)
-   do i = lnd%ls:lnd%le
+   do i = lnd%ls,lnd%le
       if(ex_avail(i)) then
          ! remove cap on relative humidity -- this mod requested by cjg, ljd
          !RSH    ex_ref    = MIN(100.,100.*ex_ref/ex_qs_ref)
@@ -454,7 +441,10 @@ contains
       endif
    enddo
 
-      ! lots of send_data stuff originally here, removed
+   ! lots of send_data stuff originally here, removed
+   ! TODO: get diag history write back in
+
+      end associate
 
    end subroutine sfc_boundary_layer
 

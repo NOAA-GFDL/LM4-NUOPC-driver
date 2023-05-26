@@ -445,7 +445,7 @@ contains
 
       ! TMP disable for testing
       call get_time (lm4_model%Time_step_land, sec)
-      !     call sfc_boundary_layer(real(sec),lm4_model%From_lnd)
+      call sfc_boundary_layer(real(sec), lm4_model)
       !     call flux_down_from_atmos(lm4_model%From_lnd)      ! JP: needs review of implicit coupling
       !     call update_land_model_fast(lm4_model%From_atm,lm4_model%From_lnd)
 
