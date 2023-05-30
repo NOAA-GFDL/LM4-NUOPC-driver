@@ -434,6 +434,8 @@ contains
          call state_getimport_2d(importState, 'Sa_v',       lm4data_2d=lm4_model%atm_forc2d%v_bot,   rc=rc)
          call state_getimport_2d(importState, 'Sa_ua',      lm4data_2d=lm4_model%atm_forc2d%u_bot,   rc=rc)
          call state_getimport_2d(importState, 'Sa_uv',      lm4data_2d=lm4_model%atm_forc2d%v_bot,   rc=rc)
+         call state_getimport_2d(importState, 'Sa_shum',    lm4data_2d=lm4_model%atm_forc2d%q_bot,   rc=rc)
+         call state_getimport_2d(importState, 'Sa_qa',      lm4data_2d=lm4_model%atm_forc2d%q_bot,   rc=rc)
          call state_getimport_2d(importState, 'Sa_pslv',    lm4data_2d=lm4_model%atm_forc2d%p_surf,  rc=rc)
          call state_getimport_2d(importState, 'Faxa_lwdn',  lm4data_2d=lm4_model%atm_forc2d%flux_lw, rc=rc)
          call state_getimport_2d(importState, 'Faxa_swvdf', lm4data_2d=lm4_model%atm_forc2d%flux_sw_down_vis_dif, rc=rc)

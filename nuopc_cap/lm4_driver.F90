@@ -59,7 +59,8 @@ module lm4_driver
    integer :: id_cellarea
    ! fields to be written out
    integer :: id_swdn_vf, id_z_bot, id_t_bot, id_p_bot, &
-              id_u_bot, id_v_bot, id_lprec, id_fprec, id_totprec, &
+              id_u_bot, id_v_bot, id_q_bot, id_p_surf, &
+              id_lprec, id_fprec, id_totprec, &
               id_flux_lw, id_flux_sw_dn_vdf, id_flux_sw_dn_vr
    ! other vars
    integer :: id_lon, id_lat, id_lonb, id_latb   
@@ -185,11 +186,13 @@ contains
 
       use sat_vapor_pres_mod, only: compute_qs
       use monin_obukhov_mod,  only: mo_profile
+      use land_tile_mod,      only: max_n_tiles   ! this should be 1 for now
 
       real,                  intent(in)     :: dt        ! Time step
       type(lm4_type),        intent(inout)  :: lm4_model ! land model's variable type
       !type(land_data_type),  intent(inout)  :: Land ! A derived data type to specify land boundary data
    
+      ! local variables --------------------------------------
       !  !! blocking not used for now
       !  integer :: nblocks = 1
       !  integer :: my_nblocks = 1
@@ -209,8 +212,8 @@ contains
          !ex_u_atm, ex_v_atm,    &
          ex_gust,               &
          ex_t_surf4,            &
-         ex_u_surf = 0.0,       &
-         ex_v_surf = 0.0,        &
+         ex_u_surf,              &
+         ex_v_surf,              &
          ex_rough_mom, ex_rough_heat, ex_rough_moist, &
          ex_rough_scale,        &
          ex_q_star,             &
@@ -225,8 +228,8 @@ contains
          ex_del_q,              &
          ex_frac_open_sea
 
-      ! these originally had a tracer dimension, but we're not using them
-      real, dimension(lnd%ls:lnd%le) :: &
+      ! these originally had a tracer dimension
+      real, dimension(lnd%ls:lnd%le,1) :: &
          ex_tr_atm,  &
          ex_tr_surf,    & !< near-surface tracer fields
          ex_flux_tr,    & !< tracer fluxes
@@ -283,50 +286,73 @@ contains
             ex_albedo_vis_dif_fix,&
             ex_albedo_nir_dif_fix
 
-    
+      ! Declare arrays for the last three arguments to surface_flux
+      logical, dimension(lnd%ls:lnd%le) :: is_land, is_seawater, is_avail
+
+
       integer :: tr, n, m ! tracer indices
       integer :: i
+      integer :: ntile = 1 ! true for now, with no subtiling
       !  integer :: is,ie,l,j
       !  integer :: isc,iec,jsc,jec
 
+      ! ---------------------------
 
-      ! JP end
-    
+      is_land = .TRUE.
+      is_seawater = .FALSE.
+      is_avail = .TRUE.
+
+
+      ! JP TEMP DEBUG
+      ! write out max_n_tiles
+      write(*,*) 'max_n_tiles = ', max_n_tiles()
+      ! write out the size of lm4_model%From_lnd%rough_heat
+      write(*,*) 'size of lm4_model%From_lnd%rough_heat = ', size(lm4_model%From_lnd%rough_heat)
+      
+       
+      ex_u_surf(:) = 0.0
+      ex_v_surf(:) = 0.0
       ! prefill q_surf with q_bot. In original code, there were options to send/write
       ! before surface_flux call.
-      ex_tr_surf(lnd%ls:lnd%le) = lm4_model%From_lnd%q_bot      
+      ex_tr_surf(:,isphum) = lm4_model%atm_forc%q_bot
 
       ! this is mimicking the original code for land roughness vars
       ! TODO: review and optimize
-      ex_rough_moist(lnd%ls:lnd%le) = Land%rough_heat
-      ex_rough_scale(lnd%ls:lnd%le) = ex_rough_mom
-      ex_rough_scale(lnd%ls:lnd%le) = Land%rough_scale
+      ex_rough_mom(:)   = lm4_model%From_lnd%rough_mom(:,ntile)
+      ex_rough_moist(:) = lm4_model%From_lnd%rough_heat(:,ntile)
+      ex_rough_heat(:)  = lm4_model%From_lnd%rough_heat(:,ntile)
+      ex_rough_scale(:) = ex_rough_mom
+      ex_rough_scale(:) = lm4_model%From_lnd%rough_scale(:,ntile)
 
-    call surface_flux_1d ( &
+      ! TODO: need to fill this appropriately!
+      ex_gust(:) = 0.0
+
+
+      call surface_flux_1d ( &
          ! inputs
          lm4_model%atm_forc%t_bot,                                      &
          lm4_model%atm_forc%q_bot,                                      & !! TODO: link q_bot var and tracer field
          lm4_model%atm_forc%u_bot, lm4_model%atm_forc%v_bot,            &
          lm4_model%atm_forc%p_bot, lm4_model%atm_forc%z_bot,            &
-         lm4_model%atm_forc%p_surf, lm4_model%From_lnd%t_surf,          & !! surface T and P
-         lm4_model%From_lnd%t_a,                                        & !! air temp at the canopy
+         lm4_model%atm_forc%p_surf, lm4_model%From_lnd%t_surf(:,ntile), & !! surface T and P
+         lm4_model%From_lnd%t_ca(:,ntile),                              & !! air temp at the canopy
          ! inout         
-         ex_tr_surf(lnd%ls:lnd%le),                                     & !! TODO review surface Q (this is INOUT)
+         ex_tr_surf(:,isphum),                                     & !! TODO review surface Q (this is INOUT)
          ! more inputs         
-         ex_u_surf(lnd%ls:lnd%le), ex_v_surf(lnd%ls:lnd%le),            & !! TODO review surface wind (= 0)
-         Land%rough_mom, Land%rough_heat,                               & !! rough lengths
-         ex_rough_moist(lnd%ls:lnd%le), ex_rough_scale(lnd%ls:lnd%le),  & !! moisture roughness length and scale factor
-         ex_gust(lnd%ls:lnd%le),                                        & !! TODO gustiness 
+         ex_u_surf(:), ex_v_surf(:),            & !! TODO review surface wind (= 0)
+         lm4_model%From_lnd%rough_mom(:,ntile), lm4_model%From_lnd%rough_heat(:,ntile),   & !! rough lengths
+         ex_rough_moist(:), ex_rough_scale(:),  & !! moisture roughness length and scale factor
+         ex_gust(:),                                        & ! gustiness 
          ! outputs
-         ex_flux_t(lnd%ls:lnd%le), ex_flux_tr(lnd%ls:lnd%le,isphum),    & !! SH and Evap (Q) fluxes
-         ex_flux_lw(lnd%ls:lnd%le), &
-         ex_flux_u(lnd%ls:lnd%le), ex_flux_v(lnd%ls:lnd%le), ex_cd_m(lnd%ls:lnd%le),   ex_cd_t(lnd%ls:lnd%le), &
-         ex_cd_q(lnd%ls:lnd%le),   ex_wind(lnd%ls:lnd%le),   ex_u_star(lnd%ls:lnd%le), ex_b_star(lnd%ls:lnd%le), &
-         ex_q_star(lnd%ls:lnd%le), ex_dhdt_surf(lnd%ls:lnd%le), ex_dedt_surf(lnd%ls:lnd%le), &
-         ex_dfdtr_surf(lnd%ls:lnd%le,isphum),  ex_drdt_surf(lnd%ls:lnd%le),  ex_dhdt_atm(lnd%ls:lnd%le), &
-         ex_dfdtr_atm(lnd%ls:lnd%le,isphum),  ex_dtaudu_atm(lnd%ls:lnd%le), ex_dtaudv_atm(lnd%ls:lnd%le),       &
+         ex_flux_t(:), ex_flux_tr(:,isphum),    & !! SH and Evap (Q) fluxes
+         ex_flux_lw(:), &
+         ex_flux_u(:), ex_flux_v(:), ex_cd_m(:),   ex_cd_t(:), &
+         ex_cd_q(:),   ex_wind(:),   ex_u_star(:), ex_b_star(:), &
+         ex_q_star(:), ex_dhdt_surf(:), ex_dedt_surf(:), &
+         ex_dfdtr_surf(:,isphum),  ex_drdt_surf(:),  ex_dhdt_atm(:), &
+         ex_dfdtr_atm(:,isphum),  ex_dtaudu_atm(:), ex_dtaudv_atm(:),       &
          dt,                                                            & !! timestep doesn't seem to be used
-         .TRUE., .FALSE., .TRUE.                                        & ! Is land, Is seawater, Is ex. avail
+         is_land, is_seawater, is_avail                                       & ! Is land, Is seawater, Is ex. avail
          ) 
 
 
@@ -335,10 +361,10 @@ contains
    zrefh = z_ref_heat
 
 
-   call mo_profile ( zrefm, zrefh, lm4_model%atm_forc%z_bot, ex_rough_mom(lnd%ls:lnd%le), &
-      ex_rough_heat(lnd%ls:lnd%le), ex_rough_moist(lnd%ls:lnd%le),          &
-      ex_u_star(lnd%ls:lnd%le), ex_b_star(lnd%ls:lnd%le), ex_q_star(lnd%ls:lnd%le),        &
-      ex_del_m(lnd%ls:lnd%le), ex_del_h(lnd%ls:lnd%le), ex_del_q(lnd%ls:lnd%le), ex_avail(lnd%ls:lnd%le)  )
+   call mo_profile ( zrefm, zrefh, lm4_model%atm_forc%z_bot, ex_rough_mom(:), &
+      ex_rough_heat(:), ex_rough_moist(:),          &
+      ex_u_star(:), ex_b_star(:), ex_q_star(:),        &
+      ex_del_m(:), ex_del_h(:), ex_del_q(:), ex_avail(:)  )
 
    do i = lnd%ls,lnd%le
       ex_u10(i) = 0.
@@ -379,10 +405,10 @@ contains
       !=======================================================================
       ! [7] diagnostics section
 
-   call mo_profile ( zrefm, zrefh, lm4_model%atm_forc%z_bot,   ex_rough_mom(lnd%ls:lnd%le), &
-      ex_rough_heat(lnd%ls:lnd%le), ex_rough_moist(lnd%ls:lnd%le),          &
-      ex_u_star(lnd%ls:lnd%le), ex_b_star(lnd%ls:lnd%le), ex_q_star(lnd%ls:lnd%le),        &
-      ex_del_m(lnd%ls:lnd%le), ex_del_h(lnd%ls:lnd%le), ex_del_q(lnd%ls:lnd%le), ex_avail(lnd%ls:lnd%le)  )
+   call mo_profile ( zrefm, zrefh, lm4_model%atm_forc%z_bot,   ex_rough_mom(:), &
+      ex_rough_heat(:), ex_rough_moist(:),          &
+      ex_u_star(:), ex_b_star(:), ex_q_star(:),        &
+      ex_del_m(:), ex_del_h(:), ex_del_q(:), ex_avail(:)  )
 
    !    ------- reference relative humidity -----------
    !cjg     if ( id_rh_ref > 0 .or. id_rh_ref_land > 0 .or. &
@@ -399,9 +425,9 @@ contains
       if(ex_avail(i)) &
          ex_t_ref(i) = ex_t_ca(i) + (lm4_model%atm_forc%t_bot(i)-ex_t_ca(i)) * ex_del_h(i)
    enddo
-   call compute_qs (ex_t_ref(lnd%ls:lnd%le), ex_p_surf(lnd%ls:lnd%le), ex_qs_ref(lnd%ls:lnd%le), q = ex_ref(lnd%ls:lnd%le))
-   call compute_qs (ex_t_ref(lnd%ls:lnd%le), ex_p_surf(lnd%ls:lnd%le), ex_qs_ref_cmip(lnd%ls:lnd%le),  &
-      q = ex_ref(lnd%ls:lnd%le), es_over_liq_and_ice = .true.)
+   call compute_qs (ex_t_ref(:), ex_p_surf(:), ex_qs_ref(:), q = ex_ref(:))
+   call compute_qs (ex_t_ref(:), ex_p_surf(:), ex_qs_ref_cmip(:),  &
+      q = ex_ref(:), es_over_liq_and_ice = .true.)
    do i = lnd%ls,lnd%le
       if(ex_avail(i)) then
          ! remove cap on relative humidity -- this mod requested by cjg, ljd
@@ -437,10 +463,12 @@ contains
 
 
       ! ---- arguments -----------------------------------------------------------
-      logical, intent(in), dimension(:) :: land, & !< Indicates where land exists (.TRUE. if exchange cell is on land
+      logical, intent(in), dimension(:) :: &
+         land, & !< Indicates where land exists (.TRUE. if exchange cell is on land
          seawater, & !< Indicates where liquid ocean water exists (.TRUE. if exchange cell is on liquid ocean water)
          avail !< .TRUE. where the exchange cell is active
-      real, intent(in),  dimension(:) :: t_atm, & !< Air temp lowest atmospheric level.
+      real, intent(in),  dimension(:) ::  &
+         t_atm, & !< Air temp lowest atmospheric level.
          q_atm_in, & !< Mixing ratio at lowest atmospheric level (kg/kg).
          u_atm, & !< Zonal wind velocity at lowest atmospheric level.
          v_atm, & !< Meridional wind velocity at lowest atmospheric level.
@@ -456,7 +484,8 @@ contains
          rough_moist, & !< Moisture roughness length
          rough_scale, & !< Scale factor used to topographic roughness calculation
          gust !< Gustiness factor
-      real, intent(out), dimension(:) :: flux_t, & !< Sensible heat flux
+      real, intent(out), dimension(:) :: &
+         flux_t, & !< Sensible heat flux
          flux_q, & !< Evaporative water flux
          flux_r, & !< Radiative energy flux
          flux_u, & !< Zonal momentum flux
@@ -864,11 +893,14 @@ contains
 
 
       type(lm4_type), intent(inout) :: lm4_model
-      !integer, intent(out) :: id_cellarea
 
-      integer :: i
-      logical :: used
-      logical :: first_call = .true.
+      ! local variables
+      character(len=32) :: mod_name = 'lm4_dbug_diag'  ! diag module name for history
+      logical           :: first_call = .true.
+      real              :: missval    = -1.0e+20
+      logical           :: used
+      integer           :: i
+
 
       ! only run if first call, 
       if (first_call) then
@@ -880,54 +912,69 @@ contains
             ! grid has just one tile, so we assume that the grid is regular lat-lon
             ! define longitude axes and its edges
             id_lonb = diag_axis_init ('lonb', lnd%coord_glonb, 'degrees_E', 'X', 'longitude edges', &
-               set_name='lm4_dbug_diag', domain2=lnd%sg_domain )
+               set_name=mod_name, domain2=lnd%sg_domain )
             id_lon  = diag_axis_init ('lon',  lnd%coord_glon, 'degrees_E', 'X',   'longitude', &
-               set_name='lm4_dbug_diag',  edges=id_lonb, domain2=lnd%sg_domain )
+               set_name=mod_name,  edges=id_lonb, domain2=lnd%sg_domain )
 
             ! define latitude axes and its edges
             id_latb = diag_axis_init ('latb', lnd%coord_glatb, 'degrees_N', 'Y', 'latitude edges',  &
-               set_name='lm4_dbug_diag',  domain2=lnd%sg_domain   )
+               set_name=mod_name,  domain2=lnd%sg_domain   )
             id_lat = diag_axis_init ('lat',  lnd%coord_glat, 'degrees_N', 'Y', 'latitude', &
-               set_name='lm4_dbug_diag', edges=id_latb, domain2=lnd%sg_domain)
+               set_name=mod_name, edges=id_latb, domain2=lnd%sg_domain)
          else
             id_lon = diag_axis_init ( 'grid_xt', [(real(i),i=1,size(lnd%coord_glon))], 'degrees_E', 'X', &
-               'T-cell longitude', set_name='lm4_dbug_diag',  domain2=lnd%sg_domain)
+               'T-cell longitude', set_name=mod_name,  domain2=lnd%sg_domain)
             id_lat = diag_axis_init ( 'grid_yt', [(real(i),i=1,size(lnd%coord_glat))], 'degrees_N', 'Y', &
-               'T-cell latitude', set_name='lm4_dbug_diag',  domain2=lnd%sg_domain)
+               'T-cell latitude', set_name=mod_name,  domain2=lnd%sg_domain)
          endif
 
          ! register cell area on structured grid
-         id_cellarea = register_static_field( 'lm4_dbug_diag', 'cell_area', (/id_lon, id_lat/), &
+         id_cellarea = register_static_field( mod_name, 'cell_area', (/id_lon, id_lat/), &
             'total area in grid cell', 'm2', missing_value=-1.0 )
          call diag_field_add_attribute(id_cellarea,'cell_methods','area: sum')
 
+         associate ( & 
+            axes => (/ id_lon, id_lat /), &
+            ltime => lm4_model%Time_land  &
+         )
+
          ! register other fields on structured grid
-         id_swdn_vf = register_diag_field( 'lm4_dbug_diag', 'sw_down_vis_dif', (/id_lon, id_lat/), lm4_model%Time_land,  'shortwave downwelling vis. diffuse radiation', 'W/m2', missing_value=-1.0e+20 )
-         id_t_bot = register_diag_field( 'lm4_dbug_diag', 't_bot', (/id_lon, id_lat/), lm4_model%Time_land, 'bottom temperature', 'K', missing_value=-1.0e+20 )
-         id_p_bot = register_diag_field( 'lm4_dbug_diag', 'p_bot', (/id_lon, id_lat/), lm4_model%Time_land, 'bottom pressure', 'Pa', missing_value=-1.0e+20 )
-         id_z_bot = register_diag_field( 'lm4_dbug_diag', 'z_bot', (/id_lon, id_lat/), lm4_model%Time_land, 'bottom depth', 'm', missing_value=-1.0e+20 )
-         id_u_bot = register_diag_field( 'lm4_dbug_diag', 'u_bot', (/id_lon, id_lat/), lm4_model%Time_land, 'bottom u velocity', 'm/s', missing_value=-1.0e+20 )
-         id_v_bot = register_diag_field( 'lm4_dbug_diag', 'v_bot', (/id_lon, id_lat/), lm4_model%Time_land, 'bottom v velocity', 'm/s', missing_value=-1.0e+20 )
-         id_totprec = register_diag_field( 'lm4_dbug_diag', 'totprec', (/id_lon, id_lat/), lm4_model%Time_land, 'total precipitation', 'kg/m2/s', missing_value=-1.0e+20 )
-         id_lprec = register_diag_field( 'lm4_dbug_diag', 'lprec', (/id_lon, id_lat/), lm4_model%Time_land, 'liquid precipitation', 'kg/m2/s', missing_value=-1.0e+20 )
-         id_fprec = register_diag_field( 'lm4_dbug_diag', 'fprec', (/id_lon, id_lat/), lm4_model%Time_land, 'frozen precipitation', 'kg/m2/s', missing_value=-1.0e+20 )
-         id_flux_lw = register_diag_field( 'lm4_dbug_diag', 'flux_lw', (/id_lon, id_lat/), lm4_model%Time_land, 'longwave flux down', 'W/m2', missing_value=-1.0e+20 )
-         id_flux_sw_dn_vdf = register_diag_field( 'lm4_dbug_diag', 'flux_sw_down_vis_dif', (/id_lon, id_lat/), lm4_model%Time_land, 'vis. diff. shortwave flux down', 'W/m2', missing_value=-1.0e+20 )
-         id_flux_sw_dn_vr = register_diag_field( 'lm4_dbug_diag', 'flux_sw_down_vis_dir', (/id_lon, id_lat/), lm4_model%Time_land, 'vis. dir. shortwave flux down', 'W/m2', missing_value=-1.0e+20 )
+         id_t_bot   = register_diag_field(mod_name, 't_bot', axes, ltime, 'bottom temperature', 'K', missing_value=missval )
+         id_p_bot   = register_diag_field(mod_name, 'p_bot', axes, ltime, 'bottom pressure', 'Pa', missing_value=missval )
+         id_z_bot   = register_diag_field(mod_name, 'z_bot', axes, ltime, 'bottom depth', 'm', missing_value=missval )
+         id_u_bot   = register_diag_field(mod_name, 'u_bot', axes, ltime, 'bottom u velocity', 'm/s', missing_value=missval )
+         id_v_bot   = register_diag_field(mod_name, 'v_bot', axes, ltime, 'bottom v velocity', 'm/s', missing_value=missval )
+         id_q_bot   = register_diag_field(mod_name, 'q_bot', axes, ltime, 'bottom specific humidity', 'kg/kg', missing_value=missval )
+         id_p_surf  = register_diag_field(mod_name, 'p_surf', axes, ltime, 'surface pressure', 'Pa', missing_value=missval )
+         id_totprec = register_diag_field(mod_name, 'totprec', axes, ltime, 'total precipitation', 'kg/m2/s', missing_value=missval )
+         id_lprec   = register_diag_field(mod_name, 'lprec', axes, ltime, 'liquid precipitation', 'kg/m2/s', missing_value=missval )
+         id_fprec   = register_diag_field(mod_name, 'fprec', axes, ltime, 'frozen precipitation', 'kg/m2/s', missing_value=missval )
+         id_flux_lw = register_diag_field(mod_name, 'flux_lw', axes, ltime, 'longwave flux down', 'W/m2', missing_value=missval )
+         id_swdn_vf = register_diag_field(mod_name, 'sw_down_vis_dif', axes, ltime,  'shortwave downwelling vis. diffuse radiation', 'W/m2', missing_value=missval )
+         id_flux_sw_dn_vdf = register_diag_field(mod_name, 'flux_sw_down_vis_dif', axes, ltime, 'vis. diff. shortwave flux down', 'W/m2', missing_value=missval )
+         id_flux_sw_dn_vr  = register_diag_field(mod_name, 'flux_sw_down_vis_dir', axes, ltime, 'vis. dir. shortwave flux down', 'W/m2', missing_value=missval )
+
+
+         end associate
+
+         ! send out static data
+         if (id_cellarea > 0)       used = send_data(id_cellarea,       lnd%sg_cellarea,                           lm4_model%Time_land)
+
       endif ! first_call
 
-         ! send out data to be written ----------------------------
-         if (id_cellarea > 0)       used = send_data(id_cellarea,       lnd%sg_cellarea,                           lm4_model%Time_land)
-         if (id_swdn_vf > 0)        used = send_data(id_swdn_vf,        lm4_model%atm_forc2d%flux_sw_down_vis_dif, lm4_model%Time_land)
+         ! send out data to be written 
          if (id_t_bot > 0)          used = send_data(id_t_bot,          lm4_model%atm_forc2d%t_bot,                lm4_model%Time_land)
          if (id_p_bot > 0)          used = send_data(id_p_bot,          lm4_model%atm_forc2d%p_bot,                lm4_model%Time_land)
          if (id_z_bot > 0)          used = send_data(id_z_bot,          lm4_model%atm_forc2d%z_bot,                lm4_model%Time_land)
          if (id_u_bot > 0)          used = send_data(id_u_bot,          lm4_model%atm_forc2d%u_bot,                lm4_model%Time_land)
          if (id_v_bot > 0)          used = send_data(id_v_bot,          lm4_model%atm_forc2d%v_bot,                lm4_model%Time_land)
+         if (id_q_bot > 0)          used = send_data(id_q_bot,          lm4_model%atm_forc2d%q_bot,                lm4_model%Time_land)
+         if (id_p_surf > 0)         used = send_data(id_p_surf,         lm4_model%atm_forc2d%p_surf,               lm4_model%Time_land)
          if (id_totprec > 0)        used = send_data(id_totprec,        lm4_model%atm_forc2d%totprec,              lm4_model%Time_land)
          if (id_lprec > 0)          used = send_data(id_lprec,          lm4_model%atm_forc2d%lprec,                lm4_model%Time_land)
          if (id_fprec > 0)          used = send_data(id_fprec,          lm4_model%atm_forc2d%fprec,                lm4_model%Time_land)
          if (id_flux_lw > 0)        used = send_data(id_flux_lw,        lm4_model%atm_forc2d%flux_lw,              lm4_model%Time_land)
+         if (id_swdn_vf > 0)        used = send_data(id_swdn_vf,        lm4_model%atm_forc2d%flux_sw_down_vis_dif, lm4_model%Time_land)
          if (id_flux_sw_dn_vdf > 0) used = send_data(id_flux_sw_dn_vdf, lm4_model%atm_forc2d%flux_sw_down_vis_dif, lm4_model%Time_land)
          if (id_flux_sw_dn_vr > 0)  used = send_data(id_flux_sw_dn_vr,  lm4_model%atm_forc2d%flux_sw_down_vis_dir, lm4_model%Time_land)
 
