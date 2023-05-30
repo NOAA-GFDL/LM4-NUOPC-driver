@@ -5,6 +5,7 @@ module lm4_driver
    use mpp_domains_mod,    only: domain2d
    use lm4_type_mod,       only: lm4_type
    use land_data_mod,      only: land_data_type, atmos_land_boundary_type, lnd
+   use land_tracers_mod,   only : isphum
 
    implicit none
    private
@@ -202,13 +203,14 @@ contains
          ex_albedo_nir_dir,     &
          ex_albedo_vis_dif,     &
          ex_albedo_nir_dif,     &
-         ex_land_frac,          &
+         !ex_land_frac,          &
          !ex_t_atm,              &
          !ex_p_atm,              &
          !ex_u_atm, ex_v_atm,    &
          ex_gust,               &
          ex_t_surf4,            &
-         ex_u_surf, ex_v_surf,  &
+         ex_u_surf = 0.0,       &
+         ex_v_surf = 0.0,        &
          ex_rough_mom, ex_rough_heat, ex_rough_moist, &
          ex_rough_scale,        &
          ex_q_star,             &
@@ -223,8 +225,8 @@ contains
          ex_del_q,              &
          ex_frac_open_sea
 
-    
-      real, dimension(lnd%ls:lnd%le,1) :: &
+      ! these originally had a tracer dimension, but we're not using them
+      real, dimension(lnd%ls:lnd%le) :: &
          ex_tr_atm,  &
          ex_tr_surf,    & !< near-surface tracer fields
          ex_flux_tr,    & !< tracer fluxes
@@ -287,70 +289,33 @@ contains
       !  integer :: is,ie,l,j
       !  integer :: isc,iec,jsc,jec
 
-      integer :: isphum = 1       !< index of specific humidity tracer in tracer table
-
-      !  ! JP TMP TEST INPUTS
-      !  !inputs for SF  
-      !  ex_t_atm          =  271.41292317708337       
-      !  ex_tr_atm         =  3.0431489770611133E-003  
-      !  ex_u_atm          =  7.0392669041951503       
-      !  ex_v_atm          =  0.0000000000000000       
-      !  ex_p_atm          =  98525.662918221846       
-      !  ex_z_atm          =  35.000000000000000       
-      !  ex_p_surf         =  99102.075520833343       
-      !  ex_t_surf         =  271.50000000000000       
-      !  ex_t_ca           =  271.50000000000000       
-      !  ex_tr_surf        =  3.0431489770611133E-003  
-      !  ex_u_surf         =  0.0000000000000000       
-      !  ex_v_surf         =  0.0000000000000000       
-      !  ex_rough_mom      =  4.0000000000000002E-004  
-      !  ex_rough_heat     =  4.0000000000000002E-004  
-      !  ex_rough_moist    =  4.0000000000000002E-004  
-      !  ex_rough_scale    =  4.0000000000000002E-004  
-      !  ex_gust           =  1.7101884060819572       
-      !  !output for SF    
-      !  ex_flux_t         =  0.0 !6.9108420445825020E-310  
-      !  ex_flux_tr        =  0.0 !4.6641074035543975E-310  
-      !  ex_flux_lw        =  0.0 !6.9108420445809210E-310  
-      !  ex_flux_u         =  0.0 !6.9108420445793400E-310  
-      !  ex_flux_v         =  0.0 !6.9108420445801305E-310  
-      !  ex_cd_m           =  0.0000000000000000       
-      !  ex_cd_t           =  0.0000000000000000       
-      !  ex_cd_q           =  0.0000000000000000       
-      !  ex_wind           =  0.0 !6.9108420445809210E-310  
-      !  ex_u_star         =  0.0 !6.9108420445825020E-310  
-      !  ex_b_star         =  0.0 !1.1386981270908381E-313  
-      !  ex_q_star         =  0.0 !1.1386980991267226E-313  
-      !  ex_dhdt_surf      =  0.0 !6.9108420445809210E-310  
-      !  ex_dedt_surf      =  0.0 !1.1386980880102456E-313  
-      !  ex_dfdtr_surf     =  0.0 !2.4319443209713317E-152  
-      !  ex_drdt_surf      =  0.0 !6.9108420445809210E-310  
-      !  ex_dhdt_atm       =  0.0 !1.1386981288200679E-313  
-      !  ex_dfdtr_atm      =  0.0 !0.0000000000000000       
-      !  ex_dtaudu_atm     =  0.0 !6.9108420445825020E-310  
-      !  ex_dtaudv_atm     =  0.0 !6.9108420445809210E-310  
-      !  !dt                = 1800.0000000000000
-      !  ex_land           = .TRUE.
-      !  ex_seawater       = 0.0
-      !  !ex_seawater .gt. 0.0 T F
-      !  ex_avail          = .TRUE.
 
       ! JP end
     
+      ! prefill q_surf with q_bot. In original code, there were options to send/write
+      ! before surface_flux call.
+      ex_tr_surf(lnd%ls:lnd%le) = lm4_model%From_lnd%q_bot      
+
+      ! this is mimicking the original code for land roughness vars
+      ! TODO: review and optimize
+      ex_rough_moist(lnd%ls:lnd%le) = Land%rough_heat
+      ex_rough_scale(lnd%ls:lnd%le) = ex_rough_mom
+      ex_rough_scale(lnd%ls:lnd%le) = Land%rough_scale
+
     call surface_flux_1d ( &
          ! inputs
          lm4_model%atm_forc%t_bot,                                      &
-         ex_tr_atm(lnd%ls:lnd%le,isphum),                               & !! TODO: bottom layer Q
+         lm4_model%atm_forc%q_bot,                                      & !! TODO: link q_bot var and tracer field
          lm4_model%atm_forc%u_bot, lm4_model%atm_forc%v_bot,            &
-         lm4_model%atm_forc%p_bot,  lm4_model%atm_forc%z_bot,           &
-         ex_p_surf(lnd%ls:lnd%le),ex_t_surf(lnd%ls:lnd%le),             & !! TODO: surface T and P
-         ex_t_ca(lnd%ls:lnd%le),                                        & !! TODO: Air temp at the canopy
+         lm4_model%atm_forc%p_bot, lm4_model%atm_forc%z_bot,            &
+         lm4_model%atm_forc%p_surf, lm4_model%From_lnd%t_surf,          & !! surface T and P
+         lm4_model%From_lnd%t_a,                                        & !! air temp at the canopy
          ! inout         
-         ex_tr_surf(lnd%ls:lnd%le,isphum),                              & !! TODO surface Q (this is INOUT)
+         ex_tr_surf(lnd%ls:lnd%le),                                     & !! TODO review surface Q (this is INOUT)
          ! more inputs         
-         ex_u_surf(lnd%ls:lnd%le), ex_v_surf(lnd%ls:lnd%le),            & !! TODO surface wind
-         ex_rough_mom(lnd%ls:lnd%le), ex_rough_heat(lnd%ls:lnd%le),     & !! TODO rough lengths
-         ex_rough_moist(lnd%ls:lnd%le), ex_rough_scale(lnd%ls:lnd%le),  & !! TODO Moisture roughness length and scale factor
+         ex_u_surf(lnd%ls:lnd%le), ex_v_surf(lnd%ls:lnd%le),            & !! TODO review surface wind (= 0)
+         Land%rough_mom, Land%rough_heat,                               & !! rough lengths
+         ex_rough_moist(lnd%ls:lnd%le), ex_rough_scale(lnd%ls:lnd%le),  & !! moisture roughness length and scale factor
          ex_gust(lnd%ls:lnd%le),                                        & !! TODO gustiness 
          ! outputs
          ex_flux_t(lnd%ls:lnd%le), ex_flux_tr(lnd%ls:lnd%le,isphum),    & !! SH and Evap (Q) fluxes
@@ -361,7 +326,8 @@ contains
          ex_dfdtr_surf(lnd%ls:lnd%le,isphum),  ex_drdt_surf(lnd%ls:lnd%le),  ex_dhdt_atm(lnd%ls:lnd%le), &
          ex_dfdtr_atm(lnd%ls:lnd%le,isphum),  ex_dtaudu_atm(lnd%ls:lnd%le), ex_dtaudv_atm(lnd%ls:lnd%le),       &
          dt,                                                            & !! timestep doesn't seem to be used
-         ex_land(lnd%ls:lnd%le), ex_seawater(lnd%ls:lnd%le) .gt. 0.0,  ex_avail(lnd%ls:lnd%le)            )
+         .TRUE., .FALSE., .TRUE.                                        & ! Is land, Is seawater, Is ex. avail
+         ) 
 
 
    !! ....
