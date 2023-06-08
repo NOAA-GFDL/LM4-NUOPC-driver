@@ -654,8 +654,9 @@ contains
       ! input/output variabes
       type(ESMF_State),  intent(in)    :: state
       character(len=*),  intent(in)    :: fldname
-      real(r8),optional, intent(inout) :: lm4data_1d(:)      ! 1d, Unstructured Grid output
-      real(r8),optional, intent(inout) :: lm4data_2d(:,:)    ! 2d, Structured Grid output
+      real(r8), optional, intent(inout) :: lm4data_1d(:)      ! 1d, Unstructured Grid output
+      real(r8), optional, intent(inout) :: lm4data_2d(:,:)    ! 2d, Structured Grid output
+      ! logical,  optional, intent(in)  :: debug_print
       integer,           intent(out)   :: rc
 
       ! local variables
@@ -683,6 +684,15 @@ contains
          if (present(lm4data_1d)) then
             call mpp_pass_sg_to_ug(lnd%ug_domain, fldptr2d, lm4data_1d)
          end if
+
+         ! if (present(debug_print)) then
+         !    if (debug_print) then
+         !       call ESMF_LogWrite(subname//' '//trim(fldname)//' min/max: '// &
+         !                          trim(str(fldptr2d%min))//' '//trim(str(fldptr2d%max)), ESMF_LOGMSG_INFO)
+
+         !    end if
+         ! end if
+
 
       else
          call ESMF_LogWrite(subname//' '//trim(fldname)//' is not in the state!', ESMF_LOGMSG_INFO)
@@ -788,7 +798,6 @@ contains
    ! end function fldchk
 
    !=============================================================================
-
    logical function check_for_connected(fldList, numflds, fname)
 
       ! input/output variables
@@ -811,6 +820,40 @@ contains
 
    end function check_for_connected
 
+   ! !=============================================================================
+   ! subroutine check_for_nans(fname, lm4data_1d, lm4data_2drc)
+
+   !    ! input/output variables
+   !    character(len=*),  intent(in)  :: fname
+   !    real(r8),optional, intent(in)  :: lm4data_1d(:)      ! 1d, Unstructured Grid output
+   !    real(r8),optional, intent(in)  :: lm4data_2d(:,:)    ! 2d, Structured Grid output
+   !    integer,           intent(out) :: rc
+  
+   !    ! local variables
+   !    integer :: i
+   !    character(len=*), parameter :: subname='(check_for_nans)'
+   !    ! ----------------------------------------------
+  
+   !    rc = ESMF_SUCCESS
+   !    call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
+  
+   !    ! Check if any input from mediator or output to mediator is NaN
+   !    if (any(isnan(array))) then
+   !       write(*,*) '# of NaNs = ', count(isnan(array))
+   !       write(*,*) 'Which are NaNs = ', isnan(array)
+   !       do i = 1, size(array)
+   !          if (isnan(array(i))) then
+   !             write(*,*) "NaN found in field ", trim(fname), ' at gridcell index ',begg+i-1
+   !          end if
+   !       end do
+   !       call ESMF_LogWrite(trim(subname)//": one or more of the output are NaN", ESMF_LOGMSG_ERROR)
+   !       rc = ESMF_FAILURE
+   !       return
+   !    end if
+  
+   !    call ESMF_LogWrite(subname//' done', ESMF_LOGMSG_INFO)
+  
+   !  end subroutine check_for_nans   
 
 
 end module lnd_import_export

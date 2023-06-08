@@ -100,8 +100,6 @@ module lm4_type_mod
                                         Time_step_land, Time_step_ocean, &
                                         Time_restart, Time_step_restart, &
                                         Time_atstart      
-      !contains
-      !   procedure, public  :: Create
 
    end type lm4_type
 

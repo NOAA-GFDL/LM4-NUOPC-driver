@@ -4,7 +4,7 @@ module lm4_cap_mod
    ! LM4 Component
    !-----------------------------------------------------------------------------
 
-   use ESMF
+   use ESMF                  ! TODO: limit to only what is needed
    use NUOPC,                only: NUOPC_CompDerive, NUOPC_CompSetEntryPoint, NUOPC_CompSpecialize
    use NUOPC,                only: NUOPC_CompFilterPhaseMap, NUOPC_CompAttributeGet, NUOPC_CompAttributeSet
    use NUOPC_Model,          only: model_routine_SS           => SetServices
@@ -32,7 +32,8 @@ module lm4_cap_mod
    use land_model_mod,       only: land_model_init, land_model_end
    use land_data_mod,        only: land_data_type, atmos_land_boundary_type, lnd
    use constants_mod,        only: constants_init
-   use monin_obukhov_mod,    only: monin_obukhov_init
+   !use monin_obukhov_mod,    only: monin_obukhov_init
+   use lm4_surface_flux_mod, only: lm4_surface_flux_init
 
    use time_manager_mod,     only: time_type, set_calendar_type, set_date,    &
                                    set_time, get_time,                        &
@@ -174,16 +175,15 @@ contains
       call ESMF_VMGetCurrent(vm=VM,rc=RC)
       call ESMF_VMGet(vm=VM, localPet=mype, mpiCommunicator=mpi_comm_land, &
          petCount=ntasks, rc=rc)
-      if (mype == 0) write(0,*) 'in lnd comp initadvert, ntasks=',ntasks
-      !
 
       call fms_init(mpi_comm_land)
 
       call constants_init
       call sat_vapor_pres_init
 
+      call lm4_surface_flux_init
       ! originally in surface_flux_init
-      call monin_obukhov_init
+      !call monin_obukhov_init
 
       !------------------------------------------------------------------------
       ! get config variables
@@ -331,6 +331,8 @@ contains
       call advertise_fields(gcomp, flds_scalar_name, rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
+      call ESMF_LogWrite(subname//' finished', ESMF_LOGMSG_INFO)
+
    end subroutine InitializeAdvertise
 
 
@@ -401,6 +403,8 @@ contains
       call export_fields(gcomp,rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
+      call ESMF_LogWrite(subname//' finished', ESMF_LOGMSG_INFO)
+
    end subroutine InitializeRealize
 
    !===============================================================================
@@ -445,9 +449,12 @@ contains
 
       ! TMP disable for testing
       call get_time (lm4_model%Time_step_land, sec)
-      !call sfc_boundary_layer(real(sec), lm4_model)
-      !     call flux_down_from_atmos(lm4_model%From_lnd)      ! JP: needs review of implicit coupling
-      !     call update_land_model_fast(lm4_model%From_atm,lm4_model%From_lnd)
+      call sfc_boundary_layer(real(sec), lm4_model)
+      !call flux_down_from_atmos(lm4_model%From_lnd)      ! JP: needs review of implicit coupling
+      !call update_land_model_fast(lm4_model%From_atm,lm4_model%From_lnd)
+      !!call update_land_model_slow(FOO)
+
+      call ESMF_LogWrite(subname//' finished', ESMF_LOGMSG_INFO)
 
    end subroutine ModelAdvance
 
@@ -470,6 +477,8 @@ contains
       if (debug_cap > 0) then
          call dealloc_atmforc2d(lm4_model%atm_forc2d) ! TMP DEBUG
       endif
+
+      call ESMF_LogWrite(subname//' finished', ESMF_LOGMSG_INFO)
 
    end subroutine ModelFinalize
 
