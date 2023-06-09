@@ -406,36 +406,36 @@ contains
       ! -----------------------
 
       ! Get Unstructured Grid data
-         call state_getimport_2d(importState, 'Sa_z',       lm4data_1d=lm4_model%atm_forc%z_bot, rc=rc)  ! bottom layer height
-         call state_getimport_2d(importState, 'Sa_tbot',    lm4data_1d=lm4_model%atm_forc%t_bot, rc=rc)  ! bottom layer temperature 
-         call state_getimport_2d(importState, 'Sa_ta',      lm4data_1d=lm4_model%atm_forc%t_bot, rc=rc)  ! bottom layer temperature (active UFS atm)
-         ! call state_getimport_2d(importState, 'Sa_tskn' ...                                            ! surface skin temperature
-         call state_getimport_2d(importState, 'Sa_pbot',    lm4data_1d=lm4_model%atm_forc%p_bot, rc=rc)  ! bottom layer pressure
-         call state_getimport_2d(importState, 'Sa_prsl',    lm4data_1d=lm4_model%atm_forc%p_bot, rc=rc)  ! bottom layer pressure (active UFS atm)
-         call state_getimport_2d(importState, 'Sa_u',       lm4data_1d=lm4_model%atm_forc%u_bot, rc=rc)  ! bottom layer zonal wind
-         call state_getimport_2d(importState, 'Sa_v',       lm4data_1d=lm4_model%atm_forc%v_bot, rc=rc)  ! bottom layer meridional wind
-         call state_getimport_2d(importState, 'Sa_ua',      lm4data_1d=lm4_model%atm_forc%u_bot, rc=rc)  ! bottom layer zonal wind (active UFS atm)
-         call state_getimport_2d(importState, 'Sa_uv',      lm4data_1d=lm4_model%atm_forc%v_bot, rc=rc)  ! bottom layer meridional wind (active UFS atm)       
-         call state_getimport_2d(importState, 'Sa_shum',    lm4data_1d=lm4_model%atm_forc%q_bot, rc=rc)  ! bottom layer specific humidity
-         call state_getimport_2d(importState, 'Sa_qa',      lm4data_1d=lm4_model%atm_forc%q_bot, rc=rc)  ! bottom layer specific humidity (active UFS atm)
-         call state_getimport_2d(importState, 'Sa_pslv',    lm4data_1d=lm4_model%atm_forc%p_surf, rc=rc) ! surface pressure
-         call state_getimport_2d(importState, 'Faxa_lwdn',  lm4data_1d=lm4_model%atm_forc%flux_lw, rc=rc)
-         call state_getimport_2d(importState, 'Faxa_swvdf', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dif, rc=rc)
-         call state_getimport_2d(importState, 'Faxa_swvdr', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dir, rc=rc)
+      call state_getimport_2d(importState, 'Sa_z',       lm4data_1d=lm4_model%atm_forc%z_bot, rc=rc)  ! bottom layer height
+      call state_getimport_2d(importState, 'Sa_tbot',    lm4data_1d=lm4_model%atm_forc%t_bot, rc=rc)  ! bottom layer temperature 
+      !call state_getimport_2d(importState, 'Sa_ta',      lm4data_1d=lm4_model%atm_forc%t_bot, rc=rc)  ! bottom layer temperature (active UFS atm)
+      ! call state_getimport_2d(importState, 'Sa_tskn' ...                                            ! surface skin temperature
+      call state_getimport_2d(importState, 'Sa_pbot',    lm4data_1d=lm4_model%atm_forc%p_bot, rc=rc)  ! bottom layer pressure
+      !call state_getimport_2d(importState, 'Sa_prsl',    lm4data_1d=lm4_model%atm_forc%p_bot, rc=rc)  ! bottom layer pressure (active UFS atm)
+      call state_getimport_2d(importState, 'Sa_u',       lm4data_1d=lm4_model%atm_forc%u_bot, rc=rc)  ! bottom layer zonal wind
+      call state_getimport_2d(importState, 'Sa_v',       lm4data_1d=lm4_model%atm_forc%v_bot, rc=rc)  ! bottom layer meridional wind
+      !call state_getimport_2d(importState, 'Sa_ua',      lm4data_1d=lm4_model%atm_forc%u_bot, rc=rc)  ! bottom layer zonal wind (active UFS atm)
+      !call state_getimport_2d(importState, 'Sa_uv',      lm4data_1d=lm4_model%atm_forc%v_bot, rc=rc)  ! bottom layer meridional wind (active UFS atm)       
+      call state_getimport_2d(importState, 'Sa_shum',    lm4data_1d=lm4_model%atm_forc%q_bot, rc=rc)  ! bottom layer specific humidity
+      !call state_getimport_2d(importState, 'Sa_qa',      lm4data_1d=lm4_model%atm_forc%q_bot, rc=rc)  ! bottom layer specific humidity (active UFS atm)
+      call state_getimport_2d(importState, 'Sa_pslv',    lm4data_1d=lm4_model%atm_forc%p_surf, rc=rc) ! surface pressure
+      call state_getimport_2d(importState, 'Faxa_lwdn',  lm4data_1d=lm4_model%atm_forc%flux_lw, rc=rc)
+      call state_getimport_2d(importState, 'Faxa_swvdf', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dif, rc=rc)
+      call state_getimport_2d(importState, 'Faxa_swvdr', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dir, rc=rc)
 
       if (ie_debug > 0) then ! Also want Structured Grid data
          call state_getimport_2d(importState, 'Sa_z',       lm4data_2d=lm4_model%atm_forc2d%z_bot,   rc=rc)
          call state_getimport_2d(importState, 'Sa_tbot',    lm4data_2d=lm4_model%atm_forc2d%t_bot,   rc=rc)
-         call state_getimport_2d(importState, 'Sa_ta',      lm4data_2d=lm4_model%atm_forc2d%t_bot,    rc=rc)
+         !call state_getimport_2d(importState, 'Sa_ta',      lm4data_2d=lm4_model%atm_forc2d%t_bot,    rc=rc)
          ! call state_getimport_2d(importState, 'Sa_tskn'
          call state_getimport_2d(importState, 'Sa_pbot',    lm4data_2d=lm4_model%atm_forc2d%p_bot,   rc=rc)
-         call state_getimport_2d(importState, 'Sa_prsl',    lm4data_2d=lm4_model%atm_forc2d%p_bot, rc=rc)
+         !call state_getimport_2d(importState, 'Sa_prsl',    lm4data_2d=lm4_model%atm_forc2d%p_bot, rc=rc)
          call state_getimport_2d(importState, 'Sa_u',       lm4data_2d=lm4_model%atm_forc2d%u_bot,   rc=rc)
          call state_getimport_2d(importState, 'Sa_v',       lm4data_2d=lm4_model%atm_forc2d%v_bot,   rc=rc)
-         call state_getimport_2d(importState, 'Sa_ua',      lm4data_2d=lm4_model%atm_forc2d%u_bot,   rc=rc)
-         call state_getimport_2d(importState, 'Sa_uv',      lm4data_2d=lm4_model%atm_forc2d%v_bot,   rc=rc)
+         !call state_getimport_2d(importState, 'Sa_ua',      lm4data_2d=lm4_model%atm_forc2d%u_bot,   rc=rc)
+         !call state_getimport_2d(importState, 'Sa_uv',      lm4data_2d=lm4_model%atm_forc2d%v_bot,   rc=rc)
          call state_getimport_2d(importState, 'Sa_shum',    lm4data_2d=lm4_model%atm_forc2d%q_bot,   rc=rc)
-         call state_getimport_2d(importState, 'Sa_qa',      lm4data_2d=lm4_model%atm_forc2d%q_bot,   rc=rc)
+         !call state_getimport_2d(importState, 'Sa_qa',      lm4data_2d=lm4_model%atm_forc2d%q_bot,   rc=rc)
          call state_getimport_2d(importState, 'Sa_pslv',    lm4data_2d=lm4_model%atm_forc2d%p_surf,  rc=rc)
          call state_getimport_2d(importState, 'Faxa_lwdn',  lm4data_2d=lm4_model%atm_forc2d%flux_lw, rc=rc)
          call state_getimport_2d(importState, 'Faxa_swvdf', lm4data_2d=lm4_model%atm_forc2d%flux_sw_down_vis_dif, rc=rc)
