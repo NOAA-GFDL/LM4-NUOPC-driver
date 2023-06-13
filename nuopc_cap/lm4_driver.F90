@@ -11,12 +11,13 @@ module lm4_driver
 
    ! for debug diag
    use time_manager_mod,     only: time_type
-   use mpp_domains_mod, only: domainUG
-   use mpp_domains_mod, only: mpp_get_UG_compute_domain, mpp_get_UG_domain_ntiles
-   use mpp_domains_mod, only: mpp_get_UG_domain_grid_index
-   use diag_manager_mod, only : diag_axis_init, register_static_field, diag_field_add_attribute, register_diag_field
-   use diag_axis_mod,   only: diag_axis_add_attribute
-   use land_tile_diag_mod, only: register_tiled_area_fields, register_tiled_diag_field, set_default_diag_filter
+   use mpp_domains_mod,      only: domainUG
+   use mpp_domains_mod,      only: mpp_get_UG_compute_domain, mpp_get_UG_domain_ntiles
+   use mpp_domains_mod,      only: mpp_get_UG_domain_grid_index
+   use diag_manager_mod,     only: diag_axis_init, register_static_field, diag_field_add_attribute, register_diag_field
+   use diag_axis_mod,        only: diag_axis_add_attribute
+   use land_tile_diag_mod,   only: register_tiled_area_fields, register_tiled_diag_field, set_default_diag_filter, send_tile_data
+   use tile_diag_buff_mod,   only: diag_buff_type, init_diag_buff
 
 
    implicit none
@@ -33,6 +34,11 @@ module lm4_driver
    public :: init_driver, end_driver
    public :: sfc_boundary_layer, flux_down_from_atmos
    public :: debug_diag
+
+
+   ! ! TMP DEBUG diag buffer. Am I using this correctly?
+   ! type(diag_buff_type) :: lm4_buffer
+
 
    ! --- namelist of vars originally from flux exchange nml
    real :: z_ref_heat =  2. !< Reference height (meters) for temperature and relative humidity diagnostics (t_ref, rh_ref, del_h, del_q)
@@ -169,6 +175,10 @@ contains
 
       call land_diag_init( lnd%coord_glonb, lnd%coord_glatb, lnd%coord_glon, lnd%coord_glat, &
                            lm4_model%Time_land, lnd%ug_domain, id_band, id_ug ) 
+
+      ! create a buffer for diagnostic output
+      ! call init_diag_buff(lm4_buffer)
+
       ! isc = lnd%is
       ! iec = lnd%ie
       ! jsc = lnd%js
@@ -306,6 +316,10 @@ contains
          ex_albedo_vis_dif_fix,&
          ex_albedo_nir_dif_fix
 
+      !TMP DEBUG
+      real, dimension(lnd%ls:lnd%le) :: lrandom_array
+
+
       integer :: tr, n, m ! tracer indices
       integer :: i
       integer :: ntile = 1 ! true for now, with no subtiling
@@ -317,6 +331,7 @@ contains
       ex_land     = .TRUE.
       ex_seawater = .FALSE.
 
+      ! these are 0 for land
       ex_u_surf = 0.0
       ex_v_surf = 0.0
 
@@ -325,12 +340,13 @@ contains
       ex_tr_surf(:,isphum) = lm4_model%atm_forc%q_bot
       ex_q_surf            = lm4_model%atm_forc%q_bot
 
-      ex_t_atm = lm4_model%atm_forc%t_bot
-      ex_q_atm = lm4_model%atm_forc%q_bot
-      ex_u_atm = lm4_model%atm_forc%u_bot
-      ex_v_atm = lm4_model%atm_forc%v_bot
-      ex_p_atm = lm4_model%atm_forc%p_bot
-      ex_z_atm = lm4_model%atm_forc%z_bot
+      ex_t_atm  = lm4_model%atm_forc%t_bot
+      ex_q_atm  = lm4_model%atm_forc%q_bot
+      ex_u_atm  = lm4_model%atm_forc%u_bot
+      ex_v_atm  = lm4_model%atm_forc%v_bot
+      ex_p_atm  = lm4_model%atm_forc%p_bot
+      ex_z_atm  = lm4_model%atm_forc%z_bot
+      ex_p_surf = lm4_model%atm_forc%p_surf
 
 
       ! this is mimicking the original code for land roughness vars
@@ -343,13 +359,18 @@ contains
       ex_t_surf = lm4_model%From_lnd%t_surf(:,ntile)
       ex_t_ca   = lm4_model%From_lnd%t_ca(:,ntile)
 
-      ex_p_surf = lm4_model%atm_forc%p_surf
+      !! TMP test: add random noise 
+      ! call random_number(lrandom_array)
+      ! ex_t_ca   = 10*lrandom_array-5+ex_t_ca
+      ! ex_t_surf = 10*lrandom_array-5+ex_t_surf
+
 
       ! TMP DEBUG values
       !ex_t_atm        =  271.41292317708337
       !ex_q_atm        =  3.0431489770611133E-003  !! this is now fine
       !ex_u_atm        =  7.0392669041951503       !! this is now fine
-      !ex_v_atm        =   2.1000000000000000
+      ! ex_v_atm        =   2.1000000000000000
+      !ex_v_atm        =  7.039266904195150
       !ex_p_atm        =  98525.662918221846       !! this is now fine
       !ex_z_atm        =  35.000000000000000       !! this is now fine
       !ex_p_surf       =  99102.075520833343       !! this is now fine
@@ -385,8 +406,158 @@ contains
       ex_dtaudv_atm     =  0.0
 
       write(*,*) 'ex_t_atm min/max: ', minval(ex_t_atm), maxval(ex_t_atm)
+      write(*,*) 'ex_q_atm min/max: ', minval(ex_q_atm), maxval(ex_q_atm)
+      write(*,*) 'ex_u_atm min/max: ', minval(ex_u_atm), maxval(ex_u_atm)
       write(*,*) 'ex_v_atm min/max: ', minval(ex_v_atm), maxval(ex_v_atm)
+      write(*,*) 'ex_p_atm min/max: ', minval(ex_p_atm), maxval(ex_p_atm)
+      write(*,*) 'ex_z_atm min/max: ', minval(ex_z_atm), maxval(ex_z_atm)
       write(*,*) 'ex_p_surf min/max: ', minval(ex_p_surf), maxval(ex_p_surf)
+      write(*,*) 'ex_t_surf min/max: ', minval(ex_t_surf), maxval(ex_t_surf)
+      write(*,*) 'ex_t_ca min/max: ', minval(ex_t_ca), maxval(ex_t_ca)
+      write(*,*) 'ex_q_surf min/max: ', minval(ex_q_surf), maxval(ex_q_surf)
+      write(*,*) 'ex_rough_mom min/max: ', minval(ex_rough_mom), maxval(ex_rough_mom)
+      write(*,*) 'ex_rough_heat min/max: ', minval(ex_rough_heat), maxval(ex_rough_heat)
+      write(*,*) 'ex_rough_moist min/max: ', minval(ex_rough_moist), maxval(ex_rough_moist)
+      write(*,*) 'ex_rough_scale min/max: ', minval(ex_rough_scale), maxval(ex_rough_scale)
+
+
+      if (any(isnan(ex_t_atm))) then
+         write(*,*) 'ex_t_atm contains NaNs'
+      end if
+      
+      if (any(isnan(ex_q_atm))) then
+         write(*,*) 'ex_q_atm contains NaNs'
+      end if
+      
+      if (any(isnan(ex_u_atm))) then
+         write(*,*) 'ex_u_atm contains NaNs'
+      end if
+      
+      if (any(isnan(ex_v_atm))) then
+         write(*,*) 'ex_v_atm contains NaNs'
+      end if
+      
+      if (any(isnan(ex_p_atm))) then
+         write(*,*) 'ex_p_atm contains NaNs'
+      end if
+      
+      if (any(isnan(ex_z_atm))) then
+         write(*,*) 'ex_z_atm contains NaNs'
+      end if
+      
+      if (any(isnan(ex_p_surf))) then
+         write(*,*) 'ex_p_surf contains NaNs'
+      end if
+      
+      if (any(isnan(ex_t_surf))) then
+         write(*,*) 'ex_t_surf contains NaNs'
+      end if
+      
+      if (any(isnan(ex_t_ca))) then
+         write(*,*) 'ex_t_ca contains NaNs'
+      end if
+      
+      if (any(isnan(ex_q_surf))) then
+         write(*,*) 'ex_q_surf contains NaNs'
+      end if
+      
+      if (any(isnan(ex_rough_mom))) then
+         write(*,*) 'ex_rough_mom contains NaNs'
+      end if
+      
+      if (any(isnan(ex_rough_heat))) then
+         write(*,*) 'ex_rough_heat contains NaNs'
+      end if
+      
+      if (any(isnan(ex_rough_moist))) then
+         write(*,*) 'ex_rough_moist contains NaNs'
+      end if
+      
+      if (any(isnan(ex_rough_scale))) then
+         write(*,*) 'ex_rough_scale contains NaNs'
+      end if
+      
+      ! Check that the variables are within a reasonable range
+      if (any(ex_t_atm < 200.0) .or. any(ex_t_atm > 350.0)) then
+         write(*,*) 'ex_t_atm is outside of reasonable range'
+      end if
+      
+      if (any(ex_q_atm < 0.0) .or. any(ex_q_atm > 0.05)) then
+         write(*,*) 'ex_q_atm is outside of reasonable range'
+      end if
+      
+      if (any(ex_u_atm < 0.0) .or. any(ex_u_atm > 50.0)) then
+         write(*,*) 'ex_u_atm is outside of reasonable range'
+      end if
+      
+      if (any(ex_v_atm < 0.0) .or. any(ex_v_atm > 50.0)) then
+         write(*,*) 'ex_v_atm is outside of reasonable range'
+      end if
+      
+      if (any(ex_p_atm < 50000.0) .or. any(ex_p_atm > 110000.0)) then
+         write(*,*) 'ex_p_atm is outside of reasonable range'
+      end if
+      
+      if (any(ex_z_atm < 0.0) .or. any(ex_z_atm > 10000.0)) then
+         write(*,*) 'ex_z_atm is outside of reasonable range'
+      end if
+      
+      if (any(ex_p_surf < 50000.0) .or. any(ex_p_surf > 110000.0)) then
+         write(*,*) 'ex_p_surf is outside of reasonable range'
+      end if
+      
+      if (any(ex_t_surf < 200.0) .or. any(ex_t_surf > 350.0)) then
+         write(*,*) 'ex_t_surf is outside of reasonable range'
+      end if
+      
+      if (any(ex_t_ca < 200.0) .or. any(ex_t_ca > 350.0)) then
+         write(*,*) 'ex_t_ca is outside of reasonable range'
+      end if
+      
+      if (any(ex_q_surf < 0.0) .or. any(ex_q_surf > 0.05)) then
+         write(*,*) 'ex_q_surf is outside of reasonable range'
+      end if
+      
+      if (any(ex_rough_mom < 0.0) .or. any(ex_rough_mom > 0.1)) then
+         write(*,*) 'ex_rough_mom is outside of reasonable range'
+      end if
+      
+      if (any(ex_rough_heat < 0.0) .or. any(ex_rough_heat > 0.1)) then
+         write(*,*) 'ex_rough_heat is outside of reasonable range'
+      end if
+      
+      if (any(ex_rough_moist < 0.0) .or. any(ex_rough_moist > 0.1)) then
+         write(*,*) 'ex_rough_moist is outside of reasonable range'
+      end if
+      
+      if (any(ex_rough_scale < 0.0) .or. any(ex_rough_scale > 1.0)) then
+         write(*,*) 'ex_rough_scale is outside of reasonable range'
+      end if
+
+      ! check diff between t_atm and t_ca
+      write(*,*) 'max diff between t_atm and t_ca: ', maxval(abs(ex_t_atm - ex_t_ca))
+      write(*,*) 'min diff between t_atm and t_ca: ', minval(abs(ex_t_atm - ex_t_ca))
+      if (any(abs(ex_t_atm - ex_t_ca) > 30)) then
+         write(*,*) 'ex_t_atm and ex_t_ca differ by more than 30'
+      end if
+
+
+
+      ! call send_tile_data(iug_q_atm      , ex_q_atm      , lm4_buffer)
+      ! call send_tile_data(iug_t_atm      , ex_t_atm      , lm4_buffer)
+      ! call send_tile_data(iug_u_atm      , ex_u_atm      , lm4_buffer)
+      ! call send_tile_data(iug_v_atm      , ex_v_atm      , lm4_buffer)
+      ! call send_tile_data(iug_p_atm      , ex_p_atm      , lm4_buffer)
+      ! call send_tile_data(iug_z_atm      , ex_z_atm      , lm4_buffer)
+      ! call send_tile_data(iug_p_surf     , ex_p_surf     , lm4_buffer)
+      ! call send_tile_data(iug_t_surf     , ex_t_surf     , lm4_buffer)
+      ! call send_tile_data(iug_t_ca       , ex_t_ca       , lm4_buffer)
+      ! call send_tile_data(iug_q_surf     , ex_q_surf     , lm4_buffer)
+      ! call send_tile_data(iug_rough_mom  , ex_rough_mom  , lm4_buffer)
+      ! call send_tile_data(iug_rough_heat , ex_rough_heat , lm4_buffer)
+      ! call send_tile_data(iug_rough_moist, ex_rough_moist, lm4_buffer)
+      ! call send_tile_data(iug_rough_scale, ex_rough_scale, lm4_buffer)
+      ! call send_tile_data(iug_gust       , ex_gust       , lm4_buffer)
 
       call lm4_surface_flux_1d ( &
       ! inputs
@@ -1003,9 +1174,8 @@ contains
 
    end subroutine flux_up_to_atmos
 
-   ! ----------------------------------------
-   ! Write out diagnostic history
-   ! ----------------------------------------
+   !! Write out structured grid diagnostic history
+   !! ============================================================================
    subroutine debug_diag(lm4_model)
       ! This is a quick and dirty diagnostic routine to write out some fields
 
@@ -1110,9 +1280,10 @@ contains
 
 
 
-! ============================================================================
-! initialize horizontal axes for land grid so that all sub-modules can use them,
-! instead of creating their own
+   !! Set up unstructured grid diagnostics
+   ! initialize horizontal axes for land grid so that all sub-modules can use them,
+   ! instead of creating their own
+   !! ============================================================================
    subroutine land_diag_init(clonb, clatb, clon, clat, time, domain, id_band, id_ug)
 
 
@@ -1206,28 +1377,38 @@ contains
          time, 'number of tiles', 'unitless', missing_value=-1.0, op='sum')
 
 
-      ! id_VWS = register_tiled_diag_field ( module_name, 'VWS', axes, time, &
-      !    'vapor storage on land', 'kg/m2', missing_value=-1.0e+20 )
-      ! id_VWSc    = register_tiled_diag_field ( module_name, 'VWSc', axes, time, &
-      !    'vapor mass in canopy air', 'kg/m2', missing_value=-1.0e+20 )
-
-      iug_t_bot                = register_tiled_diag_field (module_name, "t_bot"               , axes, time, "t_bot"               , "K"      , missing_value=-1.0e+20)
-      iug_p_bot                = register_tiled_diag_field (module_name, "z_bot"               , axes, time, "z_bot"               , "Pa"     , missing_value=-1.0e+20)
-      iug_z_bot                = register_tiled_diag_field (module_name, "u_bot"               , axes, time, "u_bot"               , "m"      , missing_value=-1.0e+20)
-      iug_u_bot                = register_tiled_diag_field (module_name, "v_bot"               , axes, time, "v_bot"               , "m/s"    , missing_value=-1.0e+20)
-      iug_v_bot                = register_tiled_diag_field (module_name, "q_bot"               , axes, time, "q_bot"               , "m/s"    , missing_value=-1.0e+20)
-      iug_q_bot                = register_tiled_diag_field (module_name, "p_surf"              , axes, time, "p_surf"              , "kg/kg"  , missing_value=-1.0e+20)
-      iug_p_surf               = register_tiled_diag_field (module_name, "totprec"             , axes, time, "totprec"             , "Pa"     , missing_value=-1.0e+20)
-      iug_totprec              = register_tiled_diag_field (module_name, "lprec"               , axes, time, "lprec"               , "kg/m2/s", missing_value=-1.0e+20)
-      iug_lprec                = register_tiled_diag_field (module_name, "fprec"               , axes, time, "fprec"               , "kg/m2/s", missing_value=-1.0e+20)
-      iug_fprec                = register_tiled_diag_field (module_name, "flux_lw"             , axes, time, "flux_lw"             , "kg/m2/s", missing_value=-1.0e+20)
-      iug_flux_lw              = register_tiled_diag_field (module_name, "sw_down_vis_dif"     , axes, time, "sw_down_vis_dif"     , "W/m2"   , missing_value=-1.0e+20)
-      iug_sw_down_vis_dif      = register_tiled_diag_field (module_name, "flux_sw_down_vis_dif", axes, time, "flux_sw_down_vis_dif", "W/m2"   , missing_value=-1.0e+20)
-      iug_flux_sw_down_vis_dif = register_tiled_diag_field (module_name, "flux_sw_down_vis_dir", axes, time, "flux_sw_down_vis_dir", "W/m2"   , missing_value=-1.0e+20)
-
+      iug_q_atm       = register_tiled_diag_field(module_name, "q_atm"      , axes, time, "q_atm"      , "kg/kg", missing_value=-1.0e+20)
+      iug_t_atm       = register_tiled_diag_field(module_name, "t_atm"      , axes, time, "t_atm"      , "K"    , missing_value=-1.0e+20)
+      iug_u_atm       = register_tiled_diag_field(module_name, "u_atm"      , axes, time, "u_atm"      , "m/s"  , missing_value=-1.0e+20)
+      iug_v_atm       = register_tiled_diag_field(module_name, "v_atm"      , axes, time, "v_atm"      , "m/s"  , missing_value=-1.0e+20)
+      iug_p_atm       = register_tiled_diag_field(module_name, "p_atm"      , axes, time, "p_atm"      , "Pa"   , missing_value=-1.0e+20)
+      iug_z_atm       = register_tiled_diag_field(module_name, "z_atm"      , axes, time, "z_atm"      , "m"    , missing_value=-1.0e+20)
+      iug_p_surf      = register_tiled_diag_field(module_name, "p_surf"     , axes, time, "p_surf"     , "Pa"   , missing_value=-1.0e+20)
+      iug_t_surf      = register_tiled_diag_field(module_name, "t_surf"     , axes, time, "t_surf"     , "K"    , missing_value=-1.0e+20)
+      iug_t_ca        = register_tiled_diag_field(module_name, "t_ca"       , axes, time, "t_ca"       , "K"    , missing_value=-1.0e+20)
+      iug_q_surf      = register_tiled_diag_field(module_name, "q_surf"     , axes, time, "q_surf"     , "kg/kg", missing_value=-1.0e+20)
+      iug_rough_mom   = register_tiled_diag_field(module_name, "rough_mom"  , axes, time, "rough_mom"  , "m"    , missing_value=-1.0e+20)
+      iug_rough_heat  = register_tiled_diag_field(module_name, "rough_heat" , axes, time, "rough_heat" , "m"    , missing_value=-1.0e+20)
+      iug_rough_moist = register_tiled_diag_field(module_name, "rough_moist", axes, time, "rough_moist", "m"    , missing_value=-1.0e+20)
+      iug_rough_scale = register_tiled_diag_field(module_name, "rough_scale", axes, time, "rough_scale", "m"    , missing_value=-1.0e+20)
+      iug_gust        = register_tiled_diag_field(module_name, "gust"       , axes, time, "gust"       , "m/s"  , missing_value=-1.0e+20)      
+         
    end subroutine land_diag_init
 
+   ! !! Write out the land structured grid diagnostics
+   ! !! ============================================================================
+   ! subroutine sg_send_data()
 
+   !    type(diag_buff_type), intent(inout) :: sg_diag
+
+
+
+
+
+   ! end subroutine sg_send_data
+
+   !! Wrap up
+   !! ===========================================================================
    subroutine end_driver()
 
       !deallocate(ex_flux_u)
