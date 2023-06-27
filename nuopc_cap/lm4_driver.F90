@@ -4,6 +4,8 @@ module lm4_driver
 
    use ESMF,                 only: ESMF_MethodRemove, ESMF_LogWrite, ESMF_LOGMSG_INFO, ESMF_SUCCESS, ESMF_FAILURE
    use mpp_domains_mod,      only: domain2d
+   use mpp_mod,             only: mpp_pe, mpp_root_pe
+
    use lm4_type_mod,         only: lm4_type
    use land_data_mod,        only: land_data_type, atmos_land_boundary_type, lnd
    use land_tracers_mod,     only: isphum
@@ -14,9 +16,11 @@ module lm4_driver
    use mpp_domains_mod,      only: domainUG
    use mpp_domains_mod,      only: mpp_get_UG_compute_domain, mpp_get_UG_domain_ntiles
    use mpp_domains_mod,      only: mpp_get_UG_domain_grid_index
-   use diag_manager_mod,     only: diag_axis_init, register_static_field, diag_field_add_attribute, register_diag_field
+   use diag_manager_mod,     only: diag_axis_init, register_static_field, diag_field_add_attribute, &
+                                   register_diag_field
    use diag_axis_mod,        only: diag_axis_add_attribute
-   use land_tile_diag_mod,   only: register_tiled_area_fields, register_tiled_diag_field, set_default_diag_filter, send_tile_data
+   use land_tile_diag_mod,   only: register_tiled_area_fields, register_tiled_diag_field, set_default_diag_filter, &
+                                   send_tile_data
    use tile_diag_buff_mod,   only: diag_buff_type, init_diag_buff
 
 
@@ -27,7 +31,7 @@ module lm4_driver
    integer                      :: im         ! horiz dimension
    integer                      :: date_init(6)
 
-   type(lm4_type),           public :: lm4_model
+   ! type(lm4_type),           public :: lm4_model
    type(domain2D),           public :: land_domain
 
    public :: lm4_nml_read
@@ -94,7 +98,6 @@ contains
    subroutine lm4_nml_read(lm4_model)
 
       use fms_mod,             only: check_nml_error, close_file, file_exist
-      use mpp_mod,             only: mpp_pe, mpp_root_pe
 #ifdef INTERNAL_FILE_NML
       use mpp_mod,             only: input_nml_file
 #else
@@ -209,16 +212,15 @@ contains
    !! used to compute an implicit flux correction.
    !! ============================================================================
    subroutine sfc_boundary_layer( dt,lm4_model )
+   ! subroutine sfc_boundary_layer( dt )
 
 
       use sat_vapor_pres_mod, only: compute_qs
       use monin_obukhov_mod,  only: mo_profile
       use land_tile_mod,      only: max_n_tiles   ! this should be 1 for now
 
-
       real,                  intent(in)     :: dt        ! Time step
       type(lm4_type),        intent(inout)  :: lm4_model ! land model's variable type
-      !type(land_data_type),  intent(inout)  :: Land ! A derived data type to specify land boundary data
 
       ! local variables --------------------------------------
       !  !! blocking not used for now
@@ -316,17 +318,18 @@ contains
          ex_albedo_vis_dif_fix,&
          ex_albedo_nir_dif_fix
 
-      !TMP DEBUG
-      real, dimension(lnd%ls:lnd%le) :: lrandom_array
-
-
       integer :: tr, n, m ! tracer indices
       integer :: i
       integer :: ntile = 1 ! true for now, with no subtiling
 
 
       ! ---------------------------
-
+      ! JP TMP DEBUG
+         ! if (mpp_pe()== mpp_root_pe() ) then
+         !    call set_fake_data(lm4_model)
+         !    call write_data(lm4_model)
+         ! endif
+   
       ex_avail    = .TRUE.
       ex_land     = .TRUE.
       ex_seawater = .FALSE.
@@ -358,11 +361,6 @@ contains
 
       ex_t_surf = lm4_model%From_lnd%t_surf(:,ntile)
       ex_t_ca   = lm4_model%From_lnd%t_ca(:,ntile)
-
-      !! TMP test: add random noise 
-      ! call random_number(lrandom_array)
-      ! ex_t_ca   = 10*lrandom_array-5+ex_t_ca
-      ! ex_t_surf = 10*lrandom_array-5+ex_t_surf
 
 
       ! TMP DEBUG values
@@ -405,173 +403,265 @@ contains
       ex_dtaudu_atm     =  0.0
       ex_dtaudv_atm     =  0.0
 
-      write(*,*) 'ex_t_atm min/max: ', minval(ex_t_atm), maxval(ex_t_atm)
-      write(*,*) 'ex_q_atm min/max: ', minval(ex_q_atm), maxval(ex_q_atm)
-      write(*,*) 'ex_u_atm min/max: ', minval(ex_u_atm), maxval(ex_u_atm)
-      write(*,*) 'ex_v_atm min/max: ', minval(ex_v_atm), maxval(ex_v_atm)
-      write(*,*) 'ex_p_atm min/max: ', minval(ex_p_atm), maxval(ex_p_atm)
-      write(*,*) 'ex_z_atm min/max: ', minval(ex_z_atm), maxval(ex_z_atm)
-      write(*,*) 'ex_p_surf min/max: ', minval(ex_p_surf), maxval(ex_p_surf)
-      write(*,*) 'ex_t_surf min/max: ', minval(ex_t_surf), maxval(ex_t_surf)
-      write(*,*) 'ex_t_ca min/max: ', minval(ex_t_ca), maxval(ex_t_ca)
-      write(*,*) 'ex_q_surf min/max: ', minval(ex_q_surf), maxval(ex_q_surf)
-      write(*,*) 'ex_rough_mom min/max: ', minval(ex_rough_mom), maxval(ex_rough_mom)
-      write(*,*) 'ex_rough_heat min/max: ', minval(ex_rough_heat), maxval(ex_rough_heat)
-      write(*,*) 'ex_rough_moist min/max: ', minval(ex_rough_moist), maxval(ex_rough_moist)
-      write(*,*) 'ex_rough_scale min/max: ', minval(ex_rough_scale), maxval(ex_rough_scale)
+      ! write(*,*) 'ex_t_atm min/max: ', minval(ex_t_atm), maxval(ex_t_atm)
+      ! write(*,*) 'ex_q_atm min/max: ', minval(ex_q_atm), maxval(ex_q_atm)
+      ! write(*,*) 'ex_u_atm min/max: ', minval(ex_u_atm), maxval(ex_u_atm)
+      ! write(*,*) 'ex_v_atm min/max: ', minval(ex_v_atm), maxval(ex_v_atm)
+      ! write(*,*) 'ex_p_atm min/max: ', minval(ex_p_atm), maxval(ex_p_atm)
+      ! write(*,*) 'ex_z_atm min/max: ', minval(ex_z_atm), maxval(ex_z_atm)
+      ! write(*,*) 'ex_p_surf min/max: ', minval(ex_p_surf), maxval(ex_p_surf)
+      ! write(*,*) 'ex_t_surf min/max: ', minval(ex_t_surf), maxval(ex_t_surf)
+      ! write(*,*) 'ex_t_ca min/max: ', minval(ex_t_ca), maxval(ex_t_ca)
+      ! write(*,*) 'ex_q_surf min/max: ', minval(ex_q_surf), maxval(ex_q_surf)
+      ! write(*,*) 'ex_rough_mom min/max: ', minval(ex_rough_mom), maxval(ex_rough_mom)
+      ! write(*,*) 'ex_rough_heat min/max: ', minval(ex_rough_heat), maxval(ex_rough_heat)
+      ! write(*,*) 'ex_rough_moist min/max: ', minval(ex_rough_moist), maxval(ex_rough_moist)
+      ! write(*,*) 'ex_rough_scale min/max: ', minval(ex_rough_scale), maxval(ex_rough_scale)
 
 
-      if (any(isnan(ex_t_atm))) then
-         write(*,*) 'ex_t_atm contains NaNs'
-      end if
+      ! if (any(isnan(ex_t_atm))) then
+      !    write(*,*) 'ex_t_atm contains NaNs'
+      ! end if
       
-      if (any(isnan(ex_q_atm))) then
-         write(*,*) 'ex_q_atm contains NaNs'
-      end if
+      ! if (any(isnan(ex_q_atm))) then
+      !    write(*,*) 'ex_q_atm contains NaNs'
+      ! end if
       
-      if (any(isnan(ex_u_atm))) then
-         write(*,*) 'ex_u_atm contains NaNs'
-      end if
+      ! if (any(isnan(ex_u_atm))) then
+      !    write(*,*) 'ex_u_atm contains NaNs'
+      ! end if
       
-      if (any(isnan(ex_v_atm))) then
-         write(*,*) 'ex_v_atm contains NaNs'
-      end if
+      ! if (any(isnan(ex_v_atm))) then
+      !    write(*,*) 'ex_v_atm contains NaNs'
+      ! end if
       
-      if (any(isnan(ex_p_atm))) then
-         write(*,*) 'ex_p_atm contains NaNs'
-      end if
+      ! if (any(isnan(ex_p_atm))) then
+      !    write(*,*) 'ex_p_atm contains NaNs'
+      ! end if
       
-      if (any(isnan(ex_z_atm))) then
-         write(*,*) 'ex_z_atm contains NaNs'
-      end if
+      ! if (any(isnan(ex_z_atm))) then
+      !    write(*,*) 'ex_z_atm contains NaNs'
+      ! end if
       
-      if (any(isnan(ex_p_surf))) then
-         write(*,*) 'ex_p_surf contains NaNs'
-      end if
+      ! if (any(isnan(ex_p_surf))) then
+      !    write(*,*) 'ex_p_surf contains NaNs'
+      ! end if
       
-      if (any(isnan(ex_t_surf))) then
-         write(*,*) 'ex_t_surf contains NaNs'
-      end if
+      ! if (any(isnan(ex_t_surf))) then
+      !    write(*,*) 'ex_t_surf contains NaNs'
+      ! end if
       
-      if (any(isnan(ex_t_ca))) then
-         write(*,*) 'ex_t_ca contains NaNs'
-      end if
+      ! if (any(isnan(ex_t_ca))) then
+      !    write(*,*) 'ex_t_ca contains NaNs'
+      ! end if
       
-      if (any(isnan(ex_q_surf))) then
-         write(*,*) 'ex_q_surf contains NaNs'
-      end if
+      ! if (any(isnan(ex_q_surf))) then
+      !    write(*,*) 'ex_q_surf contains NaNs'
+      ! end if
       
-      if (any(isnan(ex_rough_mom))) then
-         write(*,*) 'ex_rough_mom contains NaNs'
-      end if
+      ! if (any(isnan(ex_rough_mom))) then
+      !    write(*,*) 'ex_rough_mom contains NaNs'
+      ! end if
       
-      if (any(isnan(ex_rough_heat))) then
-         write(*,*) 'ex_rough_heat contains NaNs'
-      end if
+      ! if (any(isnan(ex_rough_heat))) then
+      !    write(*,*) 'ex_rough_heat contains NaNs'
+      ! end if
       
-      if (any(isnan(ex_rough_moist))) then
-         write(*,*) 'ex_rough_moist contains NaNs'
-      end if
+      ! if (any(isnan(ex_rough_moist))) then
+      !    write(*,*) 'ex_rough_moist contains NaNs'
+      ! end if
       
-      if (any(isnan(ex_rough_scale))) then
-         write(*,*) 'ex_rough_scale contains NaNs'
-      end if
+      ! if (any(isnan(ex_rough_scale))) then
+      !    write(*,*) 'ex_rough_scale contains NaNs'
+      ! end if
       
-      ! Check that the variables are within a reasonable range
-      if (any(ex_t_atm < 200.0) .or. any(ex_t_atm > 350.0)) then
-         write(*,*) 'ex_t_atm is outside of reasonable range'
-      end if
+      ! ! Check that the variables are within a reasonable range
+      ! if (any(ex_t_atm < 200.0) .or. any(ex_t_atm > 350.0)) then
+      !    write(*,*) 'ex_t_atm is outside of reasonable range'
+      ! end if
       
-      if (any(ex_q_atm < 0.0) .or. any(ex_q_atm > 0.05)) then
-         write(*,*) 'ex_q_atm is outside of reasonable range'
-      end if
+      ! if (any(ex_q_atm < 0.0) .or. any(ex_q_atm > 0.05)) then
+      !    write(*,*) 'ex_q_atm is outside of reasonable range'
+      ! end if
       
-      if (any(ex_u_atm < 0.0) .or. any(ex_u_atm > 50.0)) then
-         write(*,*) 'ex_u_atm is outside of reasonable range'
-      end if
+      ! if (any(ex_u_atm < 0.0) .or. any(ex_u_atm > 50.0)) then
+      !    write(*,*) 'ex_u_atm is outside of reasonable range'
+      ! end if
       
-      if (any(ex_v_atm < 0.0) .or. any(ex_v_atm > 50.0)) then
-         write(*,*) 'ex_v_atm is outside of reasonable range'
-      end if
+      ! if (any(ex_v_atm < 0.0) .or. any(ex_v_atm > 50.0)) then
+      !    write(*,*) 'ex_v_atm is outside of reasonable range'
+      ! end if
       
-      if (any(ex_p_atm < 50000.0) .or. any(ex_p_atm > 110000.0)) then
-         write(*,*) 'ex_p_atm is outside of reasonable range'
-      end if
+      ! if (any(ex_p_atm < 50000.0) .or. any(ex_p_atm > 110000.0)) then
+      !    write(*,*) 'ex_p_atm is outside of reasonable range'
+      ! end if
       
-      if (any(ex_z_atm < 0.0) .or. any(ex_z_atm > 10000.0)) then
-         write(*,*) 'ex_z_atm is outside of reasonable range'
-      end if
+      ! if (any(ex_z_atm < 0.0) .or. any(ex_z_atm > 10000.0)) then
+      !    write(*,*) 'ex_z_atm is outside of reasonable range'
+      ! end if
       
-      if (any(ex_p_surf < 50000.0) .or. any(ex_p_surf > 110000.0)) then
-         write(*,*) 'ex_p_surf is outside of reasonable range'
-      end if
+      ! if (any(ex_p_surf < 50000.0) .or. any(ex_p_surf > 110000.0)) then
+      !    write(*,*) 'ex_p_surf is outside of reasonable range'
+      ! end if
       
-      if (any(ex_t_surf < 200.0) .or. any(ex_t_surf > 350.0)) then
-         write(*,*) 'ex_t_surf is outside of reasonable range'
-      end if
+      ! if (any(ex_t_surf < 200.0) .or. any(ex_t_surf > 350.0)) then
+      !    write(*,*) 'ex_t_surf is outside of reasonable range'
+      ! end if
       
-      if (any(ex_t_ca < 200.0) .or. any(ex_t_ca > 350.0)) then
-         write(*,*) 'ex_t_ca is outside of reasonable range'
-      end if
+      ! if (any(ex_t_ca < 200.0) .or. any(ex_t_ca > 350.0)) then
+      !    write(*,*) 'ex_t_ca is outside of reasonable range'
+      ! end if
       
-      if (any(ex_q_surf < 0.0) .or. any(ex_q_surf > 0.05)) then
-         write(*,*) 'ex_q_surf is outside of reasonable range'
-      end if
+      ! if (any(ex_q_surf < 0.0) .or. any(ex_q_surf > 0.05)) then
+      !    write(*,*) 'ex_q_surf is outside of reasonable range'
+      ! end if
       
-      if (any(ex_rough_mom < 0.0) .or. any(ex_rough_mom > 0.1)) then
-         write(*,*) 'ex_rough_mom is outside of reasonable range'
-      end if
+      ! if (any(ex_rough_mom < 0.0) .or. any(ex_rough_mom > 0.1)) then
+      !    write(*,*) 'ex_rough_mom is outside of reasonable range'
+      ! end if
       
-      if (any(ex_rough_heat < 0.0) .or. any(ex_rough_heat > 0.1)) then
-         write(*,*) 'ex_rough_heat is outside of reasonable range'
-      end if
+      ! if (any(ex_rough_heat < 0.0) .or. any(ex_rough_heat > 0.1)) then
+      !    write(*,*) 'ex_rough_heat is outside of reasonable range'
+      ! end if
       
-      if (any(ex_rough_moist < 0.0) .or. any(ex_rough_moist > 0.1)) then
-         write(*,*) 'ex_rough_moist is outside of reasonable range'
-      end if
+      ! if (any(ex_rough_moist < 0.0) .or. any(ex_rough_moist > 0.1)) then
+      !    write(*,*) 'ex_rough_moist is outside of reasonable range'
+      ! end if
       
-      if (any(ex_rough_scale < 0.0) .or. any(ex_rough_scale > 1.0)) then
-         write(*,*) 'ex_rough_scale is outside of reasonable range'
-      end if
+      ! if (any(ex_rough_scale < 0.0) .or. any(ex_rough_scale > 1.0)) then
+      !    write(*,*) 'ex_rough_scale is outside of reasonable range'
+      ! end if
 
-      ! check diff between t_atm and t_ca
-      write(*,*) 'max diff between t_atm and t_ca: ', maxval(abs(ex_t_atm - ex_t_ca))
-      write(*,*) 'min diff between t_atm and t_ca: ', minval(abs(ex_t_atm - ex_t_ca))
-      if (any(abs(ex_t_atm - ex_t_ca) > 30)) then
-         write(*,*) 'ex_t_atm and ex_t_ca differ by more than 30'
-      end if
+      ! ! check diff between t_atm and t_ca
+      ! write(*,*) 'max diff between t_atm and t_ca: ', maxval(abs(ex_t_atm - ex_t_ca))
+      ! write(*,*) 'min diff between t_atm and t_ca: ', minval(abs(ex_t_atm - ex_t_ca))
+      ! if (any(abs(ex_t_atm - ex_t_ca) > 30)) then
+      !    write(*,*) 'ex_t_atm and ex_t_ca differ by more than 30'
+      ! end if
 
 
+      ! Note, these are relying on the send_tile_data_0d_array procedure
+      ! to avoid bring land_mdel.F90's tile buffer into calls
+      ! Note: only use for data with tile dim.?
+      ! call send_tile_data(iug_q_atm      , ex_q_atm      )
+      ! call send_tile_data(iug_t_atm      , ex_t_atm      )
+      ! call send_tile_data(iug_u_atm      , ex_u_atm      )
+      ! call send_tile_data(iug_v_atm      , ex_v_atm      )
+      ! call send_tile_data(iug_p_atm      , ex_p_atm      )
+      ! call send_tile_data(iug_z_atm      , ex_z_atm      )
+      ! call send_tile_data(iug_p_surf     , ex_p_surf     )
+      ! call send_tile_data(iug_t_surf     , ex_t_surf     )
+      ! call send_tile_data(iug_t_ca       , ex_t_ca       )
+      ! call send_tile_data(iug_q_surf     , ex_q_surf     )
+      ! call send_tile_data(iug_rough_mom  , ex_rough_mom  )
+      ! call send_tile_data(iug_rough_heat , ex_rough_heat )
+      ! call send_tile_data(iug_rough_moist, ex_rough_moist)
+      ! call send_tile_data(iug_rough_scale, ex_rough_scale)
+      ! call send_tile_data(iug_gust       , ex_gust       )
 
-      ! call send_tile_data(iug_q_atm      , ex_q_atm      , lm4_buffer)
-      ! call send_tile_data(iug_t_atm      , ex_t_atm      , lm4_buffer)
-      ! call send_tile_data(iug_u_atm      , ex_u_atm      , lm4_buffer)
-      ! call send_tile_data(iug_v_atm      , ex_v_atm      , lm4_buffer)
-      ! call send_tile_data(iug_p_atm      , ex_p_atm      , lm4_buffer)
-      ! call send_tile_data(iug_z_atm      , ex_z_atm      , lm4_buffer)
-      ! call send_tile_data(iug_p_surf     , ex_p_surf     , lm4_buffer)
-      ! call send_tile_data(iug_t_surf     , ex_t_surf     , lm4_buffer)
-      ! call send_tile_data(iug_t_ca       , ex_t_ca       , lm4_buffer)
-      ! call send_tile_data(iug_q_surf     , ex_q_surf     , lm4_buffer)
-      ! call send_tile_data(iug_rough_mom  , ex_rough_mom  , lm4_buffer)
-      ! call send_tile_data(iug_rough_heat , ex_rough_heat , lm4_buffer)
-      ! call send_tile_data(iug_rough_moist, ex_rough_moist, lm4_buffer)
-      ! call send_tile_data(iug_rough_scale, ex_rough_scale, lm4_buffer)
-      ! call send_tile_data(iug_gust       , ex_gust       , lm4_buffer)
+      ! ! JP TMP DEBUG
+      ! if (mpp_pe()== mpp_root_pe()) then
+      !    ! overwrite with data from standalone run
+      !    lm4_model%atm_forc%t_bot(1)               =    285.73773193359375     
+      !    lm4_model%atm_forc%q_bot(1)               =    7.9072029329836369E-003
+      !    lm4_model%atm_forc%u_bot(1)               =    4.0279372930526733     
+      !    lm4_model%atm_forc%v_bot(1)               =    0.0000000000000000     
+      !    lm4_model%atm_forc%p_bot(1)               =    98854.045142723960     
+      !    lm4_model%atm_forc%z_bot(1)               =    35.000000000000000     
+      !    lm4_model%atm_forc%p_surf(1)              =    99432.378906250000     
+      !    lm4_model%From_lnd%t_surf(1,ntile)        =    271.50000000000000     
+      !    lm4_model%From_lnd%t_ca(1,ntile)          =    271.50000000000000     
+      !    ex_q_surf(1)                              =    7.9072029329836369E-003
+      !    ex_u_surf(1)                              =    0.0000000000000000     
+      !    ex_v_surf(1)                              =    0.0000000000000000     
+      !    lm4_model%From_lnd%rough_mom(1,ntile)     =    4.0000000000000002E-004
+      !    lm4_model%From_lnd%rough_heat(1,ntile)    =    4.0000000000000002E-004
+      !    ex_rough_moist(1)                         =    4.0000000000000002E-004
+      !    lm4_model%From_lnd%rough_scale(1,ntile)   =    4.0000000000000002E-004
+      !    ex_gust(1)                                =    1.0000000000000000E-002
+      !    ! ex_flux_t(1) =    6.9366201651163585E-310
+      !    ! ex_flux_tr(1) =    5.4927512634392058E+247
+      !    ! ex_flux_lw(1) =    6.9366201651163585E-310
+      !    ! ex_flux_u(1) =    6.9366201651305876E-310
+      !    ! ex_flux_v(1) =    6.9366201651163585E-310
+      !    ! ex_cd_m(1) =    0.0000000000000000     
+      !    ! ex_cd_t(1)              =    0.0000000000000000     
+      !    ! ex_cd_q(1)              =    0.0000000000000000     
+      !    ! ex_wind(1)              =    6.9366201651313781E-310
+      !    ! ex_u_star(1)            =    6.9366201651179395E-310
+      !    ! ex_b_star(1)            =    6.9366201651163585E-310
+      !    ! ex_q_star(1)            =    6.9366201651305876E-310
+      !    ! ex_dhdt_surf(1)         =    6.9366201651179395E-310
+      !    ! ex_dedt_surf(1)         =    6.9366201651305876E-310
+      !    ! ex_dfdtr_surf(1,isphum) =    0.0000000000000000     
+      !    ! ex_drdt_surf(1)         =    6.9366201651163585E-310
+      !    ! ex_dhdt_atm(1)          =    6.9366201651163585E-310
+      !    ! ex_dfdtr_atm(1,isphum)  =    5.4927512634392058E+247
+      !    ! ex_dtaudu_atm(1)        =    6.9366201651163585E-310
+      !    ! ex_dtaudv_atm(1)        =    6.9366201651163585E-310
+      !    ! ex_land(1)              =  F
+      !    ! ex_seawater(1)          =    1.0000000000000000     
+      !    ! ex_avail(1)             =  T
 
+      !    write(*,*) 'surface_flux args before call:'
+      !    write(*,*) 'SF1 lm4_model%atm_forc%t_bot(1)               =', lm4_model%atm_forc%t_bot(1)
+      !    write(*,*) 'SF1 lm4_model%atm_forc%q_bot(1)               =', lm4_model%atm_forc%q_bot(1)
+      !    write(*,*) 'SF1 lm4_model%atm_forc%u_bot(1)               =', lm4_model%atm_forc%u_bot(1)
+      !    write(*,*) 'SF1 lm4_model%atm_forc%v_bot(1)               =', lm4_model%atm_forc%v_bot(1)
+      !    write(*,*) 'SF1 lm4_model%atm_forc%p_bot(1)               =', lm4_model%atm_forc%p_bot(1)
+      !    write(*,*) 'SF1 lm4_model%atm_forc%z_bot(1)               =', lm4_model%atm_forc%z_bot(1)
+      !    write(*,*) 'SF1 lm4_model%atm_forc%p_surf(1)              =', lm4_model%atm_forc%p_surf(1)
+      !    write(*,*) 'SF1 lm4_model%From_lnd%t_surf(1,ntile)        =', lm4_model%From_lnd%t_surf(1,ntile)
+      !    write(*,*) 'SF1 lm4_model%From_lnd%t_ca(1,ntile)          =', lm4_model%From_lnd%t_ca(1,ntile)
+      !    write(*,*) 'SF1 ex_q_surf(1)                              =', ex_q_surf(1)
+      !    write(*,*) 'SF1 ex_u_surf(1)                              =', ex_u_surf(1)
+      !    write(*,*) 'SF1 ex_v_surf(1)                              =', ex_v_surf(1)
+      !    write(*,*) 'SF1 lm4_model%From_lnd%rough_mom(1,ntile)     =', lm4_model%From_lnd%rough_mom(1,ntile)
+      !    write(*,*) 'SF1 lm4_model%From_lnd%rough_heat(1,ntile)    =', lm4_model%From_lnd%rough_heat(1,ntile)
+      !    write(*,*) 'SF1 ex_rough_moist(1)                         =', ex_rough_moist(1)
+      !    write(*,*) 'SF1 lm4_model%From_lnd%rough_scale(1,ntile)   =', lm4_model%From_lnd%rough_scale(1,ntile)
+      !    write(*,*) 'SF1 ex_gust(1)                                =', ex_gust(1)
+      !    write(*,*) 'SF1 ex_flux_t(1)                              =', ex_flux_t(1)
+      !    write(*,*) 'SF1 ex_flux_tr(1,isphum)                      =', ex_flux_tr(1,isphum)
+      !    write(*,*) 'SF1 ex_flux_lw(1)                             =', ex_flux_lw(1)
+      !    write(*,*) 'SF1 ex_flux_u(1)                              =', ex_flux_u(1)
+      !    write(*,*) 'SF1 ex_flux_v(1)                              =', ex_flux_v(1)
+      !    write(*,*) 'SF1 ex_cd_m(1)                                =', ex_cd_m(1)
+      !    write(*,*) 'SF1 ex_cd_t(1)                                =', ex_cd_t(1)
+      !    write(*,*) 'SF1 ex_cd_q(1)                                =', ex_cd_q(1)
+      !    write(*,*) 'SF1 ex_wind(1)                                =', ex_wind(1)
+      !    write(*,*) 'SF1 ex_u_star(1)                              =', ex_u_star(1)
+      !    write(*,*) 'SF1 ex_b_star(1)                              =', ex_b_star(1)
+      !    write(*,*) 'SF1 ex_q_star(1)                              =', ex_q_star(1)
+      !    write(*,*) 'SF1 ex_dhdt_surf(1)                           =', ex_dhdt_surf(1)
+      !    write(*,*) 'SF1 ex_dedt_surf(1)                           =', ex_dedt_surf(1)
+      !    write(*,*) 'SF1 ex_dfdtr_surf(1,isphum)                   =', ex_dfdtr_surf(1,isphum)
+      !    write(*,*) 'SF1 ex_drdt_surf(1)                           =', ex_drdt_surf(1)
+      !    write(*,*) 'SF1 ex_dhdt_atm(1)                            =', ex_dhdt_atm(1)
+      !    write(*,*) 'SF1 ex_dfdtr_atm(1,isphum)                    =', ex_dfdtr_atm(1,isphum)
+      !    write(*,*) 'SF1 ex_dtaudu_atm(1)                          =', ex_dtaudu_atm(1)
+      !    write(*,*) 'SF1 ex_dtaudv_atm(1)                          =', ex_dtaudv_atm(1)
+      !    write(*,*) 'SF1 ex_land(1)                                =', ex_land(1)
+      !    write(*,*) 'SF1 ex_seawater(1)                            =', ex_seawater(1)
+      !    write(*,*) 'SF1 ex_avail(1)                               =', ex_avail(1)
+      ! end if
+      ! ! END JP TMP DEBUG
+
+      !1 TODO: make sure output args that are used outside of this routine have the right scope
       call lm4_surface_flux_1d ( &
-      ! inputs
-         ex_t_atm,                                      &
-         ex_q_atm,                                      & !! TODO: link q_bot var and tracer field
-         ex_u_atm, ex_v_atm, ex_p_atm, ex_z_atm,        &
-         ex_p_surf, ex_t_surf, ex_t_ca,                 &
-      ! inout
-         ex_q_surf,                                                     & !! TODO review surface Q (this is INOUT)
-      ! more inputs
-         ex_u_surf, ex_v_surf,                                          &
-         ex_rough_mom, ex_rough_heat, ex_rough_moist, ex_rough_scale,   &
+         ! inputs
+         lm4_model%atm_forc%t_bot, lm4_model%atm_forc%q_bot,  & !! TODO: link q_bot var and tracer field
+         lm4_model%atm_forc%u_bot, lm4_model%atm_forc%v_bot,  lm4_model%atm_forc%p_bot, &
+         lm4_model%atm_forc%z_bot, lm4_model%atm_forc%p_surf, lm4_model%From_lnd%t_surf(:,ntile), &
+         lm4_model%From_lnd%t_ca(:,ntile), &
+         ! inout
+         ex_q_surf,                        & !! TODO review using q_bot as surface Q (this is inout). 
+         ! more inputs
+         ex_u_surf, ex_v_surf,             & ! 0s
+         lm4_model%From_lnd%rough_mom(:,ntile), lm4_model%From_lnd%rough_heat(:,ntile), &
+         ex_rough_moist, lm4_model%From_lnd%rough_scale(:,ntile),   &
          ex_gust,                                                       & ! gustiness
-      ! outputs
+         ! outputs
          ex_flux_t, ex_flux_tr(:,isphum), ex_flux_lw,   &
          ex_flux_u, ex_flux_v, ex_cd_m,   ex_cd_t, &
          ex_cd_q,   ex_wind,   ex_u_star, ex_b_star, &
@@ -582,17 +672,62 @@ contains
          ex_land, ex_seawater, ex_avail                                       & ! Is land, Is seawater, Is ex. avail
          )
 
+   ! ! JP TMP DEBUG
+   !    if (mpp_pe()== mpp_root_pe()) then
+   !       write(*,*) 'surface_flux args after call:'
+   !       write(*,*) 'SF2 lm4_model%atm_forc%t_bot(1)               =', lm4_model%atm_forc%t_bot(1)
+   !       write(*,*) 'SF2 lm4_model%atm_forc%q_bot(1)               =', lm4_model%atm_forc%q_bot(1)
+   !       write(*,*) 'SF2 lm4_model%atm_forc%u_bot(1)               =', lm4_model%atm_forc%u_bot(1)
+   !       write(*,*) 'SF2 lm4_model%atm_forc%v_bot(1)               =', lm4_model%atm_forc%v_bot(1)
+   !       write(*,*) 'SF2 lm4_model%atm_forc%p_bot(1)               =', lm4_model%atm_forc%p_bot(1)
+   !       write(*,*) 'SF2 lm4_model%atm_forc%z_bot(1)               =', lm4_model%atm_forc%z_bot(1)
+   !       write(*,*) 'SF2 lm4_model%atm_forc%p_surf(1)              =', lm4_model%atm_forc%p_surf(1)
+   !       write(*,*) 'SF2 lm4_model%From_lnd%t_surf(1,ntile)        =', lm4_model%From_lnd%t_surf(1,ntile)
+   !       write(*,*) 'SF2 lm4_model%From_lnd%t_ca(1,ntile)          =', lm4_model%From_lnd%t_ca(1,ntile)
+   !       write(*,*) 'SF2 ex_q_surf(1)                              =', ex_q_surf(1)
+   !       write(*,*) 'SF2 ex_u_surf(1)                              =', ex_u_surf(1)
+   !       write(*,*) 'SF2 ex_v_surf(1)                              =', ex_v_surf(1)
+   !       write(*,*) 'SF2 lm4_model%From_lnd%rough_mom(1,ntile)     =', lm4_model%From_lnd%rough_mom(1,ntile)
+   !       write(*,*) 'SF2 lm4_model%From_lnd%rough_heat(1,ntile)    =', lm4_model%From_lnd%rough_heat(1,ntile)
+   !       write(*,*) 'SF2 ex_rough_moist(1)                         =', ex_rough_moist(1)
+   !       write(*,*) 'SF2 lm4_model%From_lnd%rough_scale(1,ntile)   =', lm4_model%From_lnd%rough_scale(1,ntile)
+   !       write(*,*) 'SF2 ex_gust(1)                                =', ex_gust(1)
+   !       write(*,*) 'SF2 ex_flux_t(1)                              =', ex_flux_t(1)
+   !       write(*,*) 'SF2 ex_flux_tr(1,isphum)                      =', ex_flux_tr(:,isphum)
+   !       write(*,*) 'SF2 ex_flux_lw(1)                             =', ex_flux_lw(1)
+   !       write(*,*) 'SF2 ex_flux_u(1)                              =', ex_flux_u(1)
+   !       write(*,*) 'SF2 ex_flux_v(1)                              =', ex_flux_v(1)
+   !       write(*,*) 'SF2 ex_cd_m(1)                                =', ex_cd_m(1)
+   !       write(*,*) 'SF2 ex_cd_t(1)                                =', ex_cd_t(1)
+   !       write(*,*) 'SF2 ex_cd_q(1)                                =', ex_cd_q(1)
+   !       write(*,*) 'SF2 ex_wind(1)                                =', ex_wind(1)
+   !       write(*,*) 'SF2 ex_u_star(1)                              =', ex_u_star(1)
+   !       write(*,*) 'SF2 ex_b_star(1)                              =', ex_b_star(1)
+   !       write(*,*) 'SF2 ex_q_star(1)                              =', ex_q_star(1)
+   !       write(*,*) 'SF2 ex_dhdt_surf(1)                           =', ex_dhdt_surf(1)
+   !       write(*,*) 'SF2 ex_dedt_surf(1)                           =', ex_dedt_surf(1)
+   !       write(*,*) 'SF2 ex_dfdtr_surf(1,isphum)                   =', ex_dfdtr_surf(1,isphum)
+   !       write(*,*) 'SF2 ex_drdt_surf(1)                           =', ex_drdt_surf(1)
+   !       write(*,*) 'SF2 ex_dhdt_atm(1)                            =', ex_dhdt_atm(1)
+   !       write(*,*) 'SF2 ex_dfdtr_atm(1,isphum)                    =', ex_dfdtr_atm(1,isphum)
+   !       write(*,*) 'SF2 ex_dtaudu_atm(1)                          =', ex_dtaudu_atm(1)
+   !       write(*,*) 'SF2 ex_dtaudv_atm(1)                          =', ex_dtaudv_atm(1)
+   !       write(*,*) 'SF2 ex_land(1)                                =', ex_land(1)
+   !       write(*,*) 'SF2 ex_seawater(1)                            =', ex_seawater(1)
+   !       write(*,*) 'SF2 ex_avail(1)                               =', ex_avail(1)
+   !    end if
+   !   ! END JP TMP DEBUG      
 
       !! ....
       zrefm = 10.0
       zrefh = z_ref_heat
       !      ---- optimize calculation ----
-      write(*,*) 'DEBUG: calling mo_profile'
+      ! write(*,*) 'DEBUG: calling mo_profile'
       call mo_profile ( zrefm, zrefh, lm4_model%atm_forc%z_bot, ex_rough_mom, &
          ex_rough_heat, ex_rough_moist,          &
          ex_u_star, ex_b_star, ex_q_star,        &
          ex_del_m, ex_del_h, ex_del_q, ex_avail  )
-      write(*,*) 'DEBUG: done calling mo_profile'
+      ! write(*,*) 'DEBUG: done calling mo_profile'
 
       do i = lnd%ls,lnd%le
          ex_u10(i) = 0.
@@ -632,15 +767,44 @@ contains
       enddo
 
 
-      do i = lnd%ls,lnd%le
-         ex_albedo_fix(i) = (1.0-ex_albedo(i)) / (1.0-ex_albedo_fix(i))
-         ex_albedo_vis_dir_fix(i) = (1.0-ex_albedo_vis_dir(i)) / (1.0-ex_albedo_vis_dir_fix(i))
-         ex_albedo_nir_dir_fix(i) = (1.0-ex_albedo_nir_dir(i)) / (1.0-ex_albedo_nir_dir_fix(i))
-         ex_albedo_vis_dif_fix(i) = (1.0-ex_albedo_vis_dif(i)) / (1.0-ex_albedo_vis_dif_fix(i))
-         ex_albedo_nir_dif_fix(i) = (1.0-ex_albedo_nir_dif(i)) / (1.0-ex_albedo_nir_dif_fix(i))
-      enddo
+      ! TODO: convert these from  xgrid and Land_Ice_Atmos_Boundary to atmos_land_boundary_type?
+      ! [6.2] put relevant quantities onto atmospheric boundary
+      ! call get_from_xgrid (Land_Ice_Atmos_Boundary%t,         'ATM', ex_t_surf4  ,  xmap_sfc, complete=.false.)
+      ! call get_from_xgrid (Land_Ice_Atmos_Boundary%frac_open_sea,'ATM',ex_frac_open_sea, xmap_sfc)
+      ! call get_from_xgrid (Land_Ice_Atmos_Boundary%albedo,    'ATM', ex_albedo   ,  xmap_sfc, complete=.false.)
+      ! call get_from_xgrid (Land_Ice_Atmos_Boundary%albedo_vis_dir,    'ATM',   &
+      !      ex_albedo_vis_dir   ,  xmap_sfc, complete=.false.)
+      ! call get_from_xgrid (Land_Ice_Atmos_Boundary%albedo_nir_dir,    'ATM',   &
+      !      ex_albedo_nir_dir   ,  xmap_sfc, complete=.false.)
+      ! call get_from_xgrid (Land_Ice_Atmos_Boundary%albedo_vis_dif,    'ATM',   &
+      !      ex_albedo_vis_dif   ,  xmap_sfc, complete=.false.)
+      ! call get_from_xgrid (Land_Ice_Atmos_Boundary%albedo_nir_dif,    'ATM',   &
+      !      ex_albedo_nir_dif   ,  xmap_sfc, complete=.false.)
+      ! call get_from_xgrid (Land_Ice_Atmos_Boundary%rough_mom, 'ATM', ex_rough_mom,  xmap_sfc, complete=.false.)
+      ! call get_from_xgrid (Land_Ice_Atmos_Boundary%land_frac, 'ATM', ex_land_frac,  xmap_sfc, complete=.false.)
+  
+      ! call get_from_xgrid (Land_Ice_Atmos_Boundary%u_flux,    'ATM', ex_flux_u,     xmap_sfc, complete=.false.)
+      ! call get_from_xgrid (Land_Ice_Atmos_Boundary%v_flux,    'ATM', ex_flux_v,     xmap_sfc, complete=.false.)
+      ! call get_from_xgrid (Land_Ice_Atmos_Boundary%dtaudu,    'ATM', ex_dtaudu_atm, xmap_sfc, complete=.false.)
+      ! call get_from_xgrid (Land_Ice_Atmos_Boundary%dtaudv,    'ATM', ex_dtaudv_atm, xmap_sfc, complete=.false.)
+      ! call get_from_xgrid (Land_Ice_Atmos_Boundary%u_star,    'ATM', ex_u_star    , xmap_sfc, complete=.false.)
+      ! call get_from_xgrid (Land_Ice_Atmos_Boundary%b_star,    'ATM', ex_b_star    , xmap_sfc, complete=.false.)
+      ! call get_from_xgrid (Land_Ice_Atmos_Boundary%q_star,    'ATM', ex_q_star    , xmap_sfc, complete=.true.)
+  
+      ! call get_from_xgrid (Land_Ice_Atmos_Boundary%u_ref,     'ATM', ex_ref_u     , xmap_sfc, complete=.false.) !bqx
+      ! call get_from_xgrid (Land_Ice_Atmos_Boundary%v_ref,     'ATM', ex_ref_v     , xmap_sfc, complete=.true.) !bqx
 
-      write(*,*) 'DEBUG: finished sfc_boundary_layer'
+      
+
+      ! ! TODO: Is this needed? do these have the right scope?
+      ! do i = lnd%ls,lnd%le
+      !    ex_albedo_fix(i) = (1.0-ex_albedo(i)) / (1.0-ex_albedo_fix(i))
+      !    ex_albedo_vis_dir_fix(i) = (1.0-ex_albedo_vis_dir(i)) / (1.0-ex_albedo_vis_dir_fix(i))
+      !    ex_albedo_nir_dir_fix(i) = (1.0-ex_albedo_nir_dir(i)) / (1.0-ex_albedo_nir_dir_fix(i))
+      !    ex_albedo_vis_dif_fix(i) = (1.0-ex_albedo_vis_dif(i)) / (1.0-ex_albedo_vis_dif_fix(i))
+      !    ex_albedo_nir_dif_fix(i) = (1.0-ex_albedo_nir_dif(i)) / (1.0-ex_albedo_nir_dif_fix(i))
+      ! enddo
+
 
       !=======================================================================
       ! [7] diagnostics section
@@ -680,336 +844,29 @@ contains
       ! ! lots of send_data stuff originally here, removed
       ! ! TODO: get diag history write back in
 
+    ! JP DEBUG
+      ! if (mpp_pe()== mpp_root_pe() ) then
+      !    write(*,*) 'calling write_data at end of sfc_boundary_layer-------'
+      !    call write_data(lm4_model)
+      ! endif
+
    end subroutine sfc_boundary_layer
 
-   ! ! adapted land-only surface_flux_1d from FMS coupler
-   ! ! ============================================================================
-   ! subroutine surface_flux_1d (                                           &
-   !    t_atm,     q_atm_in,   u_atm,     v_atm,     p_atm,     z_atm,    &
-   !    p_surf,    t_surf,     t_ca,      q_surf,                         &
-   !    u_surf,    v_surf,                                                &
-   !    rough_mom, rough_heat, rough_moist, rough_scale, gust,            &
-   !    flux_t, flux_q, flux_r, flux_u, flux_v,                           &
-   !    cd_m,      cd_t,       cd_q,                                      &
-   !    w_atm,     u_star,     b_star,     q_star,                        &
-   !    dhdt_surf, dedt_surf,  dedq_surf,  drdt_surf,                     &
-   !    dhdt_atm,  dedq_atm,   dtaudu_atm, dtaudv_atm,                    &
-   !    dt,        land,      seawater,     avail  )
 
-   !    use constants_mod, only : rdgas, rvgas, kappa, cp_air, stefan
-   !    ! note if using -DGFS_PHYS or not
-   !    use sat_vapor_pres_mod, only: escomp
-   !    use   monin_obukhov_mod, only: mo_drag
+   !! ============================================================================
+   !! Adapted from GFDL atm_land_ice_flux_exchange,
+   !! stripped down to be "land only" on unstructured grid
+   !! Returns fluxes and derivatives corrected for the implicit treatment of atmospheric
+   !! diffusive fluxes, as well as the increments in the temperature and specific humidity
+   !! of the lowest atmospheric layer due to all explicit processes as well as the diffusive
+   !! fluxes through the top of this layer.
+   !! ============================================================================
+   subroutine flux_down_from_atmos(lm4_model)
+   ! subroutine flux_down_from_atmos()
 
+      type(lm4_type),        intent(inout)  :: lm4_model ! land model's variable type
 
-   !    ! ---- arguments -----------------------------------------------------------
-   !    logical, intent(in), dimension(:) :: &
-   !       land, & !< Indicates where land exists (.TRUE. if exchange cell is on land
-   !       seawater, & !< Indicates where liquid ocean water exists (.TRUE. if exchange cell is on liquid ocean water)
-   !       avail !< .TRUE. where the exchange cell is active
-   !    real, intent(in),  dimension(:) ::  &
-   !       t_atm, & !< Air temp lowest atmospheric level.
-   !       q_atm_in, & !< Mixing ratio at lowest atmospheric level (kg/kg).
-   !       u_atm, & !< Zonal wind velocity at lowest atmospheric level.
-   !       v_atm, & !< Meridional wind velocity at lowest atmospheric level.
-   !       p_atm, & !< Pressure lowest atmospheric level.
-   !       z_atm, & !< Height lowest atmospheric level.
-   !       t_ca, & !< Air temp at the canopy
-   !       p_surf, & !< Pressure at the Earth's surface
-   !       t_surf, & !< Temp at the Earth's surface
-   !       u_surf, & !< Zonal wind velocity at the Earth's surface
-   !       v_surf, & !< Meridional wind velocity at the Earth's surface
-   !       rough_mom, & !< Momentum roughness length
-   !       rough_heat, & !< Heat roughness length
-   !       rough_moist, & !< Moisture roughness length
-   !       rough_scale, & !< Scale factor used to topographic roughness calculation
-   !       gust !< Gustiness factor
-   !    real, intent(out), dimension(:) :: &
-   !       flux_t, & !< Sensible heat flux
-   !       flux_q, & !< Evaporative water flux
-   !       flux_r, & !< Radiative energy flux
-   !       flux_u, & !< Zonal momentum flux
-   !       flux_v, & !< Meridional momentum flux
-   !       dhdt_surf, & !< Sensible heat flux temperature sensitivity
-   !       dedt_surf, & !< Moisture flux temperature sensitivity
-   !       dedq_surf, & !< Moisture flux humidity sensitivity
-   !       drdt_surf, & !< Radiative energy flux temperature sensitivity
-   !       dhdt_atm, & !< Derivative of sensible heat flux over temp at the lowest atmos level
-   !       dedq_atm, & !< Derivative of water vapor flux over temp at the lowest atmos level
-   !       dtaudu_atm, & !< Derivative of zonal wind stress with respect to the lowest level zonal wind speed of the atmos
-   !       dtaudv_atm, & !< Derivative of meridional wind stress with respect to the lowest level meridional wind speed of the atmos
-   !       w_atm, & !< Absolute wind at the lowest atmospheric level
-   !       u_star, & !< Turbulent velocity scale
-   !       b_star, & !< Turbulent buoyant scale
-   !       q_star, & !< Turbulent moisture scale
-   !       cd_m, & !< Momentum exchange coefficient
-   !       cd_t, & ! Heat exchange coefficient
-   !       cd_q !< Moisture exchange coefficient
-   !    real, intent(inout), dimension(:) :: q_surf !< Mixing ratio at the Earth's surface (kg/kg)
-   !    real, intent(in) :: dt !< Time step (it is not used presently)
-
-   !    ! ---- local constants -----------------------------------------------------
-   !    ! temperature increment and its reciprocal value for comp. of derivatives
-   !    real, parameter:: del_temp=0.1, del_temp_inv=1.0/del_temp
-
-   !    ! ---- local vars ----------------------------------------------------------
-   !    real, dimension(size(t_atm(:))) ::                          &
-   !       thv_atm,  th_atm,   tv_atm,    thv_surf,            &
-   !       e_sat,    e_sat1,   q_sat,     q_sat1,    p_ratio,  &
-   !       t_surf0,  t_surf1,  u_dif,     v_dif,               &
-   !       rho_drag, drag_t,   drag_m,    drag_q,    rho,      &
-   !       q_atm,    q_surf0,  dw_atmdu,  dw_atmdv,  w_gust,   &
-   !       zu,       zt,       zq
-
-   !    integer :: i, nbad
-
-   !    real, parameter :: d622 = rdgas/rvgas
-   !    real, parameter :: d378   = 1.-d622
-   !    real, parameter :: d608   = d378/d622
-   !    !real, parameter :: STEFAN  = 5.6734e-8_r8_kind !< Stefan-Boltzmann constant [W/m^2/deg^4]
-
-   !    ! if (.not. module_is_initialized) &
-   !    !      call mpp_error(FATAL, "surface_flux_1d: surface_flux_init is not called")
-
-   !    !---- use local value of surf temp ----
-
-   !    t_surf0 = 200.   !  avoids out-of-bounds in es lookup
-   !    where (avail)
-   !       where (land)
-   !          t_surf0 = t_ca
-   !       elsewhere
-   !          t_surf0 = t_surf
-   !       endwhere
-   !    endwhere
-
-   !    t_surf1 = t_surf0 + del_temp
-
-   !    call escomp ( t_surf0, e_sat  )  ! saturation vapor pressure
-   !    call escomp ( t_surf1, e_sat1 )  ! perturbed  vapor pressure
-
-   !    if(use_mixing_ratio) then
-   !       ! surface mixing ratio at saturation
-   !       q_sat   = d622*e_sat /(p_surf-e_sat )
-   !       q_sat1  = d622*e_sat1/(p_surf-e_sat1)
-   !    elseif(do_simple) then                  !rif:(09/02/09)
-   !       q_sat   = d622*e_sat / p_surf
-   !       q_sat1  = d622*e_sat1/ p_surf
-   !    else
-   !       ! surface specific humidity at saturation
-   !       q_sat   = d622*e_sat /(p_surf-d378*e_sat )
-   !       q_sat1  = d622*e_sat1/(p_surf-d378*e_sat1)
-   !    endif
-
-   !    ! initilaize surface air humidity according to surface type
-   !    where (land)
-   !       q_surf0 = q_surf ! land calculates it
-   !    elsewhere
-   !       q_surf0 = q_sat  ! everything else assumes saturated sfc humidity
-   !    endwhere
-
-   !    !! Seawater, not needed for land
-   !    !if (raoult_sat_vap) where (seawater) q_surf0 = 0.98 * q_surf0
-
-   !    ! check for negative atmospheric humidities
-   !    where(avail) q_atm = q_atm_in
-   !    if(no_neg_q) then
-   !       where(avail .and. q_atm_in < 0.0) q_atm = 0.0
-   !    endif
-
-   !    ! generate information needed by monin_obukhov
-   !    where (avail)
-   !       p_ratio = (p_surf/p_atm)**kappa
-
-   !       tv_atm  = t_atm  * (1.0 + d608*q_atm)     ! virtual temperature
-   !       th_atm  = t_atm  * p_ratio                ! potential T, using p_surf as refernce
-   !       thv_atm = tv_atm * p_ratio                ! virt. potential T, using p_surf as reference
-   !       thv_surf= t_surf0 * (1.0 + d608*q_surf0 ) ! surface virtual (potential) T
-   !       !     thv_surf= t_surf0                        ! surface virtual (potential) T -- just for testing tun off the q_surf
-
-   !       u_dif = u_surf - u_atm                    ! velocity components relative to surface
-   !       v_dif = v_surf - v_atm
-   !    endwhere
-
-   !    if(alt_gustiness) then
-   !       do i = 1, size(avail)
-   !          if (.not.avail(i)) cycle
-   !          w_atm(i) = max(sqrt(u_dif(i)**2 + v_dif(i)**2), gust_const)
-   !          ! derivatives of surface wind w.r.t. atm. wind components
-   !          if(w_atm(i) > gust_const) then
-   !             dw_atmdu(i) = u_dif(i)/w_atm(i)
-   !             dw_atmdv(i) = v_dif(i)/w_atm(i)
-   !          else
-   !             dw_atmdu(i) = 0.0
-   !             dw_atmdv(i) = 0.0
-   !          endif
-   !       enddo
-   !    else
-   !       if (gust_min > 0.0) then
-   !          where(avail)
-   !             w_gust = max(gust,gust_min) ! minimum gustiness
-   !          end where
-   !       else
-   !          where(avail)
-   !             w_gust = gust
-   !          end where
-   !       endif
-
-   !       where(avail)
-   !          w_atm = sqrt(u_dif*u_dif + v_dif*v_dif + w_gust*w_gust)
-   !          ! derivatives of surface wind w.r.t. atm. wind components
-   !          dw_atmdu = u_dif/w_atm
-   !          dw_atmdv = v_dif/w_atm
-   !       endwhere
-   !    endif
-
-   !    ! !! JP tmp debug
-   !    ! write(*,'(a,3f8.4)') 'thv_atm     min, max, mean: ', minval(thv_atm), maxval(thv_atm), sum(thv_atm)/size(thv_atm)
-   !    ! write(*,'(a,3f8.4)') 'thv_surf    min, max, mean: ', minval(thv_surf), maxval(thv_surf), sum(thv_surf)/size(thv_surf)
-   !    ! write(*,'(a,3f8.4)') 'z_atm       min, max, mean: ', minval(z_atm), maxval(z_atm), sum(z_atm)/size(z_atm)
-   !    ! write(*,'(a,3f8.4)') 'rough_mom   min, max, mean: ', minval(rough_mom), maxval(rough_mom), sum(rough_mom)/size(rough_mom)
-   !    ! write(*,'(a,3f8.4)') 'rough_heat  min, max, mean: ', minval(rough_heat), maxval(rough_heat), sum(rough_heat)/size(rough_heat)
-   !    ! write(*,'(a,3f8.4)') 'rough_moist min, max, mean: ', minval(rough_moist), maxval(rough_moist), sum(rough_moist)/size(rough_moist)
-   !    ! write(*,'(a,3f8.4)') 'w_atm       min, max, mean: ', minval(w_atm), maxval(w_atm), sum(w_atm)/size(w_atm)
-
-   !    ! ! still getting a model crash here. check to see if bad values are being passed to mo_drag
-   !    ! if (any(isnan(thv_atm))) then
-   !    !    write(*,*) 'thv_atm contains NaNs'
-   !    !    stop
-   !    ! endif
-   !    ! if (any(isnan(thv_surf))) then
-   !    !    write(*,*) 'thv_surf contains NaNs'
-   !    !    stop
-   !    ! endif
-   !    ! if (any(isnan(z_atm))) then
-   !    !    write(*,*) 'z_atm contains NaNs'
-   !    !    stop
-   !    ! endif
-   !    ! if (any(isnan(rough_mom))) then
-   !    !    write(*,*) 'rough_mom contains NaNs'
-   !    !    stop
-   !    ! endif
-   !    ! if (any(isnan(rough_heat))) then
-   !    !    stop
-   !    ! endif
-   !    ! if (any(isnan(rough_moist))) then
-   !    !    write(*,*) 'rough_moist contains NaNs'
-   !    !    stop
-   !    ! endif
-   !    ! if (any(isnan(w_atm))) then
-   !    !    write(*,*) 'w_atm contains NaNs'
-   !    !    stop
-   !    ! endif
-
-
-   !    ! try looping over the arrays to catch the bad values that crash mo_drag
-   !    ! do i = 1, size(avail)
-   !    !    if (.not.avail(i)) cycle
-   !    !    write(*,'(a,3f8.2)') 'thv_atm, thv_surf, z_atm: ', thv_atm(i), thv_surf(i), z_atm(i)
-   !    !    write(*,'(a, 4(f8.4, 1x))') 'rough_mom, rough_heat, rough_moist, w_atm: ', rough_mom(i), rough_heat(i), rough_moist(i), w_atm(i)
-
-   !    !    call mo_drag( thv_atm(i), thv_surf(i), z_atm(i),                  &
-   !    !       rough_mom(i), rough_heat(i), rough_moist(i), w_atm(i),          &
-   !    !       cd_m(i), cd_t(i), cd_q(i), u_star(i), b_star(i) )
-   !    ! end do
-   !    ! ! wait for other threads
-   !    ! call mpp_sync()
-
-   !    !! JP end debug
-
-   !    !  monin-obukhov similarity theory
-   !    call mo_drag (thv_atm, thv_surf, z_atm,                  &
-   !       rough_mom, rough_heat, rough_moist, w_atm,          &
-   !       cd_m, cd_t, cd_q, u_star, b_star, avail             )
-
-   !    !! removed ocean flux calculation here
-
-   !    where (avail)
-   !       ! scale momentum drag coefficient on orographic roughness
-   !       cd_m = cd_m*(log(z_atm/rough_mom+1)/log(z_atm/rough_scale+1))**2
-   !       ! surface layer drag coefficients
-   !       drag_t = cd_t * w_atm
-   !       drag_q = cd_q * w_atm
-   !       drag_m = cd_m * w_atm
-
-   !       ! density
-   !       rho = p_atm / (rdgas * tv_atm)
-
-   !       ! sensible heat flux
-   !       rho_drag = cp_air * drag_t * rho
-   !       flux_t = rho_drag * (t_surf0 - th_atm)  ! flux of sensible heat (W/m**2)
-   !       dhdt_surf =  rho_drag                   ! d(sensible heat flux)/d(surface temperature)
-   !       dhdt_atm  = -rho_drag*p_ratio           ! d(sensible heat flux)/d(atmos temperature)
-
-   !       ! evaporation
-   !       rho_drag  =  drag_q * rho
-   !       flux_q    =  rho_drag * (q_surf0 - q_atm) ! flux of water vapor  (Kg/(m**2 s))
-
-   !       where (land)
-   !          dedq_surf = rho_drag
-   !          dedt_surf = 0
-   !       elsewhere
-   !          dedq_surf = 0
-   !          dedt_surf =  rho_drag * (q_sat1 - q_sat) *del_temp_inv
-   !       endwhere
-
-   !       dedq_atm  = -rho_drag   ! d(latent heat flux)/d(atmospheric mixing ratio)
-
-   !       q_star = flux_q / (u_star * rho)             ! moisture scale
-   !       ! ask Chris and Steve K if we still want to keep this for diagnostics
-   !       q_surf = q_atm + flux_q / (rho*cd_q*w_atm)   ! surface specific humidity
-
-   !       ! upward long wave radiation
-   !       flux_r    =   stefan*t_surf**4               ! (W/m**2)
-   !       drdt_surf = 4*stefan*t_surf**3               ! d(upward longwave)/d(surface temperature)
-
-   !       ! stresses
-   !       rho_drag   = drag_m * rho
-   !       flux_u     = rho_drag * u_dif   ! zonal      component of stress (Nt/m**2)
-   !       flux_v     = rho_drag * v_dif   ! meridional component of stress
-
-   !    elsewhere
-   !       ! zero-out un-available data in output only fields
-   !       flux_t     = 0.0
-   !       flux_q     = 0.0
-   !       flux_r     = 0.0
-   !       flux_u     = 0.0
-   !       flux_v     = 0.0
-   !       dhdt_surf  = 0.0
-   !       dedt_surf  = 0.0
-   !       dedq_surf  = 0.0
-   !       drdt_surf  = 0.0
-   !       dhdt_atm   = 0.0
-   !       dedq_atm   = 0.0
-   !       u_star     = 0.0
-   !       b_star     = 0.0
-   !       q_star     = 0.0
-   !       q_surf     = 0.0
-   !       w_atm      = 0.0
-   !    endwhere
-
-   !    ! calculate d(stress component)/d(atmos wind component)
-   !    dtaudu_atm = 0.0
-   !    dtaudv_atm = 0.0
-   !    if (old_dtaudv) then
-   !       where(avail)
-   !          dtaudv_atm = -rho_drag
-   !          dtaudu_atm = -rho_drag
-   !       endwhere
-   !    else
-   !       where(avail)
-   !          dtaudu_atm = -cd_m*rho*(dw_atmdu*u_dif + w_atm)
-   !          dtaudv_atm = -cd_m*rho*(dw_atmdv*v_dif + w_atm)
-   !       endwhere
-   !    endif
-
-   ! end subroutine surface_flux_1d
-
-   ! ----------------------------------------
-
-   subroutine flux_down_from_atmos(Land)
-
-      !type(atmos_data_type), intent(inout)  :: Atm  !< A derived data type to specify atmosphere boundary data
-      type(land_data_type),  intent(inout)  :: Land !< A derived data type to specify land boundary data
+      ! local variables
 
       real, dimension(im) :: ex_flux_sw, ex_flux_lwd, &
          ex_flux_sw_dir,  &
@@ -1304,8 +1161,8 @@ contains
       integer             :: axes(1)        ! Array of axes for 1-D unstructured fields.
       integer             :: ug_dim_size    ! Size of the unstructured axis
       integer,allocatable :: ug_dim_data(:) ! Unstructured axis data.
-      integer             :: id_lon, id_lonb
-      integer             :: id_lat, id_latb
+      ! integer             :: id_lon, id_lonb
+      ! integer             :: id_lat, id_latb
       integer :: i
       character(32) :: name       ! tracer name
 

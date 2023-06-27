@@ -119,10 +119,12 @@ contains
       dhdt_atm,  dedq_atm,   dtaudu_atm, dtaudv_atm,                    &
       dt,        land,      seawater,     avail  )
       ! ---- arguments -----------------------------------------------------------
-      logical, intent(in), dimension(:) :: land, & !< Indicates where land exists (.TRUE. if exchange cell is on land
+      logical, intent(in), dimension(:) :: &
+         land, & !< Indicates where land exists (.TRUE. if exchange cell is on land
          seawater, & !< Indicates where liquid ocean water exists (.TRUE. if exchange cell is on liquid ocean water)
          avail !< .TRUE. where the exchange cell is active
-      real, intent(in),  dimension(:) :: t_atm, & !< Air temp lowest atmospheric level.
+      real, intent(in),  dimension(:) :: &
+         t_atm, & !< Air temp lowest atmospheric level.
          q_atm_in, & !< Mixing ratio at lowest atmospheric level (kg/kg).
          u_atm, & !< Zonal wind velocity at lowest atmospheric level.
          v_atm, & !< Meridional wind velocity at lowest atmospheric level.
@@ -138,7 +140,8 @@ contains
          rough_moist, & !< Moisture roughness length
          rough_scale, & !< Scale factor used to topographic roughness calculation
          gust !< Gustiness factor
-      real, intent(out), dimension(:) :: flux_t, & !< Sensible heat flux
+      real, intent(out), dimension(:) :: &
+         flux_t, & !< Sensible heat flux
          flux_q, & !< Evaporative water flux
          flux_r, & !< Radiative energy flux
          flux_u, & !< Zonal momentum flux
@@ -321,6 +324,7 @@ contains
          write(*,*) 'thv_surf is above 330 K'
       end if
       
+      ! check if 
       ! Check that z_atm is positive
       if (any(z_atm <= 0.0)) then
          write(*,*) 'z_atm contains non-positive values'

@@ -442,11 +442,7 @@ contains
          call state_getimport_2d(importState, 'Faxa_swvdr', lm4data_2d=lm4_model%atm_forc2d%flux_sw_down_vis_dir, rc=rc)
       end if
 
-      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-      ! call state_getimport_2d(importState, 'Sa_shum'   , cplr2land%, rc=rc)
-      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-      ! call state_getimport_2d(importState, 'Sa_qa'     , cplr2land%, rc=rc)
-      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
       ! call state_getimport_2d(importState, 'Faxa_swdn' , cplr2land%swdn_flux, rc=rc)
       ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
