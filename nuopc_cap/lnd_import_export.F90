@@ -105,28 +105,28 @@ contains
 
 
       ! from atm
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_z')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_tbot')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_ta')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_tskn')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_pslv')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_prsl')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_pbot')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_shum')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_qa')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_u')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_v')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_ua')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_va')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_exner')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_ustar')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swdn')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_lwdn')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swnet')
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_z')       ! atmosphere export - bottom layer height
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_tbot')    ! atmosphere export - bottom layer temperature
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_ta')      ! atmosphere export - bottom layer temperature
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_tskn')    ! atmosphere export - sea surface skin temperature
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_pslv')    ! atmosphere export - instantaneous pressure land and sea surface
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_prsl')    ! atmosphere export - pressure at lowest model layer
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_pbot')    ! atmosphere export - pressure at lowest model layer
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_shum')    ! atmosphere export - bottom layer specific humidity
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_qa')      ! atmosphere export - bottom layer specific humidity
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_u')       ! atmosphere export - bottom layer zonal wind
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_v')       ! atmosphere export - bottom layer meridional wind
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_ua')      ! atmosphere export - bottom layer zonal wind
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_va')      ! atmosphere export - bottom layer meridional wind
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_exner')   ! dimensionless exner function at surface adjacent layer
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_ustar')   ! surface friction velocity
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swdn')  ! atmosphere export -  mean downward SW heat flux
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_lwdn')  ! atmosphere export - mean downward LW heat flux
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swnet') ! mean_net_sw_flx
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_rainc')
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_rainl')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_rain')     
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snow')
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_rain')  ! mean_prec_rate
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snow')  ! mean_fprec_rate
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snowc')
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snowl')
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'vfrac')
@@ -135,10 +135,10 @@ contains
       !call fldlist_add(fldsToLnd_num, fldsToLnd,'Faxa_garea')
 
       ! additional provided by CDEPS
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swvdf')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swndf')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swvdr')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swndr')
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swvdf') ! atmosphere export - mean surface downward uv+vis diffuse flux
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swndf') ! atmosphere export - mean surface downward nir diffuse flux
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swvdr') ! atmosphere export - mean surface downward uv+visvdirect flux
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swndr') ! atmosphere export - mean surface downward nir direct flux
 
 
 
@@ -420,8 +420,10 @@ contains
       !call state_getimport_2d(importState, 'Sa_qa',      lm4data_1d=lm4_model%atm_forc%q_bot, rc=rc)  ! bottom layer specific humidity (active UFS atm)
       call state_getimport_2d(importState, 'Sa_pslv',    lm4data_1d=lm4_model%atm_forc%p_surf, rc=rc) ! surface pressure
       call state_getimport_2d(importState, 'Faxa_lwdn',  lm4data_1d=lm4_model%atm_forc%flux_lw, rc=rc)
-      call state_getimport_2d(importState, 'Faxa_swvdf', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dif, rc=rc)
-      call state_getimport_2d(importState, 'Faxa_swvdr', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dir, rc=rc)
+      call state_getimport_2d(importState, 'Faxa_swvdf', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dif, rc=rc) ! mean surface downward uv+vis diffuse flux      
+      call state_getimport_2d(importState, 'Faxa_swvdr', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dir, rc=rc) ! mean surface downward uv+vis direct flux
+      call state_getimport_2d(importState, 'Faxa_swndf', lm4data_1d=lm4_model%atm_forc%flux_sw_down_nir_dif, rc=rc) ! mean surface downward nir diffuse flux
+      call state_getimport_2d(importState, 'Faxa_swndr', lm4data_1d=lm4_model%atm_forc%flux_sw_down_nir_dir, rc=rc) ! mean surface downward nir direct flux
 
       if (ie_debug > 0) then ! Also want Structured Grid data
          call state_getimport_2d(importState, 'Sa_z',       lm4data_2d=lm4_model%atm_forc2d%z_bot,   rc=rc)
@@ -440,6 +442,8 @@ contains
          call state_getimport_2d(importState, 'Faxa_lwdn',  lm4data_2d=lm4_model%atm_forc2d%flux_lw, rc=rc)
          call state_getimport_2d(importState, 'Faxa_swvdf', lm4data_2d=lm4_model%atm_forc2d%flux_sw_down_vis_dif, rc=rc)
          call state_getimport_2d(importState, 'Faxa_swvdr', lm4data_2d=lm4_model%atm_forc2d%flux_sw_down_vis_dir, rc=rc)
+         call state_getimport_2d(importState, 'Faxa_swndf', lm4data_2d=lm4_model%atm_forc2d%flux_sw_down_nir_dif, rc=rc)
+         call state_getimport_2d(importState, 'Faxa_swndr', lm4data_2d=lm4_model%atm_forc2d%flux_sw_down_nir_dir, rc=rc)
       end if
 
 
@@ -562,6 +566,8 @@ contains
       if (ie_debug > 0) then 
          lm4_model%atm_forc2d%lprec = lm4_model%atm_forc2d%totprec - lm4_model%atm_forc2d%fprec
       endif
+
+
 
 
 

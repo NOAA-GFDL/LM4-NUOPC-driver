@@ -45,8 +45,8 @@ module lm4_type_mod
          flux_sw_dif => NULL(), &        
          flux_sw_down_vis_dir   => NULL(), &
          flux_sw_down_vis_dif   => NULL(), &
-         flux_sw_down_total_dir => NULL(), &
-         flux_sw_down_total_dif => NULL(), &
+         flux_sw_down_nir_dir   => NULL(), &
+         flux_sw_down_nir_dif   => NULL(), &
          flux_sw_vis            => NULL(), &
          flux_sw_vis_dir        => NULL(), &
          flux_sw_vis_dif        => NULL()
@@ -77,8 +77,8 @@ module lm4_type_mod
          flux_sw_dif => NULL(), &
          flux_sw_down_vis_dir   => NULL(), &
          flux_sw_down_vis_dif   => NULL(), &
-         flux_sw_down_total_dir => NULL(), &
-         flux_sw_down_total_dif => NULL(), &
+         flux_sw_down_nir_dir   => NULL(), &
+         flux_sw_down_nir_dif   => NULL(), &
          flux_sw_vis            => NULL(), &
          flux_sw_vis_dir        => NULL(), &
          flux_sw_vis_dif        => NULL()
@@ -126,8 +126,8 @@ contains
       if (associated(bnd%flux_sw_dif)) deallocate(bnd%flux_sw_dif)
       if (associated(bnd%flux_sw_down_vis_dir)) deallocate(bnd%flux_sw_down_vis_dir)
       if (associated(bnd%flux_sw_down_vis_dif)) deallocate(bnd%flux_sw_down_vis_dif)
-      if (associated(bnd%flux_sw_down_total_dir)) deallocate(bnd%flux_sw_down_total_dir)
-      if (associated(bnd%flux_sw_down_total_dif)) deallocate(bnd%flux_sw_down_total_dif)
+      if (associated(bnd%flux_sw_down_nir_dir)) deallocate(bnd%flux_sw_down_nir_dir)
+      if (associated(bnd%flux_sw_down_nir_dif)) deallocate(bnd%flux_sw_down_nir_dif)
       if (associated(bnd%flux_sw_vis)) deallocate(bnd%flux_sw_vis)
       if (associated(bnd%flux_sw_vis_dir)) deallocate(bnd%flux_sw_vis_dir)
       if (associated(bnd%flux_sw_vis_dif)) deallocate(bnd%flux_sw_vis_dif)
@@ -162,8 +162,8 @@ contains
       allocate( bnd%flux_sw_dif(lnd%ls:lnd%le) )
       allocate( bnd%flux_sw_down_vis_dir(lnd%ls:lnd%le) )
       allocate( bnd%flux_sw_down_vis_dif(lnd%ls:lnd%le) )
-      allocate( bnd%flux_sw_down_total_dir(lnd%ls:lnd%le) )
-      allocate( bnd%flux_sw_down_total_dif(lnd%ls:lnd%le) )
+      allocate( bnd%flux_sw_down_nir_dir(lnd%ls:lnd%le) )
+      allocate( bnd%flux_sw_down_nir_dif(lnd%ls:lnd%le) )
       allocate( bnd%flux_sw_vis(lnd%ls:lnd%le) )
       allocate( bnd%flux_sw_vis_dir(lnd%ls:lnd%le) )
       allocate( bnd%flux_sw_vis_dif(lnd%ls:lnd%le) )
@@ -195,8 +195,8 @@ contains
       if (associated(bnd%flux_sw_dif)) deallocate(bnd%flux_sw_dif)
       if (associated(bnd%flux_sw_down_vis_dir)) deallocate(bnd%flux_sw_down_vis_dir)
       if (associated(bnd%flux_sw_down_vis_dif)) deallocate(bnd%flux_sw_down_vis_dif)
-      if (associated(bnd%flux_sw_down_total_dir)) deallocate(bnd%flux_sw_down_total_dir)
-      if (associated(bnd%flux_sw_down_total_dif)) deallocate(bnd%flux_sw_down_total_dif)
+      if (associated(bnd%flux_sw_down_nir_dir)) deallocate(bnd%flux_sw_down_nir_dir)
+      if (associated(bnd%flux_sw_down_nir_dif)) deallocate(bnd%flux_sw_down_nir_dif)
       if (associated(bnd%flux_sw_vis)) deallocate(bnd%flux_sw_vis)
       if (associated(bnd%flux_sw_vis_dir)) deallocate(bnd%flux_sw_vis_dir)
       if (associated(bnd%flux_sw_vis_dif)) deallocate(bnd%flux_sw_vis_dif)
@@ -229,8 +229,8 @@ contains
       allocate( bnd%flux_sw_dif(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%flux_sw_down_vis_dir(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%flux_sw_down_vis_dif(lnd%is:lnd%ie,lnd%js:lnd%je) )
-      allocate( bnd%flux_sw_down_total_dir(lnd%is:lnd%ie,lnd%js:lnd%je) )
-      allocate( bnd%flux_sw_down_total_dif(lnd%is:lnd%ie,lnd%js:lnd%je) )
+      allocate( bnd%flux_sw_down_nir_dir(lnd%is:lnd%ie,lnd%js:lnd%je) )
+      allocate( bnd%flux_sw_down_nir_dif(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%flux_sw_vis(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%flux_sw_vis_dir(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%flux_sw_vis_dif(lnd%is:lnd%ie,lnd%js:lnd%je) )

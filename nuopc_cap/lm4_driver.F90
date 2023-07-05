@@ -8,7 +8,7 @@ module lm4_driver
 
    use lm4_type_mod,         only: lm4_type
    use land_data_mod,        only: land_data_type, atmos_land_boundary_type, lnd
-   use land_tracers_mod,     only: isphum
+   use land_tracers_mod,     only: isphum, ico2, ntcana
    use lm4_surface_flux_mod, only: lm4_surface_flux_1d
 
    ! for debug diag
@@ -28,7 +28,7 @@ module lm4_driver
    private
 
 
-   integer                      :: im         ! horiz dimension
+   !integer                      :: im         ! horiz dimension
    integer                      :: date_init(6)
 
    ! type(lm4_type),           public :: lm4_model
@@ -53,7 +53,24 @@ module lm4_driver
    logical :: scale_precip_2d = .false.
 
    ! variables for between subroutines
-   !real, allocatable, dimension(:)   :: ex_flux_u
+   real, allocatable, dimension(:) :: &
+   ex_flux_t, ex_flux_lw,      &
+   ex_dhdt_surf, ex_dedt_surf, &
+   ex_drdt_surf,  ex_dhdt_atm
+
+   ! these originally had a tracer dimension
+   real, allocatable, dimension(:,:) :: &
+   ex_tr_atm,     &
+   ex_tr_surf,    & !< near-surface tracer fields
+   ex_flux_tr,    & !< tracer fluxes
+   ex_dfdtr_surf, & !< d(tracer flux)/d(surf tracer)
+   ex_dfdtr_atm,  & !< d(tracer flux)/d(atm tracer)
+   ex_e_tr_n,     & !< coefficient in implicit scheme
+   ex_f_tr_delt_n   !< coefficient in implicit scheme
+
+
+   !integer :: n_exch_tr !< number of tracers exchanged between models
+   integer :: ntile = 1 ! true for now, with no subtiling
 
    ! integers for diag manager fields (TODO: clean up)
    integer :: id_cellarea
@@ -64,33 +81,33 @@ module lm4_driver
       id_swdn_vf, id_z_bot, id_t_bot, id_p_bot, &
       id_u_bot, id_v_bot, id_q_bot, id_p_surf,  &
       id_lprec, id_fprec, id_totprec,           &
-      id_flux_lw, id_flux_sw_dn_vdf, id_flux_sw_dn_vr    
+      id_flux_lw, id_flux_sw_dn_vdf, id_flux_sw_dn_vr
 
    !! for unstructured grid diagnostics
    integer :: id_band !, id_zfull ! IDs of land diagnostic axes
-   integer :: id_ug !<Unstructured axis id.  
+   integer :: id_ug !<Unstructured axis id.
    ! unstructured grid diag field ids
    integer :: &
       id_landfrac,    &
       id_geolon_t, id_geolat_t,    &
       id_frac, id_area, id_ntiles, &
-      iug_q_atm, &       
-      iug_t_atm, &        
-      iug_u_atm, &               
-      iug_v_atm, &        
-      iug_p_atm, &               
-      iug_z_atm, &               
-      iug_p_surf, &              
-      iug_t_surf, &              
-      iug_t_ca, &                
-      iug_q_surf, &       
-      iug_rough_mom  , &  
-      iug_rough_heat , &  
+      iug_q_atm, &
+      iug_t_atm, &
+      iug_u_atm, &
+      iug_v_atm, &
+      iug_p_atm, &
+      iug_z_atm, &
+      iug_p_surf, &
+      iug_t_surf, &
+      iug_t_ca, &
+      iug_q_surf, &
+      iug_rough_mom  , &
+      iug_rough_heat , &
       iug_rough_moist  , &
       iug_rough_scale  , &
-      iug_gust    
-      
-      
+      iug_gust
+
+
 contains
 
    !! Read in lm4 namelist
@@ -177,7 +194,7 @@ contains
       !call mpp_get_compute_domain(lnd%sg_domain, lnd%is,lnd%ie,lnd%js,lnd%je)
 
       call land_diag_init( lnd%coord_glonb, lnd%coord_glatb, lnd%coord_glon, lnd%coord_glat, &
-                           lm4_model%Time_land, lnd%ug_domain, id_band, id_ug ) 
+                           lm4_model%Time_land, lnd%ug_domain, id_band, id_ug )
 
       ! create a buffer for diagnostic output
       ! call init_diag_buff(lm4_buffer)
@@ -199,8 +216,22 @@ contains
       ! ! Transfer from sfcprop to model data
       ! call sfc_prop_transfer(lm4_model)
 
+      allocate( &
+         ex_flux_t(lnd%ls:lnd%le), ex_flux_lw(lnd%ls:lnd%le),   &
+         ex_dhdt_surf(lnd%ls:lnd%le), ex_dedt_surf(lnd%ls:lnd%le), &
+         ex_drdt_surf(lnd%ls:lnd%le),  ex_dhdt_atm(lnd%ls:lnd%le) &
+      )
 
-      !allocate(ex_flux_u(im))
+      ! these originally had a tracer dimension
+      allocate( &
+         ex_tr_atm(lnd%ls:lnd%le,ntcana),  &
+         ex_tr_surf(lnd%ls:lnd%le,ntcana),    & !< near-surface tracer fields
+         ex_flux_tr(lnd%ls:lnd%le,ntcana),    & !< tracer fluxes
+         ex_dfdtr_surf(lnd%ls:lnd%le,ntcana), & !< d(tracer flux)/d(surf tracer)
+         ex_dfdtr_atm(lnd%ls:lnd%le,ntcana),  & !< d(tracer flux)/d(atm tracer)
+         ex_e_tr_n(lnd%ls:lnd%le,ntcana),     & !< coefficient in implicit scheme
+         ex_f_tr_delt_n(lnd%ls:lnd%le,ntcana) &  !< coefficient in implicit scheme      
+      )
 
    end subroutine init_driver
 
@@ -259,15 +290,6 @@ contains
          ex_del_q,              &
          ex_frac_open_sea
 
-      ! these originally had a tracer dimension
-      real, dimension(lnd%ls:lnd%le,1) :: &
-         ex_tr_atm,  &
-         ex_tr_surf,    & !< near-surface tracer fields
-         ex_flux_tr,    & !< tracer fluxes
-         ex_dfdtr_surf, & !< d(tracer flux)/d(surf tracer)
-         ex_dfdtr_atm,  & !< d(tracer flux)/d(atm tracer)
-         ex_e_tr_n,     & !< coefficient in implicit scheme
-         ex_f_tr_delt_n   !< coefficient in implicit scheme
 
       !! -- These were originally allocatable:
       !!
@@ -284,13 +306,7 @@ contains
          ex_p_surf   ,  &
          ex_q_surf  ,  &
       !ex_slp      ,  &
-         ex_dhdt_surf,  &
-         ex_dedt_surf,  &
          ex_dqsatdt_surf,  &
-         ex_drdt_surf,  &
-         ex_dhdt_atm ,  &
-         ex_flux_t   ,  &
-         ex_flux_lw  ,  &
          ex_drag_q   ,  &
          ex_f_t_delt_n, &
 
@@ -309,7 +325,7 @@ contains
          ex_z_atm    ,  &
 
          ex_e_t_n    ,  &
-         ex_e_q_n    ,  &
+         !ex_e_q_n    ,  &
 
       !
          ex_albedo_fix,        &
@@ -320,7 +336,7 @@ contains
 
       integer :: tr, n, m ! tracer indices
       integer :: i
-      integer :: ntile = 1 ! true for now, with no subtiling
+
 
 
       ! ---------------------------
@@ -329,7 +345,7 @@ contains
          !    call set_fake_data(lm4_model)
          !    call write_data(lm4_model)
          ! endif
-   
+
       ex_avail    = .TRUE.
       ex_land     = .TRUE.
       ex_seawater = .FALSE.
@@ -342,6 +358,11 @@ contains
       ! before surface_flux call.
       ex_tr_surf(:,isphum) = lm4_model%atm_forc%q_bot
       ex_q_surf            = lm4_model%atm_forc%q_bot
+
+      ! TODO: review
+      do tr = 1,ntcana
+         ex_tr_surf(:,tr) = lm4_model%From_lnd%tr(:,ntile,tr)
+      enddo
 
       ex_t_atm  = lm4_model%atm_forc%t_bot
       ex_q_atm  = lm4_model%atm_forc%q_bot
@@ -422,112 +443,112 @@ contains
       ! if (any(isnan(ex_t_atm))) then
       !    write(*,*) 'ex_t_atm contains NaNs'
       ! end if
-      
+
       ! if (any(isnan(ex_q_atm))) then
       !    write(*,*) 'ex_q_atm contains NaNs'
       ! end if
-      
+
       ! if (any(isnan(ex_u_atm))) then
       !    write(*,*) 'ex_u_atm contains NaNs'
       ! end if
-      
+
       ! if (any(isnan(ex_v_atm))) then
       !    write(*,*) 'ex_v_atm contains NaNs'
       ! end if
-      
+
       ! if (any(isnan(ex_p_atm))) then
       !    write(*,*) 'ex_p_atm contains NaNs'
       ! end if
-      
+
       ! if (any(isnan(ex_z_atm))) then
       !    write(*,*) 'ex_z_atm contains NaNs'
       ! end if
-      
+
       ! if (any(isnan(ex_p_surf))) then
       !    write(*,*) 'ex_p_surf contains NaNs'
       ! end if
-      
+
       ! if (any(isnan(ex_t_surf))) then
       !    write(*,*) 'ex_t_surf contains NaNs'
       ! end if
-      
+
       ! if (any(isnan(ex_t_ca))) then
       !    write(*,*) 'ex_t_ca contains NaNs'
       ! end if
-      
+
       ! if (any(isnan(ex_q_surf))) then
       !    write(*,*) 'ex_q_surf contains NaNs'
       ! end if
-      
+
       ! if (any(isnan(ex_rough_mom))) then
       !    write(*,*) 'ex_rough_mom contains NaNs'
       ! end if
-      
+
       ! if (any(isnan(ex_rough_heat))) then
       !    write(*,*) 'ex_rough_heat contains NaNs'
       ! end if
-      
+
       ! if (any(isnan(ex_rough_moist))) then
       !    write(*,*) 'ex_rough_moist contains NaNs'
       ! end if
-      
+
       ! if (any(isnan(ex_rough_scale))) then
       !    write(*,*) 'ex_rough_scale contains NaNs'
       ! end if
-      
+
       ! ! Check that the variables are within a reasonable range
       ! if (any(ex_t_atm < 200.0) .or. any(ex_t_atm > 350.0)) then
       !    write(*,*) 'ex_t_atm is outside of reasonable range'
       ! end if
-      
+
       ! if (any(ex_q_atm < 0.0) .or. any(ex_q_atm > 0.05)) then
       !    write(*,*) 'ex_q_atm is outside of reasonable range'
       ! end if
-      
+
       ! if (any(ex_u_atm < 0.0) .or. any(ex_u_atm > 50.0)) then
       !    write(*,*) 'ex_u_atm is outside of reasonable range'
       ! end if
-      
+
       ! if (any(ex_v_atm < 0.0) .or. any(ex_v_atm > 50.0)) then
       !    write(*,*) 'ex_v_atm is outside of reasonable range'
       ! end if
-      
+
       ! if (any(ex_p_atm < 50000.0) .or. any(ex_p_atm > 110000.0)) then
       !    write(*,*) 'ex_p_atm is outside of reasonable range'
       ! end if
-      
+
       ! if (any(ex_z_atm < 0.0) .or. any(ex_z_atm > 10000.0)) then
       !    write(*,*) 'ex_z_atm is outside of reasonable range'
       ! end if
-      
+
       ! if (any(ex_p_surf < 50000.0) .or. any(ex_p_surf > 110000.0)) then
       !    write(*,*) 'ex_p_surf is outside of reasonable range'
       ! end if
-      
+
       ! if (any(ex_t_surf < 200.0) .or. any(ex_t_surf > 350.0)) then
       !    write(*,*) 'ex_t_surf is outside of reasonable range'
       ! end if
-      
+
       ! if (any(ex_t_ca < 200.0) .or. any(ex_t_ca > 350.0)) then
       !    write(*,*) 'ex_t_ca is outside of reasonable range'
       ! end if
-      
+
       ! if (any(ex_q_surf < 0.0) .or. any(ex_q_surf > 0.05)) then
       !    write(*,*) 'ex_q_surf is outside of reasonable range'
       ! end if
-      
+
       ! if (any(ex_rough_mom < 0.0) .or. any(ex_rough_mom > 0.1)) then
       !    write(*,*) 'ex_rough_mom is outside of reasonable range'
       ! end if
-      
+
       ! if (any(ex_rough_heat < 0.0) .or. any(ex_rough_heat > 0.1)) then
       !    write(*,*) 'ex_rough_heat is outside of reasonable range'
       ! end if
-      
+
       ! if (any(ex_rough_moist < 0.0) .or. any(ex_rough_moist > 0.1)) then
       !    write(*,*) 'ex_rough_moist is outside of reasonable range'
       ! end if
-      
+
       ! if (any(ex_rough_scale < 0.0) .or. any(ex_rough_scale > 1.0)) then
       !    write(*,*) 'ex_rough_scale is outside of reasonable range'
       ! end if
@@ -562,18 +583,18 @@ contains
       ! ! JP TMP DEBUG
       ! if (mpp_pe()== mpp_root_pe()) then
       !    ! overwrite with data from standalone run
-      !    lm4_model%atm_forc%t_bot(1)               =    285.73773193359375     
+      !    lm4_model%atm_forc%t_bot(1)               =    285.73773193359375
       !    lm4_model%atm_forc%q_bot(1)               =    7.9072029329836369E-003
-      !    lm4_model%atm_forc%u_bot(1)               =    4.0279372930526733     
-      !    lm4_model%atm_forc%v_bot(1)               =    0.0000000000000000     
-      !    lm4_model%atm_forc%p_bot(1)               =    98854.045142723960     
-      !    lm4_model%atm_forc%z_bot(1)               =    35.000000000000000     
-      !    lm4_model%atm_forc%p_surf(1)              =    99432.378906250000     
-      !    lm4_model%From_lnd%t_surf(1,ntile)        =    271.50000000000000     
-      !    lm4_model%From_lnd%t_ca(1,ntile)          =    271.50000000000000     
+      !    lm4_model%atm_forc%u_bot(1)               =    4.0279372930526733
+      !    lm4_model%atm_forc%v_bot(1)               =    0.0000000000000000
+      !    lm4_model%atm_forc%p_bot(1)               =    98854.045142723960
+      !    lm4_model%atm_forc%z_bot(1)               =    35.000000000000000
+      !    lm4_model%atm_forc%p_surf(1)              =    99432.378906250000
+      !    lm4_model%From_lnd%t_surf(1,ntile)        =    271.50000000000000
+      !    lm4_model%From_lnd%t_ca(1,ntile)          =    271.50000000000000
       !    ex_q_surf(1)                              =    7.9072029329836369E-003
-      !    ex_u_surf(1)                              =    0.0000000000000000     
-      !    ex_v_surf(1)                              =    0.0000000000000000     
+      !    ex_u_surf(1)                              =    0.0000000000000000
+      !    ex_v_surf(1)                              =    0.0000000000000000
       !    lm4_model%From_lnd%rough_mom(1,ntile)     =    4.0000000000000002E-004
       !    lm4_model%From_lnd%rough_heat(1,ntile)    =    4.0000000000000002E-004
       !    ex_rough_moist(1)                         =    4.0000000000000002E-004
@@ -584,23 +605,23 @@ contains
       !    ! ex_flux_lw(1) =    6.9366201651163585E-310
       !    ! ex_flux_u(1) =    6.9366201651305876E-310
       !    ! ex_flux_v(1) =    6.9366201651163585E-310
-      !    ! ex_cd_m(1) =    0.0000000000000000     
-      !    ! ex_cd_t(1)              =    0.0000000000000000     
-      !    ! ex_cd_q(1)              =    0.0000000000000000     
+      !    ! ex_cd_m(1) =    0.0000000000000000
+      !    ! ex_cd_t(1)              =    0.0000000000000000
+      !    ! ex_cd_q(1)              =    0.0000000000000000
       !    ! ex_wind(1)              =    6.9366201651313781E-310
       !    ! ex_u_star(1)            =    6.9366201651179395E-310
       !    ! ex_b_star(1)            =    6.9366201651163585E-310
       !    ! ex_q_star(1)            =    6.9366201651305876E-310
       !    ! ex_dhdt_surf(1)         =    6.9366201651179395E-310
       !    ! ex_dedt_surf(1)         =    6.9366201651305876E-310
-      !    ! ex_dfdtr_surf(1,isphum) =    0.0000000000000000     
+      !    ! ex_dfdtr_surf(1,isphum) =    0.0000000000000000
       !    ! ex_drdt_surf(1)         =    6.9366201651163585E-310
       !    ! ex_dhdt_atm(1)          =    6.9366201651163585E-310
       !    ! ex_dfdtr_atm(1,isphum)  =    5.4927512634392058E+247
       !    ! ex_dtaudu_atm(1)        =    6.9366201651163585E-310
       !    ! ex_dtaudv_atm(1)        =    6.9366201651163585E-310
       !    ! ex_land(1)              =  F
-      !    ! ex_seawater(1)          =    1.0000000000000000     
+      !    ! ex_seawater(1)          =    1.0000000000000000
       !    ! ex_avail(1)             =  T
 
       !    write(*,*) 'surface_flux args before call:'
@@ -655,7 +676,7 @@ contains
          lm4_model%atm_forc%z_bot, lm4_model%atm_forc%p_surf, lm4_model%From_lnd%t_surf(:,ntile), &
          lm4_model%From_lnd%t_ca(:,ntile), &
          ! inout
-         ex_q_surf,                        & !! TODO review using q_bot as surface Q (this is inout). 
+         ex_tr_surf(:,isphum),         & !! TODO review using q_bot as surface Q (this is inout).
          ! more inputs
          ex_u_surf, ex_v_surf,             & ! 0s
          lm4_model%From_lnd%rough_mom(:,ntile), lm4_model%From_lnd%rough_heat(:,ntile), &
@@ -667,7 +688,7 @@ contains
          ex_cd_q,   ex_wind,   ex_u_star, ex_b_star, &
          ex_q_star, ex_dhdt_surf, ex_dedt_surf, &
          ex_dfdtr_surf(:,isphum),  ex_drdt_surf,  ex_dhdt_atm, &
-         ex_dfdtr_atm(:,isphum),  ex_dtaudu_atm, ex_dtaudv_atm,       &
+         ex_dfdtr_atm(:,isphum),  ex_dtaudu_atm, ex_dtaudv_atm,         &
          dt,                                                            & !! timestep doesn't seem to be used
          ex_land, ex_seawater, ex_avail                                       & ! Is land, Is seawater, Is ex. avail
          )
@@ -716,7 +737,7 @@ contains
    !       write(*,*) 'SF2 ex_seawater(1)                            =', ex_seawater(1)
    !       write(*,*) 'SF2 ex_avail(1)                               =', ex_avail(1)
    !    end if
-   !   ! END JP TMP DEBUG      
+   !   ! END JP TMP DEBUG
 
       !! ....
       zrefm = 10.0
@@ -782,7 +803,7 @@ contains
       !      ex_albedo_nir_dif   ,  xmap_sfc, complete=.false.)
       ! call get_from_xgrid (Land_Ice_Atmos_Boundary%rough_mom, 'ATM', ex_rough_mom,  xmap_sfc, complete=.false.)
       ! call get_from_xgrid (Land_Ice_Atmos_Boundary%land_frac, 'ATM', ex_land_frac,  xmap_sfc, complete=.false.)
-  
+
       ! call get_from_xgrid (Land_Ice_Atmos_Boundary%u_flux,    'ATM', ex_flux_u,     xmap_sfc, complete=.false.)
       ! call get_from_xgrid (Land_Ice_Atmos_Boundary%v_flux,    'ATM', ex_flux_v,     xmap_sfc, complete=.false.)
       ! call get_from_xgrid (Land_Ice_Atmos_Boundary%dtaudu,    'ATM', ex_dtaudu_atm, xmap_sfc, complete=.false.)
@@ -790,11 +811,11 @@ contains
       ! call get_from_xgrid (Land_Ice_Atmos_Boundary%u_star,    'ATM', ex_u_star    , xmap_sfc, complete=.false.)
       ! call get_from_xgrid (Land_Ice_Atmos_Boundary%b_star,    'ATM', ex_b_star    , xmap_sfc, complete=.false.)
       ! call get_from_xgrid (Land_Ice_Atmos_Boundary%q_star,    'ATM', ex_q_star    , xmap_sfc, complete=.true.)
-  
+
       ! call get_from_xgrid (Land_Ice_Atmos_Boundary%u_ref,     'ATM', ex_ref_u     , xmap_sfc, complete=.false.) !bqx
       ! call get_from_xgrid (Land_Ice_Atmos_Boundary%v_ref,     'ATM', ex_ref_v     , xmap_sfc, complete=.true.) !bqx
 
-      
+
 
       ! ! TODO: Is this needed? do these have the right scope?
       ! do i = lnd%ls,lnd%le
@@ -861,131 +882,119 @@ contains
    !! of the lowest atmospheric layer due to all explicit processes as well as the diffusive
    !! fluxes through the top of this layer.
    !! ============================================================================
-   subroutine flux_down_from_atmos(lm4_model)
+   subroutine flux_down_from_atmos(dt, lm4_model)
    ! subroutine flux_down_from_atmos()
 
+      use constants_mod,    only: cp_air, grav
+
+      real,                  intent(in)     :: dt        ! Time step
       type(lm4_type),        intent(inout)  :: lm4_model ! land model's variable type
 
       ! local variables
 
-      real, dimension(im) :: ex_flux_sw, ex_flux_lwd, &
+      real, dimension(lnd%ls:lnd%le) :: &
+         ex_flux_sw, ex_flux_lwd, &
          ex_flux_sw_dir,  &
          ex_flux_sw_dif,  &
          ex_flux_sw_down_vis_dir, ex_flux_sw_down_total_dir,  &
          ex_flux_sw_down_vis_dif, ex_flux_sw_down_total_dif,  &
          ex_flux_sw_vis, &
          ex_flux_sw_vis_dir, &
-         ex_flux_sw_vis_dif
+         ex_flux_sw_vis_dif, &
+         ex_dtmass, ex_gamma, ex_e_t_n, ex_f_t_delt_n, &
+         ex_delta_t, ex_dflux_t, ex_e_q_n
 
-      integer :: is, ie, l, i,j
+         real, dimension(lnd%ls:lnd%le,ntcana) ::  &
+          ex_dflux_tr, & ! tracer flux change. TODO: NEED TO FETCH
+          ex_delta_tr ! tracer tendencies. TODO: NEED TO FETCH
 
-      !! JP disabled for now. TODO: Fix this
-      ! ! Assume land grid is same as atm grid
-      ! if (scale_precip_2d) then
-      !    !call mpp_get_compute_domain(Atm%Domain, is_atm, ie_atm, js_atm, je_atm)
-      !    !call data_override ('ATM', 'precip_scale2d',    frac_precip,   Time)
-      !    do j = lnd%js,lnd%je
-      !       do i = lnd%is,lnd%ie
-      !          Atm%lprec(i,j) = Atm%lprec(i,j)*frac_precip(i,j)
-      !       enddo
-      !    enddo
-      ! endif
+      real :: cp_inv
+
+      integer :: l, tr
+
+      ! NOTE. Not including here: (TODO: REVIEW)
+      ! 1. scale_precip_2d functionality
+      ! 2. partition_fprec_from_lprec functionality
+      ! 3. sw1way_bug, use_AM3_physics, _USE_LEGACY_LAND_, or SCM functionality
+      ! 4. OMP parallelization
+      ! 5. Stock changes
+      ! 6. data overrides
 
 
-      !! JP disabled for now. TODO: Fix this
-      ! ! Assume land grid is same as atm grid
-      ! !if (partition_fprec_from_lprec .and. Atm%pe) then
-      ! if (partition_fprec_from_lprec) then
-      !    !call mpp_get_compute_domain(Atm%Domain, is_atm, ie_atm, js_atm, je_atm)
-      !    do j = lnd%js,lnd%je
-      !       do i = lnd%is,lnd%ie
-      !          if (Atm%t_bot(i,j) < tfreeze) then
-      !             Atm%fprec(i,j) = Atm%lprec(i,j)
-      !             Atm%lprec(i,j) = 0.0
-      !          endif
-      !       enddo
-      !    enddo
-      ! endif
+      ! ex_flux_sw_dir            =
+      ! ex_flux_sw_vis_dir        =
+      ! ex_flux_sw_dif            =
+      ! ex_flux_sw_vis_dif        =
+      ex_flux_sw_down_vis_dir   = lm4_model%atm_forc%flux_sw_down_vis_dir
+      ex_flux_sw_down_vis_dif   = lm4_model%atm_forc%flux_sw_down_vis_dif
+      ex_flux_sw_down_total_dir = lm4_model%atm_forc%flux_sw_down_vis_dir + lm4_model%atm_forc%flux_sw_down_vis_dir
+      ex_flux_sw_down_total_dif = lm4_model%atm_forc%flux_sw_down_vis_dif + lm4_model%atm_forc%flux_sw_down_vis_dif
 
-      ! MOD update stresses using atmos delta's but derivatives on exchange grid
-      !$OMP parallel do default(none) shared(my_nblocks,block_start,block_end,ex_flux_u,ex_delta_u, &
-      !$OMP                                  ex_dtaudu_atm,ex_dtaudv_atm,ex_flux_v,ex_delta_v )     &
-      !$OMP                          private(is,ie)
-      !do l = 1, my_nblocks
-      ! is=block_start(l)
-      ! ie=block_end(l)
-      ! do i = 1, im
-      !    ex_flux_u(i) = ex_flux_u(i) + ex_delta_u(i)*ex_dtaudu_atm(i)
-      !    ex_flux_v(i) = ex_flux_v(i) + ex_delta_v(i)*ex_dtaudv_atm(i)
-      ! enddo
-      !enddo
-      !! JP: DO I NEED THIS? ^^
+      ! TODO: ex_flux_lwd
 
-      !! JP: IGNORE TEMP FOR NOW
-      ! !---- adjust sw flux for albedo variations on exch grid ----
-      ! !---- adjust 4 categories (vis/nir dir/dif) separately  ----
-      ! ! do l = 1, my_nblocks
-      ! !    is=block_start(l)
-      ! !    ie=block_end(l)
-      !    do i = 1, im
-      !       ex_flux_sw_dir(i) = ex_flux_sw_dir(i) - ex_flux_sw_vis_dir(i)     ! temporarily nir/dir
-      !       ex_flux_sw_dir(i) = ex_flux_sw_dir(i) * ex_albedo_nir_dir_fix(i)  ! fix nir/dir
-      !       ex_flux_sw_vis_dir(i) = ex_flux_sw_vis_dir(i) * ex_albedo_vis_dir_fix(i) ! fix vis/dir
-      !       ex_flux_sw_dir(i) = ex_flux_sw_dir(i) + ex_flux_sw_vis_dir(i)     ! back to total dir
+      ! this echos standalone LM4.0 driver
+      ex_dtmass = real(dt)*grav/lm4_model%atm_forc%p_surf
+      cp_inv = 1.0/cp_air
 
-      !       ex_flux_sw_dif(i) = ex_flux_sw_dif(i) - ex_flux_sw_vis_dif(i)     ! temporarily nir/dif
-      !       ex_flux_sw_dif(i) = ex_flux_sw_dif(i) * ex_albedo_nir_dif_fix(i)  ! fix nir/dif
-      !       ex_flux_sw_vis_dif(i) = ex_flux_sw_vis_dif(i) * ex_albedo_vis_dif_fix(i) ! fix vis/dif
-      !       ex_flux_sw_dif(i) = ex_flux_sw_dif(i) + ex_flux_sw_vis_dif(i)     ! back to total dif
+      ! TODO: review behavior of these.
+      ! With data atmosphere, no implicit derivatives. Would need to review
+      ! for implicit coupling with active atmosphere.
+      ex_dflux_tr = 0.0
+      ex_delta_tr = 0.0
 
-      !       ex_flux_sw_vis(i) = ex_flux_sw_vis_dir(i) + ex_flux_sw_vis_dif(i) ! legacy, remove later
-      !       ex_flux_sw(i)     = ex_flux_sw_dir(i)     + ex_flux_sw_dif(i)     ! legacy, remove later
-      !    enddo
-      ! ! enddo
+      do l = lnd%ls,lnd%le
+         !----- compute net longwave flux (down-up) -----
+         ! (note: lw up already in ex_flux_lw)
+         ex_flux_lw(l) = ex_flux_lwd(l) - ex_flux_lw(l)
 
-      !----- adjust fluxes for implicit dependence on atmosphere ----
-      ! is this needed to copy over?
+         ! temperature
+         ex_gamma(l)      =  1./ (1.0 - ex_dtmass(l)*(ex_dflux_t(l) + ex_dhdt_atm(l)*cp_inv))
+         ex_e_t_n(l)      =  ex_dtmass(l)*ex_dhdt_surf(l)*cp_inv*ex_gamma(l)
+         ex_f_t_delt_n(l) = (ex_delta_t(l) + ex_dtmass(l) * ex_flux_t(l)*cp_inv) * ex_gamma(l)
 
-      ! JP TEMP DISABLE FOR NOW
-      ! do i = 1, im
-      !       !----- compute net longwave flux (down-up) -----
-      !       ! (note: lw up already in ex_flux_lw)
-      !       ex_flux_lw(i) = ex_flux_lwd(i) - ex_flux_lw(i)
-      !       if (ex_avail(i) ) then
+         ex_flux_t (l)    =  ex_flux_t(l)        + ex_dhdt_atm(l) * ex_f_t_delt_n(l)
+         ex_dhdt_surf(l)  =  ex_dhdt_surf(l)     + ex_dhdt_atm(l) * ex_e_t_n(l)
 
-      !          ! temperature
-      !          ex_gamma(i)      =  1./ (1.0 - ex_dtmass(i)*(ex_dflux_t(i) + ex_dhdt_atm(i)*cp_inv))
-      !          ex_e_t_n(i)      =  ex_dtmass(i)*ex_dhdt_surf(i)*cp_inv*ex_gamma(i)
-      !          ex_f_t_delt_n(i) = (ex_delta_t(i) + ex_dtmass(i) * ex_flux_t(i)*cp_inv) * ex_gamma(i)
+         ! moisture
 
-      !          ex_flux_t (i)    =  ex_flux_t(i)        + ex_dhdt_atm(i) * ex_f_t_delt_n(i)
-      !          ex_dhdt_surf(i)  =  ex_dhdt_surf(i)     + ex_dhdt_atm(i) * ex_e_t_n(i)
-      !          ! moisture
-      !          !     ex_gamma      =  1./ (1.0 - ex_dtmass*(ex_dflux_q + ex_dedq_atm))
-      !          ! here it looks like two derivatives with different units are added together,
-      !          ! but in fact they are not: ex_dedt_surf and ex_dedq_surf defined in complimentary
-      !          ! regions of exchange grid, so that if one of them is not zero the other is, and
-      !          ! vice versa.
-      !          !     ex_e_q_n      =  ex_dtmass*(ex_dedt_surf+ex_dedq_surf) * ex_gamma
-      !          !     ex_f_q_delt_n = (ex_delta_q  + ex_dtmass * ex_flux_q) * ex_gamma
-      !          !     ex_flux_q     =  ex_flux_q    + ex_dedq_atm * ex_f_q_delt_n
-      !          !     ex_dedt_surf  =  ex_dedt_surf + ex_dedq_atm * ex_e_q_n
-      !          !     ex_dedq_surf  =  ex_dedq_surf + ex_dedq_atm * ex_e_q_n
-      !          ! moisture vs. surface temperture, assuming saturation
-      !          ex_gamma(i)   =  1.0 / (1.0 - ex_dtmass(i)*(ex_dflux_tr(i,isphum) + ex_dfdtr_atm(i,isphum)))
-      !          ex_e_q_n(i)      =  ex_dtmass(i) * ex_dedt_surf(i) * ex_gamma(i)
-      !          ex_dedt_surf(i)  =  ex_dedt_surf(i) + ex_dfdtr_atm(i,isphum) * ex_e_q_n(i)
-      !          do tr = 1,n_exch_tr
-      !             ex_gamma(i)   =  1.0 / (1.0 - ex_dtmass(i)*(ex_dflux_tr(i,tr) + ex_dfdtr_atm(i,tr)))
+         ! moisture vs. surface temperture, assuming saturation
+         ex_gamma(l)   =  1.0 / (1.0 - ex_dtmass(l)*(ex_dflux_tr(l,isphum) + ex_dfdtr_atm(l,isphum)))
+         ex_e_q_n(l)      =  ex_dtmass(l) * ex_dedt_surf(l) * ex_gamma(l)
+         ex_dedt_surf(l)  =  ex_dedt_surf(l) + ex_dfdtr_atm(l,isphum) * ex_e_q_n(l)
+         ! original code uses n_exch_tr instead of ntcana
+         do tr = 1,ntcana
+            ex_gamma(l)   =  1.0 / (1.0 - ex_dtmass(l)*(ex_dflux_tr(l,tr) + ex_dfdtr_atm(l,tr)))
 
-      !             ex_e_tr_n(i,tr)      =  ex_dtmass(i)*ex_dfdtr_surf(i,tr)*ex_gamma(i)
-      !             ex_f_tr_delt_n(i,tr) = (ex_delta_tr(i,tr)+ex_dtmass(i)*ex_flux_tr(i,tr))*ex_gamma(i)
+            ex_e_tr_n(l,tr)      =  ex_dtmass(l)*ex_dfdtr_surf(l,tr)*ex_gamma(l)
+            ex_f_tr_delt_n(l,tr) = (ex_delta_tr(l,tr)+ex_dtmass(l)*ex_flux_tr(l,tr))*ex_gamma(l)
 
-      !             ex_flux_tr(i,tr)     =  ex_flux_tr(i,tr) + ex_dfdtr_atm(i,tr)*ex_f_tr_delt_n(i,tr)
-      !             ex_dfdtr_surf(i,tr)  =  ex_dfdtr_surf(i,tr) + ex_dfdtr_atm(i,tr)*ex_e_tr_n(i,tr)
-      !          enddo
-      !       endif
-      !    enddo ! i
+            ex_flux_tr(l,tr)     =  ex_flux_tr(l,tr) + ex_dfdtr_atm(l,tr)*ex_f_tr_delt_n(l,tr)
+            ex_dfdtr_surf(l,tr)  =  ex_dfdtr_surf(l,tr) + ex_dfdtr_atm(l,tr)*ex_e_tr_n(l,tr)
+         enddo
+      enddo
+
+      ! send to land boundary
+
+      lm4_model%From_atm%t_flux(:,ntile)                  = ex_flux_t
+      lm4_model%From_atm%sw_flux(:,ntile)                 = ex_flux_sw
+      lm4_model%From_atm%sw_flux_down_vis_dir(:,ntile)    = ex_flux_sw_down_vis_dir
+      lm4_model%From_atm%sw_flux_down_total_dir(:,ntile)  = ex_flux_sw_down_total_dir
+      lm4_model%From_atm%sw_flux_down_vis_dif(:,ntile)    = ex_flux_sw_down_vis_dif
+      lm4_model%From_atm%sw_flux_down_total_dif(:,ntile)  = ex_flux_sw_down_total_dif
+      lm4_model%From_atm%lw_flux(:,ntile)                 = ex_flux_lw
+      lm4_model%From_atm%dhdt(:,ntile)                    = ex_dhdt_surf
+      lm4_model%From_atm%drdt(:,ntile)                    = ex_drdt_surf
+      ! lm4_model%From_atm%p_surf = ex_p_surf
+      ! lm4_model%From_atm%lprec  = ex_lprec
+      ! lm4_model%From_atm%fprec  = ex_fprec
+      ! lm4_model%From_atm%tprec  = ex_tprec
+
+      lm4_model%From_atm%tr_flux = 0.0
+      lm4_model%From_atm%dfdtr = 0.0
+      do tr = 1,ntcana
+            lm4_model%From_atm%tr_flux(:,ntile,tr) = ex_flux_tr(:,tr)
+            lm4_model%From_atm%dfdtr(:,ntile,tr)   = ex_dfdtr_surf(:,tr)
+      enddo
 
    end subroutine flux_down_from_atmos
 
@@ -1248,8 +1257,8 @@ contains
       iug_rough_heat  = register_tiled_diag_field(module_name, "rough_heat" , axes, time, "rough_heat" , "m"    , missing_value=-1.0e+20)
       iug_rough_moist = register_tiled_diag_field(module_name, "rough_moist", axes, time, "rough_moist", "m"    , missing_value=-1.0e+20)
       iug_rough_scale = register_tiled_diag_field(module_name, "rough_scale", axes, time, "rough_scale", "m"    , missing_value=-1.0e+20)
-      iug_gust        = register_tiled_diag_field(module_name, "gust"       , axes, time, "gust"       , "m/s"  , missing_value=-1.0e+20)      
-         
+      iug_gust        = register_tiled_diag_field(module_name, "gust"       , axes, time, "gust"       , "m/s"  , missing_value=-1.0e+20)
+
    end subroutine land_diag_init
 
    ! !! Write out the land structured grid diagnostics
@@ -1268,8 +1277,13 @@ contains
    !! ===========================================================================
    subroutine end_driver()
 
-      !deallocate(ex_flux_u)
+      deallocate( &
+         ex_flux_t, ex_flux_lw, ex_dhdt_surf, ex_dedt_surf, &
+         ex_drdt_surf, ex_dhdt_atm, ex_tr_atm, ex_tr_surf, &
+         ex_flux_tr, ex_dfdtr_surf, ex_dfdtr_atm, ex_e_tr_n, &
+         ex_f_tr_delt_n      )
 
+      
    end subroutine end_driver
 
 

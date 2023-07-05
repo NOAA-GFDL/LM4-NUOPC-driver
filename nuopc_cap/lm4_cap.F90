@@ -27,7 +27,7 @@ module lm4_cap_mod
    use diag_manager_mod,     only: diag_manager_init, diag_manager_end, &
                                       diag_manager_set_time_end
 
-   use lm4_driver,           only: lm4_nml_read, init_driver, debug_diag
+   use lm4_driver,           only: lm4_nml_read, init_driver, end_driver, debug_diag
 
    use land_model_mod,       only: land_model_init, land_model_end
    use land_data_mod,        only: land_data_type, atmos_land_boundary_type, lnd
@@ -289,12 +289,12 @@ contains
       ! Initialize model
       !----------------------------------------------------------------------------
 
-      call init_driver(lm4_model)
-     
       call land_model_init( lm4_model%From_atm, lm4_model%From_lnd, &
-         lm4_model%Time_init, lm4_model%Time_land,                &
-         lm4_model%Time_step_land, lm4_model%Time_step_ocean     )
+      lm4_model%Time_init, lm4_model%Time_land,                &
+      lm4_model%Time_step_land, lm4_model%Time_step_ocean     )
       
+      call init_driver(lm4_model)
+
       call ESMF_LogWrite('======== COMPLETED land_model_init ==========', ESMF_LOGMSG_INFO)
 
       ! allocate storage for the atm forc data
@@ -411,7 +411,7 @@ contains
    subroutine ModelAdvance(gcomp, rc)
 
       use lm4_driver,           only: sfc_boundary_layer, flux_down_from_atmos
-      use land_model_mod,       only: update_land_model_fast
+      use land_model_mod,       only: update_land_model_fast, update_land_model_slow
 
       ! Arguments
       type(ESMF_GridComp)  :: gcomp
@@ -447,12 +447,11 @@ contains
          call debug_diag(lm4_model)
       endif
 
-      ! TMP disable for testing
       call get_time (lm4_model%Time_step_land, sec)
       call sfc_boundary_layer(real(sec), lm4_model)
-      !call flux_down_from_atmos(lm4_model%From_lnd)      ! JP: needs review of implicit coupling
-      !call update_land_model_fast(lm4_model%From_atm,lm4_model%From_lnd)
-      !!call update_land_model_slow(FOO)
+      call flux_down_from_atmos(real(sec), lm4_model)      ! JP: needs review of implicit coupling
+      call update_land_model_fast(lm4_model%From_atm,lm4_model%From_lnd)
+      call update_land_model_slow(lm4_model%From_atm,lm4_model%From_lnd)
 
       call ESMF_LogWrite(subname//' finished', ESMF_LOGMSG_INFO)
 
@@ -468,6 +467,7 @@ contains
       rc = ESMF_SUCCESS
       call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
 
+      call end_driver()
       call land_model_end(lm4_model%From_atm, lm4_model%From_lnd)
 
       call diag_manager_end(lm4_model%Time_land)
