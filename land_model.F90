@@ -1033,6 +1033,9 @@ subroutine update_land_model_fast ( cplr2land, land2cplr )
 
   real :: twsr_sg(lnd%is:lnd%ie,lnd%js:lnd%je), tws(lnd%ls:lnd%le)
 
+  ! JP TMP DEBUG
+  write(*,*) 'in update_land_model_fast'
+
   ! start clocks
   call mpp_clock_begin(landClock)
   call mpp_clock_begin(landFastClock)
@@ -1405,7 +1408,7 @@ subroutine update_land_model_fast_0d(tile, l, k, land2cplr, &
 
   i = lnd%i_index(l)
   j = lnd%j_index(l)
-
+  
   if(is_watch_point()) then
      write(*,*)
      call log_date('#### update_land_model_fast_0d begins:',lnd%time)
@@ -2212,6 +2215,9 @@ subroutine update_land_model_slow ( cplr2land, land2cplr )
   type(land_tile_type), pointer :: tile
   type(land_tile_enum_type) :: ce
 
+  ! JP TMP DEBUG
+  write(*,*) 'in update_land_model_slow'
+     
   call mpp_clock_begin(landClock)
   call mpp_clock_begin(landSlowClock)
 
