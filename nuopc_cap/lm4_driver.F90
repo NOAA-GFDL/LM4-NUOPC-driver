@@ -27,21 +27,15 @@ module lm4_driver
    implicit none
    private
 
+   type(domain2D), public :: land_domain
 
-   !integer                      :: im         ! horiz dimension
-   integer                      :: date_init(6)
+   integer :: date_init(6)
 
-   ! type(lm4_type),           public :: lm4_model
-   type(domain2D),           public :: land_domain
 
    public :: lm4_nml_read
    public :: init_driver, end_driver
    public :: sfc_boundary_layer, flux_down_from_atmos
    public :: debug_diag
-
-
-   ! ! TMP DEBUG diag buffer. Am I using this correctly?
-   ! type(diag_buff_type) :: lm4_buffer
 
 
    ! --- namelist of vars originally from flux exchange nml
@@ -54,19 +48,26 @@ module lm4_driver
 
    ! variables for between subroutines
    real, allocatable, dimension(:) :: &
-   ex_flux_t, ex_flux_lw,      &
-   ex_dhdt_surf, ex_dedt_surf, &
-   ex_drdt_surf,  ex_dhdt_atm
+      ex_flux_t, ex_flux_lw,      &
+      ex_dhdt_surf, ex_dedt_surf, &
+      ex_drdt_surf,  ex_dhdt_atm, &
+      ex_drag_q,    &   !< q drag.coeff.
+      ex_cd_t,      &
+      ex_cd_m,      &
+      ex_b_star,    &
+      ex_u_star,    &
+      ex_wind,      &
+      ex_z_atm   
 
    ! these originally had a tracer dimension
    real, allocatable, dimension(:,:) :: &
-   ex_tr_atm,     &
-   ex_tr_surf,    & !< near-surface tracer fields
-   ex_flux_tr,    & !< tracer fluxes
-   ex_dfdtr_surf, & !< d(tracer flux)/d(surf tracer)
-   ex_dfdtr_atm,  & !< d(tracer flux)/d(atm tracer)
-   ex_e_tr_n,     & !< coefficient in implicit scheme
-   ex_f_tr_delt_n   !< coefficient in implicit scheme
+      ex_tr_atm,     &
+      ex_tr_surf,    & !< near-surface tracer fields
+      ex_flux_tr,    & !< tracer fluxes
+      ex_dfdtr_surf, & !< d(tracer flux)/d(surf tracer)
+      ex_dfdtr_atm,  & !< d(tracer flux)/d(atm tracer)
+      ex_e_tr_n,     & !< coefficient in implicit scheme
+      ex_f_tr_delt_n   !< coefficient in implicit scheme
 
 
    !integer :: n_exch_tr !< number of tracers exchanged between models
@@ -219,7 +220,14 @@ contains
       allocate( &
          ex_flux_t(lnd%ls:lnd%le), ex_flux_lw(lnd%ls:lnd%le),   &
          ex_dhdt_surf(lnd%ls:lnd%le), ex_dedt_surf(lnd%ls:lnd%le), &
-         ex_drdt_surf(lnd%ls:lnd%le),  ex_dhdt_atm(lnd%ls:lnd%le) &
+         ex_drdt_surf(lnd%ls:lnd%le),  ex_dhdt_atm(lnd%ls:lnd%le), &
+         ex_drag_q(lnd%ls:lnd%le),    &   !< q drag.coeff.
+         ex_cd_t(lnd%ls:lnd%le),      &
+         ex_cd_m(lnd%ls:lnd%le),      &
+         ex_b_star(lnd%ls:lnd%le),    &
+         ex_u_star(lnd%ls:lnd%le),    &
+         ex_wind(lnd%ls:lnd%le),      &
+         ex_z_atm(lnd%ls:lnd%le)      &            
       )
 
       ! these originally had a tracer dimension
@@ -231,6 +239,7 @@ contains
          ex_dfdtr_atm(lnd%ls:lnd%le,ntcana),  & !< d(tracer flux)/d(atm tracer)
          ex_e_tr_n(lnd%ls:lnd%le,ntcana),     & !< coefficient in implicit scheme
          ex_f_tr_delt_n(lnd%ls:lnd%le,ntcana) &  !< coefficient in implicit scheme      
+
       )
 
    end subroutine init_driver
@@ -307,7 +316,6 @@ contains
          ex_q_surf  ,  &
       !ex_slp      ,  &
          ex_dqsatdt_surf,  &
-         ex_drag_q   ,  &
          ex_f_t_delt_n, &
 
       ! MOD these were moved from local ! so they can be passed to flux down
@@ -317,12 +325,6 @@ contains
          ex_dtaudv_atm,&
 
       ! values added for LM3
-         ex_cd_t     ,  &
-         ex_cd_m     ,  &
-         ex_b_star   ,  &
-         ex_u_star   ,  &
-         ex_wind     ,  &
-         ex_z_atm    ,  &
 
          ex_e_t_n    ,  &
          !ex_e_q_n    ,  &
@@ -901,6 +903,7 @@ contains
          ex_flux_sw_vis, &
          ex_flux_sw_vis_dir, &
          ex_flux_sw_vis_dif, &
+         ! ex_tprec, & ! temperature of precipitation, currently equal to atm T
          ex_dtmass, ex_gamma, ex_e_t_n, ex_f_t_delt_n, &
          ex_delta_t, ex_dflux_t, ex_e_q_n
 
@@ -931,6 +934,7 @@ contains
       ex_flux_sw_down_total_dif = lm4_model%atm_forc%flux_sw_down_vis_dif + lm4_model%atm_forc%flux_sw_down_vis_dif
 
       ! TODO: ex_flux_lwd
+      ex_flux_lwd = lm4_model%atm_forc%flux_lw
 
       ! this echos standalone LM4.0 driver
       ex_dtmass = real(dt)*grav/lm4_model%atm_forc%p_surf
@@ -945,7 +949,7 @@ contains
       do l = lnd%ls,lnd%le
          !----- compute net longwave flux (down-up) -----
          ! (note: lw up already in ex_flux_lw)
-         ex_flux_lw(l) = ex_flux_lwd(l) - ex_flux_lw(l)
+         ex_flux_lw(l) = ex_flux_lwd(l) - ex_flux_lw(l)  ! TODO: review if needed 
 
          ! temperature
          ex_gamma(l)      =  1./ (1.0 - ex_dtmass(l)*(ex_dflux_t(l) + ex_dhdt_atm(l)*cp_inv))
@@ -981,13 +985,45 @@ contains
       lm4_model%From_atm%sw_flux_down_total_dir(:,ntile)  = ex_flux_sw_down_total_dir
       lm4_model%From_atm%sw_flux_down_vis_dif(:,ntile)    = ex_flux_sw_down_vis_dif
       lm4_model%From_atm%sw_flux_down_total_dif(:,ntile)  = ex_flux_sw_down_total_dif
-      lm4_model%From_atm%lw_flux(:,ntile)                 = ex_flux_lw
+      ! TODO: review if is this net LW needed by land?
+      ! lm4_model%From_atm%lw_flux(:,ntile)                 = ex_flux_lw
       lm4_model%From_atm%dhdt(:,ntile)                    = ex_dhdt_surf
       lm4_model%From_atm%drdt(:,ntile)                    = ex_drdt_surf
-      ! lm4_model%From_atm%p_surf = ex_p_surf
-      ! lm4_model%From_atm%lprec  = ex_lprec
-      ! lm4_model%From_atm%fprec  = ex_fprec
-      ! lm4_model%From_atm%tprec  = ex_tprec
+      ! TODO: review if should replace with wider scope versions of ex_p_surf, ex_lprec, ex_fprec
+      lm4_model%From_atm%p_surf(:,ntile) = lm4_model%atm_forc%p_surf !ex_p_surf
+      lm4_model%From_atm%lprec(:,ntile)  = lm4_model%atm_forc%lprec !ex_lprec
+      lm4_model%From_atm%fprec(:,ntile)  = lm4_model%atm_forc%fprec !ex_fprec
+
+      ! set Land's precipitation temperature to atmosphere's temperature
+      lm4_model%From_atm%tprec(:,ntile) = lm4_model%atm_forc%t_bot
+
+      ! TODO: review scope of these
+      ! These originally had data overrides
+      if(associated(lm4_model%From_atm%drag_q)) then
+         lm4_model%From_atm%drag_q(:,ntile) = ex_drag_q
+      endif
+      if(associated(lm4_model%From_atm%lwdn_flux)) then
+         lm4_model%From_atm%lwdn_flux(:,ntile) = ex_flux_lwd
+      endif
+      if(associated(lm4_model%From_atm%cd_m)) then
+         lm4_model%From_atm%cd_m(:,ntile) = ex_cd_m
+      endif
+      if(associated(lm4_model%From_atm%cd_t)) then
+         lm4_model%From_atm%cd_t(:,ntile) = ex_cd_t
+      endif
+      if(associated(lm4_model%From_atm%bstar)) then
+         lm4_model%From_atm%bstar(:,ntile) = ex_b_star
+      endif
+      if(associated(lm4_model%From_atm%ustar)) then
+         lm4_model%From_atm%ustar(:,ntile) = ex_u_star
+      endif
+      if(associated(lm4_model%From_atm%wind)) then
+         lm4_model%From_atm%wind(:,ntile) = ex_wind
+      endif
+      if(associated(lm4_model%From_atm%z_bot)) then
+         lm4_model%From_atm%z_bot(:,ntile) = ex_z_atm
+      endif
+
 
       lm4_model%From_atm%tr_flux = 0.0
       lm4_model%From_atm%dfdtr = 0.0
@@ -1281,7 +1317,14 @@ contains
          ex_flux_t, ex_flux_lw, ex_dhdt_surf, ex_dedt_surf, &
          ex_drdt_surf, ex_dhdt_atm, ex_tr_atm, ex_tr_surf, &
          ex_flux_tr, ex_dfdtr_surf, ex_dfdtr_atm, ex_e_tr_n, &
-         ex_f_tr_delt_n      )
+         ex_f_tr_delt_n, &
+         ex_drag_q,    &   
+         ex_cd_t,      &
+         ex_cd_m,      &
+         ex_b_star,    &
+         ex_u_star,    &
+         ex_wind,      &
+         ex_z_atm               )
 
       
    end subroutine end_driver
