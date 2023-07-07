@@ -49,7 +49,7 @@ module lnd_import_export
 
    integer                :: ie_debug         ! internal debug level
 
-   logical :: send_to_atm = .true.
+   logical                :: send_to_atm = .true.
 
    character(*),parameter :: modName =  "(lnd_import_export)"
    character(*),parameter :: F01 = "('(lnd_import_export) ',a,i5,2x,i5,2x,d21.14)"
@@ -492,6 +492,7 @@ contains
       real(r8), dimension(:), pointer   :: tmp_ug_data ! temp unstructured grid data
       real(r8), dimension(:,:), pointer   :: tmp_sg_data ! TMP DEBUG
 
+      integer :: i ! loop counter TMP DEBUG
       ! ----------------------------------------------
 
       rc = ESMF_SUCCESS
@@ -513,24 +514,24 @@ contains
       !! ---------------------------------------------------------------------      
       ! rain
       if (check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_rain')) then
-         ! have total precip
-         call state_getimport_2d(importState, 'Faxa_rain',  lm4data_1d=lm4_model%atm_forc%totprec, rc=rc)        
+         ! have total liquid precip
+         call state_getimport_2d(importState, 'Faxa_rain',  lm4data_1d=lm4_model%atm_forc%lprec, rc=rc)        
          if (ie_debug > 0) then 
-            call state_getimport_2d(importState, 'Faxa_rain', lm4data_2d=lm4_model%atm_forc2d%totprec, rc=rc)
+            call state_getimport_2d(importState, 'Faxa_rain', lm4data_2d=lm4_model%atm_forc2d%lprec, rc=rc)
          endif
       elseif ( ( check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_rainc') ) .and. &
                ( check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_rainl') ) ) then
          ! have convective and large-scale total precip
-         call state_getimport_2d(importState, 'Faxa_rainc',  lm4data_1d=lm4_model%atm_forc%totprec, rc=rc)
+         call state_getimport_2d(importState, 'Faxa_rainc',  lm4data_1d=lm4_model%atm_forc%lprec, rc=rc)
          call state_getimport_2d(importState, 'Faxa_rainl',  lm4data_1d=tmp_ug_data, rc=rc)
-         lm4_model%atm_forc%totprec = lm4_model%atm_forc%totprec + tmp_ug_data
+         lm4_model%atm_forc%lprec = lm4_model%atm_forc%lprec + tmp_ug_data
          if (ie_debug > 0) then 
-            call state_getimport_2d(importState, 'Faxa_rainc', lm4data_2d=lm4_model%atm_forc2d%totprec, rc=rc)
+            call state_getimport_2d(importState, 'Faxa_rainc', lm4data_2d=lm4_model%atm_forc2d%lprec, rc=rc)
             call state_getimport_2d(importState, 'Faxa_rainl', lm4data_2d=tmp_sg_data, rc=rc)
-            lm4_model%atm_forc2d%totprec = lm4_model%atm_forc2d%totprec + tmp_sg_data
+            lm4_model%atm_forc2d%lprec = lm4_model%atm_forc2d%lprec + tmp_sg_data
          endif
       else
-         call ESMF_LogWrite(trim(subname)//": Don't have any total precip fields", &
+         call ESMF_LogWrite(trim(subname)//": Don't have any liquid precip fields", &
             ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__)
          call ESMF_Finalize(endflag=ESMF_END_ABORT)
       endif    
@@ -554,22 +555,11 @@ contains
             lm4_model%atm_forc2d%fprec = lm4_model%atm_forc2d%fprec + tmp_sg_data
          endif
       else
-         ! don't have snow precip
-         ! TODO: want to have FMS Coupler's precip scaling functionality here
+         ! TODO: want to have FMS Coupler's precip scaling functionality here?
          call ESMF_LogWrite(trim(subname)//": Don't have any snow precip fields", &
             ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__)
          call ESMF_Finalize(endflag=ESMF_END_ABORT)
       endif
-
-      ! have total and frozen precip, so can calculate liquid precip
-      lm4_model%atm_forc%lprec = lm4_model%atm_forc%totprec - lm4_model%atm_forc%fprec
-      if (ie_debug > 0) then 
-         lm4_model%atm_forc2d%lprec = lm4_model%atm_forc2d%totprec - lm4_model%atm_forc2d%fprec
-      endif
-
-
-
-
 
 
       deallocate(tmp_ug_data)
