@@ -81,7 +81,7 @@ module lm4_driver
    integer :: &
       id_swdn_vf, id_z_bot, id_t_bot, id_p_bot, &
       id_u_bot, id_v_bot, id_q_bot, id_p_surf,  &
-      id_lprec, id_fprec, id_totprec,           &
+      id_lprec, id_fprec,            &
       id_flux_lw, id_flux_sw_dn_vdf, id_flux_sw_dn_vr
 
    !! for unstructured grid diagnostics
@@ -945,6 +945,7 @@ contains
       ! for implicit coupling with active atmosphere.
       ex_dflux_tr = 0.0
       ex_delta_tr = 0.0
+      ex_delta_t = 0.0  ! 
 
       do l = lnd%ls,lnd%le
          !----- compute net longwave flux (down-up) -----
@@ -1141,7 +1142,6 @@ contains
             id_v_bot   = register_diag_field(mod_name, 'v_bot', axes, ltime, 'bottom v velocity', 'm/s', missing_value=missval )
             id_q_bot   = register_diag_field(mod_name, 'q_bot', axes, ltime, 'bottom specific humidity', 'kg/kg', missing_value=missval )
             id_p_surf  = register_diag_field(mod_name, 'p_surf', axes, ltime, 'surface pressure', 'Pa', missing_value=missval )
-            id_totprec = register_diag_field(mod_name, 'totprec', axes, ltime, 'total precipitation', 'kg/m2/s', missing_value=missval )
             id_lprec   = register_diag_field(mod_name, 'lprec', axes, ltime, 'liquid precipitation', 'kg/m2/s', missing_value=missval )
             id_fprec   = register_diag_field(mod_name, 'fprec', axes, ltime, 'frozen precipitation', 'kg/m2/s', missing_value=missval )
             id_flux_lw = register_diag_field(mod_name, 'flux_lw', axes, ltime, 'longwave flux down', 'W/m2', missing_value=missval )
@@ -1165,7 +1165,6 @@ contains
       if (id_v_bot > 0)          used = send_data(id_v_bot,          lm4_model%atm_forc2d%v_bot,                lm4_model%Time_land)
       if (id_q_bot > 0)          used = send_data(id_q_bot,          lm4_model%atm_forc2d%q_bot,                lm4_model%Time_land)
       if (id_p_surf > 0)         used = send_data(id_p_surf,         lm4_model%atm_forc2d%p_surf,               lm4_model%Time_land)
-      if (id_totprec > 0)        used = send_data(id_totprec,        lm4_model%atm_forc2d%totprec,              lm4_model%Time_land)
       if (id_lprec > 0)          used = send_data(id_lprec,          lm4_model%atm_forc2d%lprec,                lm4_model%Time_land)
       if (id_fprec > 0)          used = send_data(id_fprec,          lm4_model%atm_forc2d%fprec,                lm4_model%Time_land)
       if (id_flux_lw > 0)        used = send_data(id_flux_lw,        lm4_model%atm_forc2d%flux_lw,              lm4_model%Time_land)
