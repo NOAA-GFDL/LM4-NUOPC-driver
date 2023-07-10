@@ -273,13 +273,13 @@ contains
       endif
 
       !! DEBUG TMP check inputs to mo_drag
-      write(*,*) 'thv_atm min/max:' , minval(thv_atm), maxval(thv_atm)
-      write(*,*) 'thv_surf min/max:', minval(thv_surf), maxval(thv_surf)
-      write(*,*) 'z_atm min/max:'   , minval(z_atm), maxval(z_atm)
-      write(*,*) 'rough_mom min/max:', minval(rough_mom), maxval(rough_mom)
-      write(*,*) 'rough_heat min/max:', minval(rough_heat), maxval(rough_heat)
-      write(*,*) 'rough_moist min/max:', minval(rough_moist), maxval(rough_moist)
-      write(*,*) 'w_atm min/max:'   , minval(w_atm), maxval(w_atm)
+      ! write(*,*) 'thv_atm min/max:' , minval(thv_atm), maxval(thv_atm)
+      ! write(*,*) 'thv_surf min/max:', minval(thv_surf), maxval(thv_surf)
+      ! write(*,*) 'z_atm min/max:'   , minval(z_atm), maxval(z_atm)
+      ! write(*,*) 'rough_mom min/max:', minval(rough_mom), maxval(rough_mom)
+      ! write(*,*) 'rough_heat min/max:', minval(rough_heat), maxval(rough_heat)
+      ! write(*,*) 'rough_moist min/max:', minval(rough_moist), maxval(rough_moist)
+      ! write(*,*) 'w_atm min/max:'   , minval(w_atm), maxval(w_atm)
 
       if (any(isnan(thv_atm))) then
          write(*,*) 'thv_atm contains NaNs'

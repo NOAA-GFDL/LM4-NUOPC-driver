@@ -943,9 +943,10 @@ contains
       ! TODO: review behavior of these.
       ! With data atmosphere, no implicit derivatives. Would need to review
       ! for implicit coupling with active atmosphere.
-      ex_dflux_tr = 0.0
       ex_delta_tr = 0.0
+      ex_dflux_tr = 0.0
       ex_delta_t = 0.0  ! 
+      ex_dflux_t = 0.0  !
 
       do l = lnd%ls,lnd%le
          !----- compute net longwave flux (down-up) -----
@@ -959,6 +960,7 @@ contains
 
          ex_flux_t (l)    =  ex_flux_t(l)        + ex_dhdt_atm(l) * ex_f_t_delt_n(l)
          ex_dhdt_surf(l)  =  ex_dhdt_surf(l)     + ex_dhdt_atm(l) * ex_e_t_n(l)
+
 
          ! moisture
 
