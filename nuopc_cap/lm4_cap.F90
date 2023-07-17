@@ -23,6 +23,8 @@ module lm4_cap_mod
    use lnd_import_export,    only: advertise_fields, realize_fields, &
                                    import_fields, correct_import_fields, export_fields
    use fms_mod,              only: fms_init, fms_end, uppercase
+   use fms_io_mod,           only: fms_io_exit
+
    use mpp_mod,              only: mpp_error,FATAL, WARNING
    use diag_manager_mod,     only: diag_manager_init, diag_manager_end, &
                                       diag_manager_set_time_end
@@ -274,7 +276,7 @@ contains
          date_end(4), date_end(5), date_end(6))
       if(mype==0) write(*,'(A,6I5)') 'Land StopTime =',date_end
 
-      call diag_manager_set_time_end(lm4_model%Time_end)
+      ! call diag_manager_set_time_end(lm4_model%Time_end)
 
       CALL ESMF_TimeIntervalGet(RunDuration, S=Run_length, RC=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
@@ -283,7 +285,12 @@ contains
       call diag_manager_set_time_end(lm4_model%Time_end)
 
       call ESMF_ConfigGetAttribute(config=CF, value=dt_atmos, label ='dt_atmos:',   rc=rc)
-      lm4_model%Time_step_land = set_time (dt_atmos,0)
+      if(mype==0) write(*,*) '1 Land dt_atmos =',dt_atmos
+
+      dt_atmos = 900 ! JP TMP DEBUG
+      if(mype==0) write(*,*) '2 Land dt_atmos =',dt_atmos
+      lm4_model%Time_step_land = set_time(dt_atmos,0)
+      if(mype==0) write(*,*) '3 Land dt_atmos =',dt_atmos
 
       !----------------------------------------------------------------------------
       ! Initialize model
@@ -443,9 +450,9 @@ contains
 
 
       ! option to write out diag history of imports
-      if (debug_cap > 0) then
-         call debug_diag(lm4_model)
-      endif
+      ! if (debug_cap > 0) then
+      !    call debug_diag(lm4_model)
+      ! endif
 
       call get_time (lm4_model%Time_step_land, sec)
       call sfc_boundary_layer(real(sec), lm4_model)
@@ -471,6 +478,8 @@ contains
       call land_model_end(lm4_model%From_atm, lm4_model%From_lnd)
 
       call diag_manager_end(lm4_model%Time_land)
+      call fms_io_exit  ! TEST
+      call fms_end      ! TEST
 
       ! deallocate storage for the atm forc data
       call dealloc_atmforc(lm4_model%atm_forc)

@@ -194,8 +194,8 @@ contains
       ! use LM4's data type, using just a part of land_data_init
       !call mpp_get_compute_domain(lnd%sg_domain, lnd%is,lnd%ie,lnd%js,lnd%je)
 
-      call land_diag_init( lnd%coord_glonb, lnd%coord_glatb, lnd%coord_glon, lnd%coord_glat, &
-                           lm4_model%Time_land, lnd%ug_domain, id_band, id_ug )
+      ! call land_diag_init( lnd%coord_glonb, lnd%coord_glatb, lnd%coord_glon, lnd%coord_glat, &
+      !                      lm4_model%Time_land, lnd%ug_domain, id_band, id_ug )
 
       ! create a buffer for diagnostic output
       ! call init_diag_buff(lm4_buffer)
