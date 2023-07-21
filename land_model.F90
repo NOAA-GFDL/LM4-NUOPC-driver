@@ -1034,7 +1034,8 @@ subroutine update_land_model_fast ( cplr2land, land2cplr )
   real :: twsr_sg(lnd%is:lnd%ie,lnd%js:lnd%je), tws(lnd%ls:lnd%le)
 
   ! JP TMP DEBUG
-  write(*,*) 'in update_land_model_fast'
+  !call error_mesg('update_land_model_fast','HERE' NOTE)
+
 
   ! start clocks
   call mpp_clock_begin(landClock)
@@ -2216,7 +2217,8 @@ subroutine update_land_model_slow ( cplr2land, land2cplr )
   type(land_tile_enum_type) :: ce
 
   ! JP TMP DEBUG
-  write(*,*) 'in update_land_model_slow'
+  !call error_mesg('update_land_model_slow','HERE' NOTE)
+
      
   call mpp_clock_begin(landClock)
   call mpp_clock_begin(landSlowClock)

@@ -160,6 +160,10 @@ contains
       integer :: mype, ntasks, mpi_comm_land, mpi_comm_land2
       character(len=*), parameter :: subname=trim(modName)//':(InitializeAdvertise) '
 
+      ! for connecting ESMF and FMS timestep objects
+      type(ESMF_TimeInterval)  :: model_timestep
+      integer                  :: timestep_sec
+
       !-------------------------------------------------------------------------------
 
 
@@ -284,14 +288,32 @@ contains
       call diag_manager_init (TIME_INIT=date)
       call diag_manager_set_time_end(lm4_model%Time_end)
 
-      call ESMF_ConfigGetAttribute(config=CF, value=dt_atmos, label ='dt_atmos:',   rc=rc)
-      if(mype==0) write(*,*) '1 Land dt_atmos =',dt_atmos
+      ! ! This will match the active atmosphere component's time step, but not appropriate for data atmosphere
+      ! call ESMF_ConfigGetAttribute(config=CF, value=dt_atmos, label ='dt_atmos:',   rc=rc)
+      ! lm4_model%Time_step_land = set_time(dt_atmos,0)
+      ! if(mype==0) write(*,*) 'Land dt_atmos =',dt_atmos
+      ! ! instead, get from ESMF clock
 
-      dt_atmos = 900 ! JP TMP DEBUG
-      if(mype==0) write(*,*) '2 Land dt_atmos =',dt_atmos
-      lm4_model%Time_step_land = set_time(dt_atmos,0)
-      if(mype==0) write(*,*) '3 Land dt_atmos =',dt_atmos
 
+      ! get model and driver clocks
+      ! call ESMF_GridCompGet(gcomp, clock=clock, rc=rc)
+      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return      
+      ! call NUOPC_ModelGet(gcomp, driverClock=dclock, rc=rc)
+      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+  
+
+      call ESMF_ClockGet(clock,  timeStep=model_timestep, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      call ESMF_TimeIntervalGet(model_timestep, s=timestep_sec, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return    
+      write(logmsg,*) timestep_sec
+      call ESMF_LogWrite(trim(subname)//'init LM4 timeStep: '//trim(logmsg), ESMF_LOGMSG_INFO)
+
+      lm4_model%Time_step_land = set_time(timestep_sec,0)
+   
+
+
+      
       !----------------------------------------------------------------------------
       ! Initialize model
       !----------------------------------------------------------------------------
@@ -454,7 +476,8 @@ contains
       !    call debug_diag(lm4_model)
       ! endif
 
-      call get_time (lm4_model%Time_step_land, sec)
+      ! TODO, is sec being used anywhere?
+      call get_time (lm4_model%Time_step_land, sec)  ! get seconds of timestep
       call sfc_boundary_layer(real(sec), lm4_model)
       call flux_down_from_atmos(real(sec), lm4_model)      ! JP: needs review of implicit coupling
       call update_land_model_fast(lm4_model%From_atm,lm4_model%From_lnd)
@@ -477,7 +500,7 @@ contains
       call end_driver()
       call land_model_end(lm4_model%From_atm, lm4_model%From_lnd)
 
-      call diag_manager_end(lm4_model%Time_land)
+      call diag_manager_end(lm4_model%Time_end)
       call fms_io_exit  ! TEST
       call fms_end      ! TEST
 
