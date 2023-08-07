@@ -1,0 +1,4 @@
+[submodule "LM4"]
+	path = LM4
+	url = git@github.com:NOAA-GFDL/LM4
+	branch = land_lad2
