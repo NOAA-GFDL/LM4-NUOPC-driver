@@ -111,7 +111,7 @@ module lm4_driver
 
 contains
 
-   !! Read in lm4 namelist
+   !! Read in lm4 namelist for NUOPC-cap related variables
    !! ============================================================================
    subroutine lm4_nml_read(lm4_model)
 
@@ -124,20 +124,21 @@ contains
 
       type(lm4_type),          intent(inout) :: lm4_model ! land model's variable type
 
-      ! namelist variables for lm4
+      ! namelist variables for lm4 cap
       ! ------------------------------------------
-      integer           :: lm4_debug = 0        ! debug flag for lm4 (0=off, 1=low, 2=high)
-      integer           :: npx = 0, npy = 0
-      integer           :: ntiles = 0
-      integer           :: layout(2) = (/0,0/)
-      character(len=64) :: grid      = 'none'
-      integer           :: blocksize = -1
+      integer           :: lm4_debug   = 0          ! debug flag for lm4 (0=off, 1=low, 2=high)
+      integer           :: npx         = 0, npy = 0
+      integer           :: ntiles      = 0
+      integer           :: layout(2)   = (/0,0/)
+      character(len=64) :: grid        = 'none'
+      integer           :: blocksize   = -1
+      integer           :: dt_lnd_slow = 86400  ! time step for slow land processes (s)
 
 
       ! for namelist read
       integer :: unit, io, ierr
       namelist /lm4_nml/ grid, npx, npy, layout, ntiles, &
-         blocksize, lm4_debug
+         blocksize, lm4_debug, dt_lnd_slow
 
       ! read in namelist
 
@@ -156,13 +157,14 @@ contains
 #endif
       endif
 
-      lm4_model%nml%lm4_debug = lm4_debug
-      lm4_model%nml%grid      = grid
-      lm4_model%nml%blocksize = blocksize
-      lm4_model%nml%npx       = npx
-      lm4_model%nml%npy       = npy
-      lm4_model%nml%layout    = layout
-      lm4_model%nml%ntiles    = ntiles
+      lm4_model%nml%lm4_debug   = lm4_debug
+      lm4_model%nml%grid        = grid
+      lm4_model%nml%blocksize   = blocksize
+      lm4_model%nml%npx         = npx
+      lm4_model%nml%npy         = npy
+      lm4_model%nml%layout      = layout
+      lm4_model%nml%ntiles      = ntiles
+      lm4_model%nml%dt_lnd_slow = dt_lnd_slow
 
    end subroutine lm4_nml_read
 

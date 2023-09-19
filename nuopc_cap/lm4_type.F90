@@ -5,6 +5,7 @@ module lm4_type_mod
 
    public
 
+   ! type for LM4 NUOPC cap nml
    type :: lm4_nml_type
       integer           :: lm4_debug    ! debug flag for lm4 (0=off, 1=low, 2=high)
       ! grid, domain, and blocking
@@ -13,6 +14,7 @@ module lm4_type_mod
       integer           :: layout(2)
       character(len=64) :: grid
       integer           :: blocksize
+      integer           :: dt_lnd_slow  ! land slow timestep (s)
    end type lm4_nml_type
 
    type :: lm4_control_type
@@ -95,7 +97,7 @@ module lm4_type_mod
       type(land_data_type)           :: From_lnd   ! data from land
       type(atmos_land_boundary_type) :: From_atm   ! data from atm      
       type(time_type)                :: Time_land, Time_init, Time_end,  &
-                                        Time_step_land, Time_step_ocean, &
+                                        Time_step_land, Time_step_slow, &
                                         Time_restart, Time_step_restart, &
                                         Time_atstart      
 
