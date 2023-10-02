@@ -932,8 +932,8 @@ contains
       ! ex_flux_sw_vis_dif        =
       ex_flux_sw_down_vis_dir   = lm4_model%atm_forc%flux_sw_down_vis_dir
       ex_flux_sw_down_vis_dif   = lm4_model%atm_forc%flux_sw_down_vis_dif
-      ex_flux_sw_down_total_dir = lm4_model%atm_forc%flux_sw_down_vis_dir + lm4_model%atm_forc%flux_sw_down_vis_dir
-      ex_flux_sw_down_total_dif = lm4_model%atm_forc%flux_sw_down_vis_dif + lm4_model%atm_forc%flux_sw_down_vis_dif
+      ex_flux_sw_down_total_dir = lm4_model%atm_forc%flux_sw_down_vis_dir + lm4_model%atm_forc%flux_sw_down_nir_dir
+      ex_flux_sw_down_total_dif = lm4_model%atm_forc%flux_sw_down_vis_dif + lm4_model%atm_forc%flux_sw_down_nir_dif
 
       ! TODO: ex_flux_lwd
       ex_flux_lwd = lm4_model%atm_forc%flux_lw
