@@ -146,7 +146,7 @@ contains
       type(ESMF_Config)           :: cf
       integer                     :: Run_length
       integer,dimension(6)        :: date, date_end
-      integer                     :: dt_atmos
+      !integer                     :: dt_atmos
 
       character(17)               :: calendar='                 '
       integer                     :: calendar_type = -99
@@ -209,13 +209,14 @@ contains
 
       ! if lm4_model%nml%lm4_debug is set, and > 0, write out namelist variables read in 
       if (mype == 0 .and. debug_cap > 0) then
-         write(*,*) 'lm4_model%nml%lm4_debug: ',lm4_model%nml%lm4_debug
-         write(*,*) 'lm4_model%nml%grid: '     ,lm4_model%nml%grid
-         write(*,*) 'lm4_model%nml%npx: '      ,lm4_model%nml%npx
-         write(*,*) 'lm4_model%nml%npy: '      ,lm4_model%nml%npy
-         write(*,*) 'lm4_model%nml%layout: '   ,lm4_model%nml%layout
-         write(*,*) 'lm4_model%nml%ntiles: '   ,lm4_model%nml%ntiles
-         write(*,*) 'lm4_model%nml%blocksize: ',lm4_model%nml%blocksize
+         write(*,*) 'lm4_model%nml%lm4_debug: ' ,lm4_model%nml%lm4_debug
+         write(*,*) 'lm4_model%nml%grid: '      ,lm4_model%nml%grid
+         write(*,*) 'lm4_model%nml%npx: '       ,lm4_model%nml%npx
+         write(*,*) 'lm4_model%nml%npy: '       ,lm4_model%nml%npy
+         write(*,*) 'lm4_model%nml%layout: '    ,lm4_model%nml%layout
+         write(*,*) 'lm4_model%nml%ntiles: '    ,lm4_model%nml%ntiles
+         write(*,*) 'lm4_model%nml%blocksize: ' ,lm4_model%nml%blocksize
+         write(*,*) 'lm4_model%nml%dt_lnd_slow ',lm4_model%nml%dt_lnd_slow
       endif
 
 
@@ -307,9 +308,14 @@ contains
       call ESMF_TimeIntervalGet(model_timestep, s=timestep_sec, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return    
       write(logmsg,*) timestep_sec
-      call ESMF_LogWrite(trim(subname)//'init LM4 timeStep: '//trim(logmsg), ESMF_LOGMSG_INFO)
+      call ESMF_LogWrite(trim(subname)//'init LM4 fast timestep: '//trim(logmsg), ESMF_LOGMSG_INFO)
+
+      write(logmsg,*) lm4_model%nml%dt_lnd_slow
+      call ESMF_LogWrite(trim(subname)//'init LM4 slow timestep: '//trim(logmsg), ESMF_LOGMSG_INFO)
+
 
       lm4_model%Time_step_land = set_time(timestep_sec,0)
+      lm4_model%Time_step_slow = set_time(lm4_model%nml%dt_lnd_slow,0)
    
 
 
@@ -320,7 +326,7 @@ contains
 
       call land_model_init( lm4_model%From_atm, lm4_model%From_lnd, &
       lm4_model%Time_init, lm4_model%Time_land,                &
-      lm4_model%Time_step_land, lm4_model%Time_step_ocean     )
+      lm4_model%Time_step_land, lm4_model%Time_step_slow     )
       
       call init_driver(lm4_model)
 
