@@ -133,7 +133,9 @@ contains
       ! input/output variables
       type(ESMF_GridComp)         :: gcomp
       type(ESMF_State)            :: importState, exportState
-      type(ESMF_Clock)            :: clock
+      type(ESMF_Clock)            :: clock  ! model clock
+      type(ESMF_Clock)            :: dclock ! driver clock
+
       integer, intent(out)        :: rc
 
 
@@ -313,6 +315,18 @@ contains
       write(logmsg,*) lm4_model%nml%dt_lnd_slow
       call ESMF_LogWrite(trim(subname)//'init LM4 slow timestep: '//trim(logmsg), ESMF_LOGMSG_INFO)
 
+      ! ! JP TMP DEBUG
+      ! call ESMF_GridCompGet(gcomp, clock=clock, rc=rc)
+      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return       
+      ! call NUOPC_ModelGet(gcomp, driverClock=dclock, rc=rc)
+      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      ! call ESMF_ClockGet(dclock,  timeStep=model_timestep, rc=rc)
+      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      ! call ESMF_TimeIntervalGet(model_timestep, s=timestep_sec, rc=rc)
+      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      ! write(logmsg,*) timestep_sec
+      ! call ESMF_LogWrite(trim(subname)//'init LM4 driver timestep: '//trim(logmsg), ESMF_LOGMSG_INFO)      
+      ! ! END TMP DEBUG
 
       lm4_model%Time_step_land = set_time(timestep_sec,0)
       lm4_model%Time_step_slow = set_time(lm4_model%nml%dt_lnd_slow,0)
@@ -447,6 +461,7 @@ contains
 
       use lm4_driver,           only: sfc_boundary_layer, flux_down_from_atmos
       use land_model_mod,       only: update_land_model_fast, update_land_model_slow
+      use ESMF, only: ESMF_ClockPrint, ESMF_AlarmIsRinging ! TMP DEBUG
 
       ! Arguments
       type(ESMF_GridComp)  :: gcomp
@@ -454,8 +469,20 @@ contains
       integer, intent(out) :: rc
 
       ! Local variables
+      type(ESMF_Clock)           :: clock
+      type(ESMF_Clock)           :: dclock ! driver clock
+      type(ESMF_Time)            :: prevTime
+      type(ESMF_Time)            :: currTime
+      type(ESMF_Alarm)           :: slowAlarm
+      
       character(len=*),parameter :: subname=trim(modName)//':(ModelAdvance) '
       integer :: sec
+
+      ! JP tmp debug
+      integer                  :: time_sec   ! current time in seconds
+      type(ESMF_TimeInterval)  :: model_time ! current time as ESMF_TimeInterval
+      character(len=CL)        :: logmsg
+      ! END TMP DEBUG
 
       rc = ESMF_SUCCESS
       call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
@@ -464,7 +491,7 @@ contains
       !-------------------------------------------------------------------------------
       ! Get import and export states
       !-------------------------------------------------------------------------------
-      call NUOPC_ModelGet(gcomp, importState=importState, exportState=exportState, rc=rc)
+      call NUOPC_ModelGet(gcomp, importState=importState, exportState=exportState, modelClock=clock, driverClock=dclock, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
       !-------------------------------------------------------------------------------
@@ -487,7 +514,12 @@ contains
       call sfc_boundary_layer(real(sec), lm4_model)
       call flux_down_from_atmos(real(sec), lm4_model)      ! JP: needs review of implicit coupling
       call update_land_model_fast(lm4_model%From_atm,lm4_model%From_lnd)
-      call update_land_model_slow(lm4_model%From_atm,lm4_model%From_lnd)
+
+      ! quick way to only call on slow timestep
+      if ( time_sec /= 0 .and. mod(time_sec,lm4_model%nml%dt_lnd_slow) == 0 ) then
+         call update_land_model_slow(lm4_model%From_atm,lm4_model%From_lnd)
+         call ESMF_LogWrite('MA LM4 update_land_model_slow called', ESMF_LOGMSG_INFO)
+      endif
 
       call ESMF_LogWrite(subname//' finished', ESMF_LOGMSG_INFO)
 
