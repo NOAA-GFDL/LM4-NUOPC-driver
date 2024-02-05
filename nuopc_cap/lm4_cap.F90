@@ -515,37 +515,11 @@ contains
       call flux_down_from_atmos(real(sec), lm4_model)      ! JP: needs review of implicit coupling
       call update_land_model_fast(lm4_model%From_atm,lm4_model%From_lnd)
 
-      ! only call on slow timestep. In coupled run, would have slow timestep from run sequence.
-      ! With data atmosphere, getting it from input.nml for now
-      ! Todo: use ESMF alarm
-
-      ! JP TMP DEBUG
-      call ESMF_ClockPrint(clock,rc=rc)
-      call ESMF_ClockPrint(dclock,rc=rc)
-
-      ! call ESMF_ClockGetAlarm(clock,'Alarm001',slowAlarm,rc=rc)
-      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-      ! if ( ESMF_AlarmIsRinging(slowAlarm, rc=rc)) then
-      !    write(*,*) 'slow alarm ringing'
-      ! endif         
-      
- 
-
-      call ESMF_ClockGet(dclock,  currSimTime=model_time, rc=rc)
-      if (ChkErr(rc,__LINE__,u_FILE_u)) return
-      call ESMF_TimeIntervalGet(model_time, s=time_sec, rc=rc)
-      if (ChkErr(rc,__LINE__,u_FILE_u)) return
-      write(logmsg,*) time_sec
-      call ESMF_LogWrite(trim(subname)//'MA LM4 driver currSimTime: '//trim(logmsg), ESMF_LOGMSG_INFO)      
-
       ! quick way to only call on slow timestep
       if ( time_sec /= 0 .and. mod(time_sec,lm4_model%nml%dt_lnd_slow) == 0 ) then
          call update_land_model_slow(lm4_model%From_atm,lm4_model%From_lnd)
          call ESMF_LogWrite('MA LM4 update_land_model_slow called', ESMF_LOGMSG_INFO)
       endif
-
-      ! END TMP DEBUG      
-
 
       call ESMF_LogWrite(subname//' finished', ESMF_LOGMSG_INFO)
 
