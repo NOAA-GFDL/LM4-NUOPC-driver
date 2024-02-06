@@ -35,6 +35,7 @@ module lm4_driver
    public :: lm4_nml_read
    public :: init_driver, end_driver
    public :: sfc_boundary_layer, flux_down_from_atmos
+   public :: write_int_restart
    public :: debug_diag
 
 
@@ -133,12 +134,15 @@ contains
       character(len=64) :: grid        = 'none'
       integer           :: blocksize   = -1
       integer           :: dt_lnd_slow = 86400  ! time step for slow land processes (s)
+      integer, dimension(6) :: restart_interval = (/ 0, 0, 0, 0, 0, 0/) !< The time interval that write out intermediate restart file.
+                                                                        !! The format is (yr,mo,day,hr,min,sec).  When restart_interval
+                                                                        !! is all zero, no intermediate restart file will be written out
 
 
       ! for namelist read
       integer :: unit, io, ierr
       namelist /lm4_nml/ grid, npx, npy, layout, ntiles, &
-         blocksize, lm4_debug, dt_lnd_slow
+         blocksize, lm4_debug, dt_lnd_slow, restart_interval
 
       ! read in namelist
 
@@ -165,6 +169,7 @@ contains
       lm4_model%nml%layout      = layout
       lm4_model%nml%ntiles      = ntiles
       lm4_model%nml%dt_lnd_slow = dt_lnd_slow
+      lm4_model%nml%restart_interval = restart_interval
 
    end subroutine lm4_nml_read
 
@@ -244,7 +249,41 @@ contains
 
       )
 
+      ! Set restart time  
+      if (ALL(lm4_model%nml%restart_interval ==0)) then
+         lm4_model%Time_restart = increment_date(lm4_model%Time_end, 0, 0, 10, 0, 0, 0)   ! no intermediate restart
+      else
+         lm4_model%Time_restart = increment_date(lm4_model%Time_init, lm4_model%nml%restart_interval(1), lm4_model%nml%restart_interval(2), &
+            lm4_model%nml%restart_interval(3), lm4_model%nml%restart_interval(4), lm4_model%nml%restart_interval(5), lm4_model%nml%restart_interval(6) )
+         if (lm4_model%Time_restart <= lm4_model%Time) then
+            call ESMF_LogWrite('The first intermediate restart time is no larger than the start time',ESMF_FAILURE)
+         endif
+
+      endif
+
    end subroutine init_driver
+
+   !! ============================================================================
+   !! Adapted from GFDL coupler, write intermediate restarts
+   !! ============================================================================
+   subroutine write_int_restart(lm4_model)
+      use time_manager_mod,        only: date_to_string, increment_date
+      use land_model_mod,          only: land_model_restart
+
+      type(time_type)       :: Time_restart
+      character(len=32)     :: timestamp
+
+      
+    !--- write out intermediate restart file when needed.                                                                                                                                           
+      if (lm4_model%Time_land >= lm4_model%Time_restart) then
+         lm4_model%Time_restart = increment_date(lm4_model%Time_land, lm4_model%nml%restart_interval(1), lm4_model%nml%restart_interval(2), &
+            lm4_model%nml%restart_interval(3), lm4_model%nml%restart_interval(4), lm4_model%nml%restart_interval(5), lm4_model%nml%restart_interval(6) )
+         timestamp = date_to_string(lm4_model%Time_land)
+         call ESMF_LogWrite('LM4  intermediate restart file is written '//trim(timestamp), ESMF_LOGMSG_INFO)
+         call land_model_restart(timestamp)
+       endif
+   
+   end subroutine write_int_restart
 
    !! ============================================================================
    !! Adapted from GFDL atm_land_ice_flux_exchange,

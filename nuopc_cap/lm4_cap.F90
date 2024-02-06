@@ -29,7 +29,7 @@ module lm4_cap_mod
    use diag_manager_mod,     only: diag_manager_init, diag_manager_end, &
                                       diag_manager_set_time_end
 
-   use lm4_driver,           only: lm4_nml_read, init_driver, end_driver, debug_diag
+   use lm4_driver,           only: lm4_nml_read, init_driver, end_driver, debug_diag, write_int_restart
 
    use land_model_mod,       only: land_model_init, land_model_end
    use land_data_mod,        only: land_data_type, atmos_land_boundary_type, lnd
@@ -519,6 +519,7 @@ contains
       if ( time_sec /= 0 .and. mod(time_sec,lm4_model%nml%dt_lnd_slow) == 0 ) then
          call update_land_model_slow(lm4_model%From_atm,lm4_model%From_lnd)
          call ESMF_LogWrite('MA LM4 update_land_model_slow called', ESMF_LOGMSG_INFO)
+         call write_int_restart(lm4_model)
       endif
 
       call ESMF_LogWrite(subname//' finished', ESMF_LOGMSG_INFO)
