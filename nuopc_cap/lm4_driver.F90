@@ -2,9 +2,10 @@
 !! ============================================================================
 module lm4_driver
 
-   use ESMF,                 only: ESMF_MethodRemove, ESMF_LogWrite, ESMF_LOGMSG_INFO, ESMF_SUCCESS, ESMF_FAILURE
+   use ESMF,                 only: ESMF_MethodRemove, ESMF_LogWrite, ESMF_LOGMSG_INFO, ESMF_SUCCESS, &
+                                   ESMF_FAILURE, ESMF_END_ABORT, ESMF_Finalize, ESMF_LOGMSG_ERROR
    use mpp_domains_mod,      only: domain2d
-   use mpp_mod,             only: mpp_pe, mpp_root_pe
+   use mpp_mod,              only: mpp_pe, mpp_root_pe
 
    use lm4_type_mod,         only: lm4_type
    use land_data_mod,        only: land_data_type, atmos_land_boundary_type, lnd
@@ -12,16 +13,17 @@ module lm4_driver
    use lm4_surface_flux_mod, only: lm4_surface_flux_1d
 
    ! for debug diag
-   use time_manager_mod,     only: time_type
-   use mpp_domains_mod,      only: domainUG
-   use mpp_domains_mod,      only: mpp_get_UG_compute_domain, mpp_get_UG_domain_ntiles
-   use mpp_domains_mod,      only: mpp_get_UG_domain_grid_index
-   use diag_manager_mod,     only: diag_axis_init, register_static_field, diag_field_add_attribute, &
-                                   register_diag_field
-   use diag_axis_mod,        only: diag_axis_add_attribute
-   use land_tile_diag_mod,   only: register_tiled_area_fields, register_tiled_diag_field, set_default_diag_filter, &
-                                   send_tile_data
-   use tile_diag_buff_mod,   only: diag_buff_type, init_diag_buff
+   use time_manager_mod,      only: time_type, date_to_string, increment_date
+   use time_manager_mod,      only: operator(>=), operator(<=), operator(==)
+   use mpp_domains_mod,       only: domainUG
+   use mpp_domains_mod,       only: mpp_get_UG_compute_domain, mpp_get_UG_domain_ntiles
+   use mpp_domains_mod,       only: mpp_get_UG_domain_grid_index
+   use diag_manager_mod,      only: diag_axis_init, register_static_field, diag_field_add_attribute, &
+                                    register_diag_field
+   use diag_axis_mod,         only: diag_axis_add_attribute
+   use land_tile_diag_mod,    only: register_tiled_area_fields, register_tiled_diag_field, set_default_diag_filter, &
+                                    send_tile_data
+   use tile_diag_buff_mod,    only: diag_buff_type, init_diag_buff
 
 
    implicit none
@@ -255,8 +257,11 @@ contains
       else
          lm4_model%Time_restart = increment_date(lm4_model%Time_init, lm4_model%nml%restart_interval(1), lm4_model%nml%restart_interval(2), &
             lm4_model%nml%restart_interval(3), lm4_model%nml%restart_interval(4), lm4_model%nml%restart_interval(5), lm4_model%nml%restart_interval(6) )
-         if (lm4_model%Time_restart <= lm4_model%Time) then
-            call ESMF_LogWrite('The first intermediate restart time is no larger than the start time',ESMF_FAILURE)
+         if (lm4_model%Time_restart <= lm4_model%Time_land) then
+            call ESMF_LogWrite('The first intermediate restart time is no larger than the start time', &
+               ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__)
+            call ESMF_Finalize(endflag=ESMF_END_ABORT)
+            
          endif
 
       endif
@@ -267,14 +272,22 @@ contains
    !! Adapted from GFDL coupler, write intermediate restarts
    !! ============================================================================
    subroutine write_int_restart(lm4_model)
-      use time_manager_mod,        only: date_to_string, increment_date
       use land_model_mod,          only: land_model_restart
+
+      type(lm4_type), intent(inout) :: lm4_model ! land model's variable type
 
       type(time_type)       :: Time_restart
       character(len=32)     :: timestamp
 
+      ! JP TMP DEBUG
+      call ESMF_LogWrite('In write_int_restart', ESMF_LOGMSG_INFO)
+      timestamp = date_to_string(lm4_model%Time_land)
+      call ESMF_LogWrite('write_int_restart Time_land'//trim(timestamp), ESMF_LOGMSG_INFO)
+      timestamp = date_to_string(lm4_model%Time_restart)
+      call ESMF_LogWrite('write_int_restart Time_restart'//trim(timestamp), ESMF_LOGMSG_INFO)
+      ! JP end
       
-    !--- write out intermediate restart file when needed.                                                                                                                                           
+      !--- write out intermediate restart file when needed.                                                                                                                                           
       if (lm4_model%Time_land >= lm4_model%Time_restart) then
          lm4_model%Time_restart = increment_date(lm4_model%Time_land, lm4_model%nml%restart_interval(1), lm4_model%nml%restart_interval(2), &
             lm4_model%nml%restart_interval(3), lm4_model%nml%restart_interval(4), lm4_model%nml%restart_interval(5), lm4_model%nml%restart_interval(6) )

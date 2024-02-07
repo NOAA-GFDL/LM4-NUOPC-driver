@@ -515,10 +515,23 @@ contains
       call flux_down_from_atmos(real(sec), lm4_model)      ! JP: needs review of implicit coupling
       call update_land_model_fast(lm4_model%From_atm,lm4_model%From_lnd)
 
+
+      call ESMF_ClockGet(dclock,  currSimTime=model_time, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      call ESMF_TimeIntervalGet(model_time, s=time_sec, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      write(logmsg,*) time_sec
+      call ESMF_LogWrite(trim(subname)//'MA LM4 driver currSimTime: '//trim(logmsg), ESMF_LOGMSG_INFO)
+
+      ! JP TMP DEBUG
+      write(*,*) 'ModelAdvance: clock info:'
+      call ESMF_ClockPrint(dclock,rc=rc)
+
       ! quick way to only call on slow timestep
       if ( time_sec /= 0 .and. mod(time_sec,lm4_model%nml%dt_lnd_slow) == 0 ) then
          call update_land_model_slow(lm4_model%From_atm,lm4_model%From_lnd)
          call ESMF_LogWrite('MA LM4 update_land_model_slow called', ESMF_LOGMSG_INFO)
+         
          call write_int_restart(lm4_model)
       endif
 
