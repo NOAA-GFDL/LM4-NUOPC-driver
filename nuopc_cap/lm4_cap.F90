@@ -477,6 +477,7 @@ contains
       
       character(len=*),parameter :: subname=trim(modName)//':(ModelAdvance) '
       integer :: sec
+      integer,dimension(6)        :: currdate ! for FMS time
 
       ! JP tmp debug
       integer                  :: time_sec   ! current time in seconds
@@ -516,17 +517,29 @@ contains
       call update_land_model_fast(lm4_model%From_atm,lm4_model%From_lnd)
 
 
-      call ESMF_ClockGet(dclock,  currSimTime=model_time, rc=rc)
+      call ESMF_ClockGet(dclock,  CurrTime=CurrTime, currSimTime=model_time, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
       call ESMF_TimeIntervalGet(model_time, s=time_sec, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
-      write(logmsg,*) time_sec
-      call ESMF_LogWrite(trim(subname)//'MA LM4 driver currSimTime: '//trim(logmsg), ESMF_LOGMSG_INFO)
+
+      ! sync FMS time with ESMF time
+      call ESMF_TimeGet (CurrTime,                           &
+         YY=currdate(1), MM=currdate(2), DD=currdate(3), &
+         H=currdate(4),  M =currdate(5), S =currdate(6), RC=rc )
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+      write(logmsg,*) currdate
+      call ESMF_LogWrite(trim(subname)//'Land CurrTime = '//trim(logmsg), ESMF_LOGMSG_INFO)
+
+      lm4_model%Time_land = set_date (currdate(1), currdate(2), currdate(3),  &
+         currdate(4), currdate(5), currdate(6))      
 
       ! JP TMP DEBUG
       write(*,*) 'ModelAdvance: clock info:'
       call ESMF_ClockPrint(dclock,rc=rc)
-
+      write(logmsg,*) time_sec
+      call ESMF_LogWrite(trim(subname)//'MA LM4 driver currSimTime: '//trim(logmsg), ESMF_LOGMSG_INFO)
+      
       ! quick way to only call on slow timestep
       if ( time_sec /= 0 .and. mod(time_sec,lm4_model%nml%dt_lnd_slow) == 0 ) then
          call update_land_model_slow(lm4_model%From_atm,lm4_model%From_lnd)
