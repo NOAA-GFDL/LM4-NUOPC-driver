@@ -282,9 +282,9 @@ contains
       ! JP TMP DEBUG
       call ESMF_LogWrite('In write_int_restart', ESMF_LOGMSG_INFO)
       timestamp = date_to_string(lm4_model%Time_land)
-      call ESMF_LogWrite('write_int_restart Time_land'//trim(timestamp), ESMF_LOGMSG_INFO)
+      call ESMF_LogWrite('write_int_restart Time_land '//trim(timestamp), ESMF_LOGMSG_INFO)
       timestamp = date_to_string(lm4_model%Time_restart)
-      call ESMF_LogWrite('write_int_restart Time_restart'//trim(timestamp), ESMF_LOGMSG_INFO)
+      call ESMF_LogWrite('write_int_restart Time_restart '//trim(timestamp), ESMF_LOGMSG_INFO)
       ! JP end
       
       !--- write out intermediate restart file when needed.                                                                                                                                           

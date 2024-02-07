@@ -259,7 +259,8 @@ contains
       if ( date_init(1) == 0 ) date_init = date
       lm4_model%Time_init  = set_date (date_init(1), date_init(2), date_init(3), &
          date_init(4), date_init(5), date_init(6))
-      if(mype==0) write(*,'(A,6I5)') 'Land StartTime=',date_init
+      write(logmsg,*) date_init
+      call ESMF_LogWrite(trim(subname)//'Land StartTime = '//trim(logmsg), ESMF_LOGMSG_INFO)
 
       date=0
       call ESMF_TimeGet (CurrTime,                           &
@@ -267,7 +268,8 @@ contains
          H=date(4),  M =date(5), S =date(6), RC=rc )
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
-      if(mype==0) write(*,'(A,6I5)') 'Land CurrTime =',date
+      write(logmsg,*) date
+      call ESMF_LogWrite(trim(subname)//'Land CurrTime = '//trim(logmsg), ESMF_LOGMSG_INFO)
 
       lm4_model%Time_land = set_date (date(1), date(2), date(3),  &
          date(4), date(5), date(6))
@@ -281,7 +283,8 @@ contains
       if ( date_end(1) == 0 ) date_end = date
       lm4_model%Time_end   = set_date (date_end(1), date_end(2), date_end(3),  &
          date_end(4), date_end(5), date_end(6))
-      if(mype==0) write(*,'(A,6I5)') 'Land StopTime =',date_end
+      write(logmsg,*) date_end
+      call ESMF_LogWrite(trim(subname)//'Land StopTime = '//trim(logmsg), ESMF_LOGMSG_INFO)
 
       ! call diag_manager_set_time_end(lm4_model%Time_end)
 
@@ -535,8 +538,8 @@ contains
          currdate(4), currdate(5), currdate(6))      
 
       ! JP TMP DEBUG
-      write(*,*) 'ModelAdvance: clock info:'
-      call ESMF_ClockPrint(dclock,rc=rc)
+      ! write(*,*) 'ModelAdvance: clock info:'
+      ! call ESMF_ClockPrint(dclock,rc=rc)
       write(logmsg,*) time_sec
       call ESMF_LogWrite(trim(subname)//'MA LM4 driver currSimTime: '//trim(logmsg), ESMF_LOGMSG_INFO)
       
