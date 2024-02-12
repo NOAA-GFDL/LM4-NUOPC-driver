@@ -541,12 +541,12 @@ contains
       ! write(*,*) 'ModelAdvance: clock info:'
       ! call ESMF_ClockPrint(dclock,rc=rc)
       write(logmsg,*) time_sec
-      call ESMF_LogWrite(trim(subname)//'MA LM4 driver currSimTime: '//trim(logmsg), ESMF_LOGMSG_INFO)
+      call ESMF_LogWrite(trim(subname)//'LM4 driver currSimTime: '//trim(logmsg), ESMF_LOGMSG_INFO)
       
       ! quick way to only call on slow timestep
       if ( time_sec /= 0 .and. mod(time_sec,lm4_model%nml%dt_lnd_slow) == 0 ) then
          call update_land_model_slow(lm4_model%From_atm,lm4_model%From_lnd)
-         call ESMF_LogWrite('MA LM4 update_land_model_slow called', ESMF_LOGMSG_INFO)
+         call ESMF_LogWrite('LM4 update_land_model_slow called', ESMF_LOGMSG_INFO)
          
          call write_int_restart(lm4_model)
       endif
@@ -558,13 +558,41 @@ contains
    !===============================================================================
 
    subroutine ModelFinalize(gcomp, rc)
+      ! Arguments
       type(ESMF_GridComp)  :: gcomp
       integer, intent(out) :: rc
+
+      ! Local variables
+      type(ESMF_Clock)     :: dclock
       character(len=*),parameter  :: subname=trim(modName)//':(ModelFinalize) '
+      type(ESMF_Time)            :: currTime
+      type(ESMF_Alarm)           :: slowAlarm
+      
+      character(len=CL)        :: logmsg
+      integer :: sec
+      integer,dimension(6)        :: currdate ! for FMS time      
 
       rc = ESMF_SUCCESS
       call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
 
+      call NUOPC_ModelGet(gcomp, driverClock=dclock,rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      call ESMF_ClockGet(dclock,  CurrTime=CurrTime, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+      ! sync FMS time with ESMF time
+      call ESMF_TimeGet (CurrTime,                           &
+         YY=currdate(1), MM=currdate(2), DD=currdate(3), &
+         H=currdate(4),  M =currdate(5), S =currdate(6), RC=rc )
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+      write(logmsg,*) currdate
+      call ESMF_LogWrite(trim(subname)//'Land CurrTime = '//trim(logmsg), ESMF_LOGMSG_INFO)
+
+      lm4_model%Time_land = set_date (currdate(1), currdate(2), currdate(3),  &
+         currdate(4), currdate(5), currdate(6))      
+
+      call write_int_restart(lm4_model)
       call end_driver()
       call land_model_end(lm4_model%From_atm, lm4_model%From_lnd)
 

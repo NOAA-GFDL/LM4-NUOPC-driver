@@ -292,7 +292,7 @@ contains
          lm4_model%Time_restart = increment_date(lm4_model%Time_land, lm4_model%nml%restart_interval(1), lm4_model%nml%restart_interval(2), &
             lm4_model%nml%restart_interval(3), lm4_model%nml%restart_interval(4), lm4_model%nml%restart_interval(5), lm4_model%nml%restart_interval(6) )
          timestamp = date_to_string(lm4_model%Time_land)
-         call ESMF_LogWrite('LM4  intermediate restart file is written '//trim(timestamp), ESMF_LOGMSG_INFO)
+         call ESMF_LogWrite('LM4 restart is written at '//trim(timestamp), ESMF_LOGMSG_INFO)
          call land_model_restart(timestamp)
        endif
    
