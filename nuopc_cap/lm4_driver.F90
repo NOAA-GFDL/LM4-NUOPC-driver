@@ -13,8 +13,8 @@ module lm4_driver
    use lm4_surface_flux_mod, only: lm4_surface_flux_1d
 
    ! for debug diag
-   use time_manager_mod,      only: time_type, date_to_string, increment_date
-   use time_manager_mod,      only: operator(>=), operator(<=), operator(==)
+   use time_manager_mod,      only: time_type, date_to_string, increment_date, decrement_date
+   use time_manager_mod,      only: operator(>=), operator(<), operator(==)
    use mpp_domains_mod,       only: domainUG
    use mpp_domains_mod,       only: mpp_get_UG_compute_domain, mpp_get_UG_domain_ntiles
    use mpp_domains_mod,       only: mpp_get_UG_domain_grid_index
@@ -32,6 +32,7 @@ module lm4_driver
    type(domain2D), public :: land_domain
 
    integer :: date_init(6)
+   character(len=32)     :: timestamp
 
 
    public :: lm4_nml_read
@@ -255,10 +256,20 @@ contains
       if (ALL(lm4_model%nml%restart_interval ==0)) then
          lm4_model%Time_restart = increment_date(lm4_model%Time_end, 0, 0, 10, 0, 0, 0)   ! no intermediate restart
       else
+         
          lm4_model%Time_restart = increment_date(lm4_model%Time_init, lm4_model%nml%restart_interval(1), lm4_model%nml%restart_interval(2), &
             lm4_model%nml%restart_interval(3), lm4_model%nml%restart_interval(4), lm4_model%nml%restart_interval(5), lm4_model%nml%restart_interval(6) )
-         if (lm4_model%Time_restart <= lm4_model%Time_land) then
-            call ESMF_LogWrite('The first intermediate restart time is no larger than the start time', &
+
+            ! subtract the slow time step in seconds
+            timestamp = date_to_string(lm4_model%Time_restart)
+            call ESMF_LogWrite('LM4 init_driver: Time_restart before decrement' //trim(timestamp), ESMF_LOGMSG_INFO)
+            lm4_model%Time_restart = decrement_date(lm4_model%Time_restart, 0,0,0,0,0, lm4_model%nml%dt_lnd_slow)
+            timestamp = date_to_string(lm4_model%Time_restart)
+            call ESMF_LogWrite('LM4 init_driver: Time_restart after decrement' //trim(timestamp), ESMF_LOGMSG_INFO)
+         
+
+         if (lm4_model%Time_restart < lm4_model%Time_land) then
+            call ESMF_LogWrite('The first intermediate restart time is larger than the start time', &
                ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__)
             call ESMF_Finalize(endflag=ESMF_END_ABORT)
             
@@ -277,10 +288,8 @@ contains
       type(lm4_type), intent(inout) :: lm4_model ! land model's variable type
 
       type(time_type)       :: Time_restart
-      character(len=32)     :: timestamp
 
       ! JP TMP DEBUG
-      call ESMF_LogWrite('In write_int_restart', ESMF_LOGMSG_INFO)
       timestamp = date_to_string(lm4_model%Time_land)
       call ESMF_LogWrite('write_int_restart Time_land '//trim(timestamp), ESMF_LOGMSG_INFO)
       timestamp = date_to_string(lm4_model%Time_restart)
