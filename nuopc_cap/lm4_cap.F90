@@ -69,8 +69,10 @@ module lm4_cap_mod
    character(*),parameter       :: modName =  "(lm4_cap_mod)"
    character(len=*) , parameter :: u_FILE_u =  __FILE__
 
-   !type(ESMF_GeomType_Flag) :: geomtype
-
+   ! for connecting ESMF and FMS timestep objects
+   type(ESMF_TimeInterval)  :: model_timestep
+   integer                  :: timestep_sec
+   
    ! LM4 debug level
    integer :: debug_cap 
 
@@ -162,9 +164,6 @@ contains
       integer :: mype, ntasks, mpi_comm_land, mpi_comm_land2
       character(len=*), parameter :: subname=trim(modName)//':(InitializeAdvertise) '
 
-      ! for connecting ESMF and FMS timestep objects
-      type(ESMF_TimeInterval)  :: model_timestep
-      integer                  :: timestep_sec
 
       !-------------------------------------------------------------------------------
 
@@ -543,8 +542,8 @@ contains
       write(logmsg,*) time_sec
       call ESMF_LogWrite(trim(subname)//'LM4 driver currSimTime: '//trim(logmsg), ESMF_LOGMSG_INFO)
       
-      ! quick way to only call on slow timestep
-      if ( time_sec /= 0 .and. mod(time_sec,lm4_model%nml%dt_lnd_slow) == 0 ) then
+      ! quick way to only call on slow timestep, replicates behavior in FMS coupler
+      if ( mod(time_sec+timestep_sec ,lm4_model%nml%dt_lnd_slow) == 0 ) then
          call update_land_model_slow(lm4_model%From_atm,lm4_model%From_lnd)
          call ESMF_LogWrite('LM4 update_land_model_slow called', ESMF_LOGMSG_INFO)
          
