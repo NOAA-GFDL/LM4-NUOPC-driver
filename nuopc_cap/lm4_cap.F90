@@ -537,15 +537,13 @@ contains
          currdate(4), currdate(5), currdate(6))      
 
       ! JP TMP DEBUG
-      ! write(*,*) 'ModelAdvance: clock info:'
-      ! call ESMF_ClockPrint(dclock,rc=rc)
-      write(logmsg,*) time_sec
-      call ESMF_LogWrite(trim(subname)//'LM4 driver currSimTime: '//trim(logmsg), ESMF_LOGMSG_INFO)
+      ! write(logmsg,*) time_sec
+      ! call ESMF_LogWrite(trim(subname)//'LM4 driver currSimTime: '//trim(logmsg), ESMF_LOGMSG_INFO)
       
       ! quick way to only call on slow timestep, replicates behavior in FMS coupler
       if ( mod(time_sec+timestep_sec ,lm4_model%nml%dt_lnd_slow) == 0 ) then
          call update_land_model_slow(lm4_model%From_atm,lm4_model%From_lnd)
-         call ESMF_LogWrite('LM4 update_land_model_slow called', ESMF_LOGMSG_INFO)
+         call ESMF_LogWrite(trim(subname)//'LM4 update_land_model_slow called', ESMF_LOGMSG_INFO)
          
          call write_int_restart(lm4_model)
       endif
