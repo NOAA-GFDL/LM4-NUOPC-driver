@@ -9,6 +9,7 @@ but is managed by NOAA-GFDL at https://gitlab.gfdl.noaa.gov.
 
 --------------------------------------------------------
 
+
 Supported grids and resolutions
 --------------------------------------------------------
 
@@ -31,75 +32,56 @@ LM4 uses FMS to write and read restarts.
 
 - The following restart files are needed generated in the `RESTART` directory, and needed in the `INPUT` directory for a warm start
 
-> cana.res.tile1.nc 
-> cana.res.tile2.nc 
-> cana.res.tile3.nc 
-> cana.res.tile4.nc 
-> cana.res.tile5.nc 
-> cana.res.tile6.nc 
-> glac.res.tile1.nc 
-> glac.res.tile2.nc 
-> glac.res.tile3.nc 
-> glac.res.tile4.nc 
-> glac.res.tile5.nc 
-> glac.res.tile6.nc 
-> lake.res.tile1.nc 
-> lake.res.tile2.nc 
-> lake.res.tile3.nc 
-> lake.res.tile4.nc 
-> lake.res.tile5.nc 
-> lake.res.tile6.nc 
-> land.res.tile1.nc 
-> land.res.tile2.nc 
-> land.res.tile3.nc 
-> land.res.tile4.nc 
-> land.res.tile5.nc 
-> land.res.tile6.nc 
-> landuse.res	  
-> snow.res.tile1.nc 
-> snow.res.tile2.nc 
-> snow.res.tile3.nc 
-> snow.res.tile4.nc 
-> snow.res.tile5.nc 
-> snow.res.tile6.nc 
-> soil.res.tile1.nc 
-> soil.res.tile2.nc 
-> soil.res.tile3.nc 
-> soil.res.tile4.nc 
-> soil.res.tile5.nc 
-> soil.res.tile6.nc 
-> vegn1.res.tile1.nc
-> vegn1.res.tile2.nc
-> vegn1.res.tile3.nc
-> vegn1.res.tile4.nc
-> vegn1.res.tile5.nc
-> vegn1.res.tile6.nc
-> vegn2.res.tile1.nc
-> vegn2.res.tile2.nc
-> vegn2.res.tile3.nc
-> vegn2.res.tile4.nc
-> vegn2.res.tile5.nc
-> vegn2.res.tile6.nc
+  - cana.res.tile{1..6}.nc 
+  - glac.res.tile{1..6}.nc 
+  - lake.res.tile{1..6}.nc 
+  - land.res.tile{1..6}.nc 
+  - snow.res.tile{1..6}.nc 
+  - soil.res.tile{1..6}.nc 
+  - vegn1.res.tile{1..6}.nc
+  - vegn2.res.tile{1..6}.nc
+  - landuse.res	  
 
 
-Intermediate restarts can be generate during the model run with the name list option `restart_interval = Y,M,D,h,m,s` in `lm4_nml`
 
--  default is `restart_interval = 0,0,0,6,0,0`
+Intermediate restarts can be generate during the model run
+with the `lm4_nml` name list option:
+
+ `restart_interval = Y,M,D,h,m,s` in `input.nml`
+
+The default is `restart_interval = 0,0,0,6,0,0`, ie, 6 hourly
 
 Note that LM4.0 will not restart accurately unless restarts are at time 00z
 
 Fast and Slow Land Timesteps
 --------------------------------------------------------
 
+LM4 has fast and slow processes. 
+- The fast timestep is obtained from the NUOPC run sequence.
+- The slow timstep is currently set by a namelist option, the default is:
+  `dt_lnd_slow = 3600` 
+
+
+
 Running with regression tests
 --------------------------------------------------------
 
-There are currently 2 Data-atmopshere tests:
+There are currently 2 Data-atmosphere tests:
 
 - `datm_cdeps_lm4_c48_gswp3`
   - 48 hr test from 2000-01-01 00:00 with a cold start
   - using CDEPS with GSWP3 forcing  
+
 - `datm_cdeps_lm4_c48_gswp3_rst` 
    - a 24 hr restart test from 2000-01-02 00:00 
    - warm start using restarts from `datm_cdeps_lm4_c48_gswp3`
 
+For both, the LM4 restart files listed above are used for comparisons 
+
+These tests use the following unique files:
+
+    export UFS_CONFIGURE="ufs.configure.atm_lm4.IN"
+    export FV3_RUN="lm4_run.IN"
+    export DIAG_TABLE="diag_table_datm_lm4"
+    export FIELD_TABLE_ADDITIONAL=field_table_lm4
+    export INPUT_NML="input_datm_lm4.nml.IN"
