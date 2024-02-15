@@ -29,7 +29,7 @@ module lm4_cap_mod
    use diag_manager_mod,     only: diag_manager_init, diag_manager_end, &
                                       diag_manager_set_time_end
 
-   use lm4_driver,           only: lm4_nml_read, init_driver, end_driver, debug_diag
+   use lm4_driver,           only: lm4_nml_read, init_driver, end_driver, debug_diag, write_int_restart
 
    use land_model_mod,       only: land_model_init, land_model_end
    use land_data_mod,        only: land_data_type, atmos_land_boundary_type, lnd
@@ -259,7 +259,8 @@ contains
       if ( date_init(1) == 0 ) date_init = date
       lm4_model%Time_init  = set_date (date_init(1), date_init(2), date_init(3), &
          date_init(4), date_init(5), date_init(6))
-      if(mype==0) write(*,'(A,6I5)') 'Land StartTime=',date_init
+      write(logmsg,*) date_init
+      call ESMF_LogWrite(trim(subname)//'Land StartTime = '//trim(logmsg), ESMF_LOGMSG_INFO)
 
       date=0
       call ESMF_TimeGet (CurrTime,                           &
@@ -267,7 +268,8 @@ contains
          H=date(4),  M =date(5), S =date(6), RC=rc )
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
-      if(mype==0) write(*,'(A,6I5)') 'Land CurrTime =',date
+      write(logmsg,*) date
+      call ESMF_LogWrite(trim(subname)//'Land CurrTime = '//trim(logmsg), ESMF_LOGMSG_INFO)
 
       lm4_model%Time_land = set_date (date(1), date(2), date(3),  &
          date(4), date(5), date(6))
@@ -281,7 +283,8 @@ contains
       if ( date_end(1) == 0 ) date_end = date
       lm4_model%Time_end   = set_date (date_end(1), date_end(2), date_end(3),  &
          date_end(4), date_end(5), date_end(6))
-      if(mype==0) write(*,'(A,6I5)') 'Land StopTime =',date_end
+      write(logmsg,*) date_end
+      call ESMF_LogWrite(trim(subname)//'Land StopTime = '//trim(logmsg), ESMF_LOGMSG_INFO)
 
       ! call diag_manager_set_time_end(lm4_model%Time_end)
 
@@ -477,6 +480,7 @@ contains
       
       character(len=*),parameter :: subname=trim(modName)//':(ModelAdvance) '
       integer :: sec
+      integer,dimension(6)        :: currdate ! for FMS time
 
       ! JP tmp debug
       integer                  :: time_sec   ! current time in seconds
@@ -515,10 +519,36 @@ contains
       call flux_down_from_atmos(real(sec), lm4_model)      ! JP: needs review of implicit coupling
       call update_land_model_fast(lm4_model%From_atm,lm4_model%From_lnd)
 
+
+      call ESMF_ClockGet(dclock,  CurrTime=CurrTime, currSimTime=model_time, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      call ESMF_TimeIntervalGet(model_time, s=time_sec, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+      ! sync FMS time with ESMF time
+      call ESMF_TimeGet (CurrTime,                           &
+         YY=currdate(1), MM=currdate(2), DD=currdate(3), &
+         H=currdate(4),  M =currdate(5), S =currdate(6), RC=rc )
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+      write(logmsg,*) currdate
+      call ESMF_LogWrite(trim(subname)//'Land CurrTime = '//trim(logmsg), ESMF_LOGMSG_INFO)
+
+      lm4_model%Time_land = set_date (currdate(1), currdate(2), currdate(3),  &
+         currdate(4), currdate(5), currdate(6))      
+
+      ! JP TMP DEBUG
+      ! write(*,*) 'ModelAdvance: clock info:'
+      ! call ESMF_ClockPrint(dclock,rc=rc)
+      write(logmsg,*) time_sec
+      call ESMF_LogWrite(trim(subname)//'LM4 driver currSimTime: '//trim(logmsg), ESMF_LOGMSG_INFO)
+      
       ! quick way to only call on slow timestep
       if ( time_sec /= 0 .and. mod(time_sec,lm4_model%nml%dt_lnd_slow) == 0 ) then
          call update_land_model_slow(lm4_model%From_atm,lm4_model%From_lnd)
-         call ESMF_LogWrite('MA LM4 update_land_model_slow called', ESMF_LOGMSG_INFO)
+         call ESMF_LogWrite('LM4 update_land_model_slow called', ESMF_LOGMSG_INFO)
+         
+         call write_int_restart(lm4_model)
       endif
 
       call ESMF_LogWrite(subname//' finished', ESMF_LOGMSG_INFO)
@@ -528,13 +558,41 @@ contains
    !===============================================================================
 
    subroutine ModelFinalize(gcomp, rc)
+      ! Arguments
       type(ESMF_GridComp)  :: gcomp
       integer, intent(out) :: rc
+
+      ! Local variables
+      type(ESMF_Clock)     :: dclock
       character(len=*),parameter  :: subname=trim(modName)//':(ModelFinalize) '
+      type(ESMF_Time)            :: currTime
+      type(ESMF_Alarm)           :: slowAlarm
+      
+      character(len=CL)        :: logmsg
+      integer :: sec
+      integer,dimension(6)        :: currdate ! for FMS time      
 
       rc = ESMF_SUCCESS
       call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
 
+      call NUOPC_ModelGet(gcomp, driverClock=dclock,rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      call ESMF_ClockGet(dclock,  CurrTime=CurrTime, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+      ! sync FMS time with ESMF time
+      call ESMF_TimeGet (CurrTime,                           &
+         YY=currdate(1), MM=currdate(2), DD=currdate(3), &
+         H=currdate(4),  M =currdate(5), S =currdate(6), RC=rc )
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+      write(logmsg,*) currdate
+      call ESMF_LogWrite(trim(subname)//'Land CurrTime = '//trim(logmsg), ESMF_LOGMSG_INFO)
+
+      lm4_model%Time_land = set_date (currdate(1), currdate(2), currdate(3),  &
+         currdate(4), currdate(5), currdate(6))      
+
+      call write_int_restart(lm4_model)
       call end_driver()
       call land_model_end(lm4_model%From_atm, lm4_model%From_lnd)
 

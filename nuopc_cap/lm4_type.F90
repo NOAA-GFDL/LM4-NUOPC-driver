@@ -15,6 +15,9 @@ module lm4_type_mod
       character(len=64) :: grid
       integer           :: blocksize
       integer           :: dt_lnd_slow  ! land slow timestep (s)
+      integer, dimension(6) :: restart_interval = (/ 0, 0, 0, 0, 0, 0/) !< The time interval that write out intermediate restart file.
+                                                                        !! The format is (yr,mo,day,hr,min,sec).  When restart_interval
+                                                                        !! is all zero, no intermediate restart file will be written out
    end type lm4_nml_type
 
    type :: lm4_control_type
