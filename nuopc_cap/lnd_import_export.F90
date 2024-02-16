@@ -116,8 +116,6 @@ contains
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_qa')      ! atmosphere export - bottom layer specific humidity
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_u')       ! atmosphere export - bottom layer zonal wind
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_v')       ! atmosphere export - bottom layer meridional wind
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_ua')      ! atmosphere export - bottom layer zonal wind
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_va')      ! atmosphere export - bottom layer meridional wind
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_exner')   ! dimensionless exner function at surface adjacent layer
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_ustar')   ! surface friction velocity
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swdn')  ! atmosphere export -  mean downward SW heat flux
@@ -414,8 +412,6 @@ contains
       !call state_getimport_2d(importState, 'Sa_prsl',    lm4data_1d=lm4_model%atm_forc%p_bot, rc=rc)  ! bottom layer pressure (active UFS atm)
       call state_getimport_2d(importState, 'Sa_u',       lm4data_1d=lm4_model%atm_forc%u_bot, rc=rc)  ! bottom layer zonal wind
       call state_getimport_2d(importState, 'Sa_v',       lm4data_1d=lm4_model%atm_forc%v_bot, rc=rc)  ! bottom layer meridional wind
-      !call state_getimport_2d(importState, 'Sa_ua',      lm4data_1d=lm4_model%atm_forc%u_bot, rc=rc)  ! bottom layer zonal wind (active UFS atm)
-      !call state_getimport_2d(importState, 'Sa_uv',      lm4data_1d=lm4_model%atm_forc%v_bot, rc=rc)  ! bottom layer meridional wind (active UFS atm)       
       call state_getimport_2d(importState, 'Sa_shum',    lm4data_1d=lm4_model%atm_forc%q_bot, rc=rc)  ! bottom layer specific humidity
       !call state_getimport_2d(importState, 'Sa_qa',      lm4data_1d=lm4_model%atm_forc%q_bot, rc=rc)  ! bottom layer specific humidity (active UFS atm)
       call state_getimport_2d(importState, 'Sa_pslv',    lm4data_1d=lm4_model%atm_forc%p_surf, rc=rc) ! surface pressure
@@ -434,8 +430,6 @@ contains
          !call state_getimport_2d(importState, 'Sa_prsl',    lm4data_2d=lm4_model%atm_forc2d%p_bot, rc=rc)
          call state_getimport_2d(importState, 'Sa_u',       lm4data_2d=lm4_model%atm_forc2d%u_bot,   rc=rc)
          call state_getimport_2d(importState, 'Sa_v',       lm4data_2d=lm4_model%atm_forc2d%v_bot,   rc=rc)
-         !call state_getimport_2d(importState, 'Sa_ua',      lm4data_2d=lm4_model%atm_forc2d%u_bot,   rc=rc)
-         !call state_getimport_2d(importState, 'Sa_uv',      lm4data_2d=lm4_model%atm_forc2d%v_bot,   rc=rc)
          call state_getimport_2d(importState, 'Sa_shum',    lm4data_2d=lm4_model%atm_forc2d%q_bot,   rc=rc)
          !call state_getimport_2d(importState, 'Sa_qa',      lm4data_2d=lm4_model%atm_forc2d%q_bot,   rc=rc)
          call state_getimport_2d(importState, 'Sa_pslv',    lm4data_2d=lm4_model%atm_forc2d%p_surf,  rc=rc)
