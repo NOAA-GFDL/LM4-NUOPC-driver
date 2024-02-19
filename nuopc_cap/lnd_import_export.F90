@@ -622,7 +622,9 @@ contains
          lm4data_1d(:) = fldptr1d(:)
          !call check_for_nans(lm4data_1d, trim(fldname), 1)
       else
-         call ESMF_LogWrite(subname//' '//trim(fldname)//' is not in the state!', ESMF_LOGMSG_INFO)
+         call ESMF_LogWrite(subname//' '//trim(fldname)//' is not in the state!', ESMF_LOGMSG_ERROR)
+         rc = ESMF_FAILURE
+         return
       end if
 
 
