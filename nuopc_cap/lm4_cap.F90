@@ -461,7 +461,7 @@ contains
    !===============================================================================
    subroutine ModelAdvance(gcomp, rc)
 
-      use lm4_driver,           only: sfc_boundary_layer, flux_down_from_atmos
+      use lm4_driver,           only: sfc_boundary_layer, update_atmos_model_down, flux_down_from_atmos
       use land_model_mod,       only: update_land_model_fast, update_land_model_slow
       use ESMF, only: ESMF_ClockPrint, ESMF_AlarmIsRinging ! TMP DEBUG
 
@@ -513,8 +513,9 @@ contains
       ! endif
 
       ! TODO, is sec being used anywhere?
-      call get_time (lm4_model%Time_step_land, sec)  ! get seconds of timestep
+      call get_time (lm4_model%Time_step_land, sec)        ! get seconds of timestep
       call sfc_boundary_layer(real(sec), lm4_model)
+      call update_atmos_model_down(lm4_model)              ! for gust calculation with data atmosphere
       call flux_down_from_atmos(real(sec), lm4_model)      ! JP: needs review of implicit coupling
       call update_land_model_fast(lm4_model%From_atm,lm4_model%From_lnd)
 
