@@ -148,6 +148,7 @@ contains
                                                                         !! The format is (yr,mo,day,hr,min,sec).  When restart_interval
                                                                         !! is all zero, no intermediate restart file will be written out
 
+      ! TODO: are all these still needed?
 
       ! for namelist read
       integer :: unit, io, ierr
