@@ -135,13 +135,13 @@ Running with regression tests
 
 There are currently 2 Data-atmosphere tests:
 
-- `datm_cdeps_lm4_c48_gswp3`
+- `datm_cdeps_lm4_c96_gswp3`
   - 48 hr test from 2000-01-01 00:00 with a cold start
   - using CDEPS with GSWP3 forcing  
 
-- `datm_cdeps_lm4_c48_gswp3_rst` 
+- `datm_cdeps_lm4_c96_gswp3_rst` 
    - a 24 hr restart test from 2000-01-02 00:00 
-   - warm start using restarts from `datm_cdeps_lm4_c48_gswp3`
+   - warm start using restarts from `datm_cdeps_lm4_c96_gswp3`
 
 For both, the LM4 restart files listed above are used for comparisons 
 
