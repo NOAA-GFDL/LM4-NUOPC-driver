@@ -153,6 +153,30 @@ These tests use the following unique files:
     export FIELD_TABLE_ADDITIONAL=field_table_lm4
     export INPUT_NML="input_datm_lm4.nml.IN"
 
+Imports and Exports
+--------------------------------------------------------
+
+The following are current import and export variables used for data atmosphere
+
+| Import      | Description                                      | Variable Name       |
+|-------------|--------------------------------------------------|---------------------|
+| Sa_z        | Bottom layer height                              | lm4_model%atm_forc%z_bot |
+| Sa_tbot     | Bottom layer temperature                         | lm4_model%atm_forc%t_bot |
+| Sa_pbot     | Bottom layer pressure                            | lm4_model%atm_forc%p_bot |
+| Sa_u        | Bottom layer zonal wind                          | lm4_model%atm_forc%u_bot |
+| Sa_v        | Bottom layer meridional wind                     | lm4_model%atm_forc%v_bot |
+| Sa_shum     | Bottom layer specific humidity                   | lm4_model%atm_forc%q_bot |
+| Sa_pslv     | Surface pressure                                 | lm4_model%atm_forc%p_surf |
+| Faxa_lwdn   | Mean surface downward longwave radiation         | lm4_model%atm_forc%flux_lw |
+| Faxa_swvdf  | Mean surface downward UV+visible diffuse flux    | lm4_model%atm_forc%flux_sw_down_vis_dif |
+| Faxa_swvdr  | Mean surface downward UV+visible direct flux     | lm4_model%atm_forc%flux_sw_down_vis_dir |
+| Faxa_swndf  | Mean surface downward NIR diffuse flux           | lm4_model%atm_forc%flux_sw_down_nir_dif |
+| Faxa_swndr  | Mean surface downward NIR direct flux            | lm4_model%atm_forc%flux_sw_down_nir_dir |
+
+| Export      | Description                                      | Variable Name       |
+|-------------|--------------------------------------------------|---------------------|      
+| Sl_lfrin    | Land fraction for mediator                       | lnd%sg_landfrac     |
+
 
 Surface boundary layer and connection to Land
 --------------------------------------------------------
