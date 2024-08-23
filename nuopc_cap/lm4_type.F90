@@ -180,6 +180,9 @@ contains
       allocate( bnd%lprec(lnd%ls:lnd%le) )
       allocate( bnd%fprec(lnd%ls:lnd%le) )
 
+      ! gust is an output to lm4_surface_flux_1d, so it needs to be initialized 
+      bnd%gust = 0.01  ! JP TEST VALUE
+
    end subroutine alloc_atmforc
 
    ! TMP DEBUG
@@ -244,6 +247,10 @@ contains
       allocate( bnd%flux_sw_vis_dif(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%lprec(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%fprec(lnd%is:lnd%ie,lnd%js:lnd%je) )
+
+      ! gust is an output to lm4_surface_flux_1d, so it needs to be initialized 
+      bnd%gust = 0.01  ! JP TEST VALUE
+            
    end subroutine alloc_atmforc2d
 	! TMP DEBUG
 

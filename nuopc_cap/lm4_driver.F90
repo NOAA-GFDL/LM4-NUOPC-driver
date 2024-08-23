@@ -463,6 +463,7 @@ contains
       ex_p_atm  = lm4_model%atm_forc%p_bot
       ex_z_atm  = lm4_model%atm_forc%z_bot
       ex_p_surf = lm4_model%atm_forc%p_surf
+      ex_gust   = lm4_model%atm_forc%gust
 
 
       ! this is mimicking the original code for land roughness vars
@@ -534,7 +535,7 @@ contains
          ex_u_surf, ex_v_surf,             & ! 0s
          lm4_model%From_lnd%rough_mom(:,ntile), lm4_model%From_lnd%rough_heat(:,ntile), &
          ex_rough_moist, lm4_model%From_lnd%rough_scale(:,ntile),   &
-         ex_gust,                                                       & ! gustiness
+         lm4_model%atm_forc%gust,                                                       & ! gustiness
          ! outputs
          ex_flux_t, ex_flux_tr(:,isphum), ex_flux_lw,   &
          ex_flux_u, ex_flux_v, ex_cd_m,   ex_cd_t, &
