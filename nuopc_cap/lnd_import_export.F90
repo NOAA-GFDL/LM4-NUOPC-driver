@@ -138,6 +138,8 @@ contains
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swvdr') ! atmosphere export - mean surface downward uv+visvdirect flux
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swndr') ! atmosphere export - mean surface downward nir direct flux
 
+      ! Needed by CMEPS
+      call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'cpl_scalars')
 
 
       ! Now advertise import fields
@@ -154,6 +156,10 @@ contains
 
       use ESMF, only : ESMF_Mesh, ESMF_Grid
 
+      use lm4_comp_cplscalars, only : flds_scalar_name, flds_scalar_num,          &
+                                      flds_scalar_index_nx, flds_scalar_index_ny, flds_scalar_index_ntile
+      use lm4_comp_cplscalars, only : State_SetScalar
+
       ! input/output variables
       type(ESMF_GridComp) , intent(inout)          :: gcomp
       type(ESMF_Mesh)     , optional , intent(in)  :: mesh
@@ -167,6 +173,7 @@ contains
       type(ESMF_State)     :: importState
       type(ESMF_State)     :: exportState
       character(len=*), parameter :: subname='(lnd_import_export:realize_fields)'
+      real(R8)          :: scalardim(3)
       !---------------------------------------------------------------------------
 
       rc = ESMF_SUCCESS
@@ -217,6 +224,23 @@ contains
             grid=grid, rc=rc)
          if (ChkErr(rc,__LINE__,u_FILE_u)) return
       end if
+
+     ! cpl_scalars for export state
+      scalardim = 0.0
+      scalardim(1) = real(lm4_model%nml%npx,8)
+      scalardim(2) = real(lm4_model%nml%npy,8)
+      scalardim(3) = real(lm4_model%nml%ntiles,8)
+  
+      if (flds_scalar_num > 0) then
+         ! Set the scalar data into the exportstate
+         call State_SetScalar(scalardim(1), flds_scalar_index_nx, exportState, flds_scalar_name, flds_scalar_num, rc)
+         if (ChkErr(rc,__LINE__,u_FILE_u)) return
+         call State_SetScalar(scalardim(2), flds_scalar_index_ny, exportState, flds_scalar_name, flds_scalar_num, rc)
+         if (ChkErr(rc,__LINE__,u_FILE_u)) return
+         call State_SetScalar(scalardim(3), flds_scalar_index_ntile, exportState, flds_scalar_name, flds_scalar_num, rc)
+         if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      end if
+
    end subroutine realize_fields
 
 
@@ -371,6 +395,50 @@ contains
          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
 
       end subroutine SetScalarField
+
+
+      subroutine State_SetScalar(scalar_value, scalar_id, State, flds_scalar_name, flds_scalar_num,  rc)
+
+         ! input/output arguments
+         real(ESMF_KIND_R8), intent(in)   :: scalar_value
+         integer,          intent(in)     :: scalar_id
+         type(ESMF_State), intent(inout)  :: State
+         character(len=*), intent(in)     :: flds_scalar_name
+         integer,          intent(in)     :: flds_scalar_num
+         integer,          intent(inout)  :: rc
+     
+         ! local variables
+         integer           :: mytask
+         type(ESMF_Field)  :: lfield
+         type(ESMF_VM)     :: vm
+         real(ESMF_KIND_R8), pointer :: farrayptr(:,:)
+     
+         character(len=*), parameter :: subname = ' (lnd_import_export:state_setscalar) '
+         ! ----------------------------------------------
+     
+         rc = ESMF_SUCCESS
+     
+         call ESMF_VMGetCurrent(vm, rc=rc)
+         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+     
+         call ESMF_VMGet(vm, localPet=mytask, rc=rc)
+         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+     
+         call ESMF_StateGet(State, itemName=trim(flds_scalar_name), field=lfield, rc=rc)
+         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+     
+         if (mytask == 0) then
+            call ESMF_FieldGet(lfield, farrayPtr = farrayptr, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+            if (scalar_id < 0 .or. scalar_id > flds_scalar_num) then
+               call ESMF_LogWrite(trim(subname)//": ERROR in scalar_id", ESMF_LOGMSG_INFO)
+               rc = ESMF_FAILURE
+               return
+            endif
+            farrayptr(scalar_id,1) = scalar_value
+         endif
+     
+       end subroutine State_SetScalar      
 
    end subroutine fldlist_realize
 
@@ -764,26 +832,7 @@ contains
 
    end subroutine state_getfldptr
 
-   !===============================================================================
-   ! logical function fldchk(state, fldname)
-   !   ! ----------------------------------------------
-   !   ! Determine if field with fldname is in the input state
-   !   ! ----------------------------------------------
 
-   !   ! input/output variables
-   !   type(ESMF_State), intent(in)  :: state
-   !   character(len=*), intent(in)  :: fldname
-
-   !   ! local variables
-   !   type(ESMF_StateItem_Flag)   :: itemFlag
-   !   ! ----------------------------------------------
-   !   call ESMF_StateGet(state, trim(fldname), itemFlag)
-   !   if (itemflag /= ESMF_STATEITEM_NOTFOUND) then
-   !      fldchk = .true.
-   !   else
-   !      fldchk = .false.
-   !   endif
-   ! end function fldchk
 
    !=============================================================================
    logical function check_for_connected(fldList, numflds, fname)
@@ -807,41 +856,6 @@ contains
       end do
 
    end function check_for_connected
-
-   ! !=============================================================================
-   ! subroutine check_for_nans(fname, lm4data_1d, lm4data_2drc)
-
-   !    ! input/output variables
-   !    character(len=*),  intent(in)  :: fname
-   !    real(r8),optional, intent(in)  :: lm4data_1d(:)      ! 1d, Unstructured Grid output
-   !    real(r8),optional, intent(in)  :: lm4data_2d(:,:)    ! 2d, Structured Grid output
-   !    integer,           intent(out) :: rc
-  
-   !    ! local variables
-   !    integer :: i
-   !    character(len=*), parameter :: subname='(check_for_nans)'
-   !    ! ----------------------------------------------
-  
-   !    rc = ESMF_SUCCESS
-   !    call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
-  
-   !    ! Check if any input from mediator or output to mediator is NaN
-   !    if (any(isnan(array))) then
-   !       write(*,*) '# of NaNs = ', count(isnan(array))
-   !       write(*,*) 'Which are NaNs = ', isnan(array)
-   !       do i = 1, size(array)
-   !          if (isnan(array(i))) then
-   !             write(*,*) "NaN found in field ", trim(fname), ' at gridcell index ',begg+i-1
-   !          end if
-   !       end do
-   !       call ESMF_LogWrite(trim(subname)//": one or more of the output are NaN", ESMF_LOGMSG_ERROR)
-   !       rc = ESMF_FAILURE
-   !       return
-   !    end if
-  
-   !    call ESMF_LogWrite(subname//' done', ESMF_LOGMSG_INFO)
-  
-   !  end subroutine check_for_nans   
 
 
 end module lnd_import_export
