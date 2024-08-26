@@ -224,7 +224,7 @@ contains
       scalardim(2) = real(lm4_model%nml%npy,8)
       scalardim(3) = real(lm4_model%nml%ntiles,8)
   
-      if (flds_scalar_num > 0) then
+      if (lm4_model%cpl_scalar%flds_scalar_num > 0) then
          ! Set the scalar data into the exportstate
          call State_SetScalar(scalardim(1), lm4_model%cpl_scalar%flds_scalar_index_nx, exportState, &
             lm4_model%cpl_scalar%flds_scalar_name, lm4_model%cpl_scalar%flds_scalar_num, rc)
