@@ -356,9 +356,6 @@ contains
          end if
       end do
 
-   ! TODO: do I need 2 contains?
-   contains  !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
       subroutine SetScalarField(field, flds_scalar_name, flds_scalar_num, rc)
          ! ----------------------------------------------
          ! create a field with scalar data on the root pe
