@@ -5,6 +5,7 @@
 module lnd_import_export
 
    use ESMF,                     only: ESMF_GridComp, ESMF_State, ESMF_Mesh, ESMF_StateGet
+   use ESMF,                     only: ESMF_FieldGet
    use ESMF,                     only: ESMF_KIND_R8, ESMF_SUCCESS, ESMF_END_ABORT, ESMF_Finalize
    use ESMF,                     only: ESMF_MAXSTR, ESMF_LOGMSG_INFO
    use ESMF,                     only: ESMF_LogWrite, ESMF_LOGMSG_ERROR, ESMF_LogFoundError, ESMF_FAILURE
@@ -395,7 +396,7 @@ contains
 
       subroutine State_SetScalar(scalar_value, scalar_id, State, flds_scalar_name, flds_scalar_num,  rc)
 
-         use ESMF, only : ESMF_VM
+         use ESMF, only : ESMF_VM, ESMF_VMGetCurrent, ESMF_VMGet
 
          ! input/output arguments
          real(ESMF_KIND_R8), intent(in)   :: scalar_value
@@ -794,7 +795,7 @@ contains
       ! ----------------------------------------------
 
       use ESMF , only : ESMF_State, ESMF_Field, ESMF_Mesh, ESMF_FieldStatus_Flag
-      use ESMF , only : ESMF_StateGet, ESMF_FieldGet, ESMF_MeshGet
+      use ESMF , only : ESMF_StateGet, ESMF_MeshGet
       use ESMF , only : ESMF_FIELDSTATUS_COMPLETE, ESMF_FAILURE
 
       ! input/output variables
