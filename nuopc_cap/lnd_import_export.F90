@@ -158,7 +158,7 @@ contains
 
       ! input/output variables
       type(ESMF_GridComp) , intent(inout)          :: gcomp
-      type(lm4_type),     , intent(inout)          :: lm4_model
+      type(lm4_type)      , intent(inout)          :: lm4_model
       type(ESMF_Mesh)     , optional , intent(in)  :: mesh
       type(ESMF_Grid)     , optional , intent(in)  :: grid
 
