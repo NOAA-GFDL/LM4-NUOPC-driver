@@ -473,7 +473,7 @@ contains
       ! ------------------------------------
       ! Realize the actively coupled fields
       ! ------------------------------------
-      call realize_fields(gcomp, grid=lndGrid, flds_scalar_name=flds_scalar_name, &
+      call realize_fields(gcomp, lm4_model, grid=lndGrid, flds_scalar_name=flds_scalar_name, &
          flds_scalar_num=flds_scalar_num, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
 

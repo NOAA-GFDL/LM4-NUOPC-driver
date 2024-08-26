@@ -152,12 +152,13 @@ contains
    end subroutine advertise_fields
 
    !===============================================================================
-   subroutine realize_fields(gcomp, mesh, grid, flds_scalar_name, flds_scalar_num, rc)
+   subroutine realize_fields(gcomp, lm4_model, mesh, grid, flds_scalar_name, flds_scalar_num, rc)
 
       use ESMF, only : ESMF_Mesh, ESMF_Grid
 
       ! input/output variables
       type(ESMF_GridComp) , intent(inout)          :: gcomp
+      type(lm4_type),     , intent(inout)          :: lm4_model
       type(ESMF_Mesh)     , optional , intent(in)  :: mesh
       type(ESMF_Grid)     , optional , intent(in)  :: grid
 
@@ -394,6 +395,8 @@ contains
 
 
       subroutine State_SetScalar(scalar_value, scalar_id, State, flds_scalar_name, flds_scalar_num,  rc)
+
+         use ESMF, only : ESMF_VM
 
          ! input/output arguments
          real(ESMF_KIND_R8), intent(in)   :: scalar_value
