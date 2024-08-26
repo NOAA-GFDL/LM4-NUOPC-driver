@@ -219,12 +219,12 @@ contains
          if (ChkErr(rc,__LINE__,u_FILE_u)) return
       end if
 
-     ! cpl_scalars for export state
+      ! cpl_scalars for export state
       scalardim = 0.0
       scalardim(1) = real(lm4_model%nml%npx,8)
       scalardim(2) = real(lm4_model%nml%npy,8)
       scalardim(3) = real(lm4_model%nml%ntiles,8)
-  
+
       if (lm4_model%cpl_scalar%flds_scalar_num > 0) then
          ! Set the scalar data into the exportstate
          call State_SetScalar(scalardim(1), lm4_model%cpl_scalar%flds_scalar_index_nx, exportState, &
@@ -356,87 +356,88 @@ contains
          end if
       end do
 
-      subroutine SetScalarField(field, flds_scalar_name, flds_scalar_num, rc)
-         ! ----------------------------------------------
-         ! create a field with scalar data on the root pe
-         ! ----------------------------------------------
-         use ESMF, only : ESMF_Field, ESMF_DistGrid, ESMF_Grid
-         use ESMF, only : ESMF_DistGridCreate, ESMF_GridCreate, ESMF_LogFoundError, ESMF_LOGERR_PASSTHRU
-         use ESMF, only : ESMF_FieldCreate, ESMF_GridCreate, ESMF_TYPEKIND_R8
-
-         type(ESMF_Field) , intent(inout) :: field
-         character(len=*) , intent(in)    :: flds_scalar_name
-         integer          , intent(in)    :: flds_scalar_num
-         integer          , intent(inout) :: rc
-
-         ! local variables
-         type(ESMF_Distgrid) :: distgrid
-         type(ESMF_Grid)     :: grid
-         character(len=*), parameter :: subname='(lnd_import_export:SetScalarField)'
-         ! ----------------------------------------------
-
-         rc = ESMF_SUCCESS
-
-         ! create a DistGrid with a single index space element, which gets mapped onto DE 0.
-         distgrid = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/1/), rc=rc)
-         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
-
-         grid = ESMF_GridCreate(distgrid, rc=rc)
-         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
-
-         field = ESMF_FieldCreate(name=trim(flds_scalar_name), grid=grid, typekind=ESMF_TYPEKIND_R8, &
-            ungriddedLBound=(/1/), ungriddedUBound=(/flds_scalar_num/), gridToFieldMap=(/2/), rc=rc)
-         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
-
-      end subroutine SetScalarField
-
-
-      subroutine State_SetScalar(scalar_value, scalar_id, State, flds_scalar_name, flds_scalar_num,  rc)
-
-         use ESMF, only : ESMF_VM, ESMF_VMGetCurrent, ESMF_VMGet
-
-         ! input/output arguments
-         real(ESMF_KIND_R8), intent(in)   :: scalar_value
-         integer,          intent(in)     :: scalar_id
-         type(ESMF_State), intent(inout)  :: State
-         character(len=*), intent(in)     :: flds_scalar_name
-         integer,          intent(in)     :: flds_scalar_num
-         integer,          intent(inout)  :: rc
-     
-         ! local variables
-         integer           :: mytask
-         type(ESMF_Field)  :: lfield
-         type(ESMF_VM)     :: vm
-         real(ESMF_KIND_R8), pointer :: farrayptr(:,:)
-     
-         character(len=*), parameter :: subname = ' (lnd_import_export:state_setscalar) '
-         ! ----------------------------------------------
-     
-         rc = ESMF_SUCCESS
-     
-         call ESMF_VMGetCurrent(vm, rc=rc)
-         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-     
-         call ESMF_VMGet(vm, localPet=mytask, rc=rc)
-         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-     
-         call ESMF_StateGet(State, itemName=trim(flds_scalar_name), field=lfield, rc=rc)
-         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-     
-         if (mytask == 0) then
-            call ESMF_FieldGet(lfield, farrayPtr = farrayptr, rc=rc)
-            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-            if (scalar_id < 0 .or. scalar_id > flds_scalar_num) then
-               call ESMF_LogWrite(trim(subname)//": ERROR in scalar_id", ESMF_LOGMSG_INFO)
-               rc = ESMF_FAILURE
-               return
-            endif
-            farrayptr(scalar_id,1) = scalar_value
-         endif
-     
-       end subroutine State_SetScalar      
-
    end subroutine fldlist_realize
+
+
+   subroutine SetScalarField(field, flds_scalar_name, flds_scalar_num, rc)
+      ! ----------------------------------------------
+      ! create a field with scalar data on the root pe
+      ! ----------------------------------------------
+      use ESMF, only : ESMF_Field, ESMF_DistGrid, ESMF_Grid
+      use ESMF, only : ESMF_DistGridCreate, ESMF_GridCreate, ESMF_LogFoundError, ESMF_LOGERR_PASSTHRU
+      use ESMF, only : ESMF_FieldCreate, ESMF_GridCreate, ESMF_TYPEKIND_R8
+
+      type(ESMF_Field) , intent(inout) :: field
+      character(len=*) , intent(in)    :: flds_scalar_name
+      integer          , intent(in)    :: flds_scalar_num
+      integer          , intent(inout) :: rc
+
+      ! local variables
+      type(ESMF_Distgrid) :: distgrid
+      type(ESMF_Grid)     :: grid
+      character(len=*), parameter :: subname='(lnd_import_export:SetScalarField)'
+      ! ----------------------------------------------
+
+      rc = ESMF_SUCCESS
+
+      ! create a DistGrid with a single index space element, which gets mapped onto DE 0.
+      distgrid = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/1/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+
+      grid = ESMF_GridCreate(distgrid, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+
+      field = ESMF_FieldCreate(name=trim(flds_scalar_name), grid=grid, typekind=ESMF_TYPEKIND_R8, &
+         ungriddedLBound=(/1/), ungriddedUBound=(/flds_scalar_num/), gridToFieldMap=(/2/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+
+   end subroutine SetScalarField
+
+
+   subroutine State_SetScalar(scalar_value, scalar_id, State, flds_scalar_name, flds_scalar_num,  rc)
+
+      use ESMF, only : ESMF_VM, ESMF_VMGetCurrent, ESMF_VMGet
+
+      ! input/output arguments
+      real(ESMF_KIND_R8), intent(in)   :: scalar_value
+      integer,          intent(in)     :: scalar_id
+      type(ESMF_State), intent(inout)  :: State
+      character(len=*), intent(in)     :: flds_scalar_name
+      integer,          intent(in)     :: flds_scalar_num
+      integer,          intent(inout)  :: rc
+
+      ! local variables
+      integer           :: mytask
+      type(ESMF_Field)  :: lfield
+      type(ESMF_VM)     :: vm
+      real(ESMF_KIND_R8), pointer :: farrayptr(:,:)
+
+      character(len=*), parameter :: subname = ' (lnd_import_export:state_setscalar) '
+      ! ----------------------------------------------
+
+      rc = ESMF_SUCCESS
+
+      call ESMF_VMGetCurrent(vm, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+      call ESMF_VMGet(vm, localPet=mytask, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+      call ESMF_StateGet(State, itemName=trim(flds_scalar_name), field=lfield, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+      if (mytask == 0) then
+         call ESMF_FieldGet(lfield, farrayPtr = farrayptr, rc=rc)
+         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+         if (scalar_id < 0 .or. scalar_id > flds_scalar_num) then
+            call ESMF_LogWrite(trim(subname)//": ERROR in scalar_id", ESMF_LOGMSG_INFO)
+            rc = ESMF_FAILURE
+            return
+         endif
+         farrayptr(scalar_id,1) = scalar_value
+      endif
+
+   end subroutine State_SetScalar
 
 
    ! Import fields that do not need to be altered for the land model
@@ -469,7 +470,7 @@ contains
 
       ! Get Unstructured Grid data
       call state_getimport_2d(importState, 'Sa_z',       lm4data_1d=lm4_model%atm_forc%z_bot, rc=rc)  ! bottom layer height
-      call state_getimport_2d(importState, 'Sa_tbot',    lm4data_1d=lm4_model%atm_forc%t_bot, rc=rc)  ! bottom layer temperature 
+      call state_getimport_2d(importState, 'Sa_tbot',    lm4data_1d=lm4_model%atm_forc%t_bot, rc=rc)  ! bottom layer temperature
       !call state_getimport_2d(importState, 'Sa_ta',      lm4data_1d=lm4_model%atm_forc%t_bot, rc=rc)  ! bottom layer temperature (active UFS atm)
       ! call state_getimport_2d(importState, 'Sa_tskn' ...                                            ! surface skin temperature
       call state_getimport_2d(importState, 'Sa_pbot',    lm4data_1d=lm4_model%atm_forc%p_bot, rc=rc)  ! bottom layer pressure
@@ -480,7 +481,7 @@ contains
       !call state_getimport_2d(importState, 'Sa_qa',      lm4data_1d=lm4_model%atm_forc%q_bot, rc=rc)  ! bottom layer specific humidity (active UFS atm)
       call state_getimport_2d(importState, 'Sa_pslv',    lm4data_1d=lm4_model%atm_forc%p_surf, rc=rc) ! surface pressure
       call state_getimport_2d(importState, 'Faxa_lwdn',  lm4data_1d=lm4_model%atm_forc%flux_lw, rc=rc)
-      call state_getimport_2d(importState, 'Faxa_swvdf', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dif, rc=rc) ! mean surface downward uv+vis diffuse flux      
+      call state_getimport_2d(importState, 'Faxa_swvdf', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dif, rc=rc) ! mean surface downward uv+vis diffuse flux
       call state_getimport_2d(importState, 'Faxa_swvdr', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dir, rc=rc) ! mean surface downward uv+vis direct flux
       call state_getimport_2d(importState, 'Faxa_swndf', lm4data_1d=lm4_model%atm_forc%flux_sw_down_nir_dif, rc=rc) ! mean surface downward nir diffuse flux
       call state_getimport_2d(importState, 'Faxa_swndr', lm4data_1d=lm4_model%atm_forc%flux_sw_down_nir_dir, rc=rc) ! mean surface downward nir direct flux
@@ -533,7 +534,7 @@ contains
 
    end subroutine import_fields
 
-   !! Imports and "corrects" the fields from the atmosphere that need to be 
+   !! Imports and "corrects" the fields from the atmosphere that need to be
    !! altered somehow into what the land model expects
    !!=============================================================================
    subroutine correct_import_fields(gcomp, lm4_model, rc)
@@ -563,27 +564,27 @@ contains
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
       allocate(tmp_ug_data(lnd%ls:lnd%le))
-      if (ie_debug > 0) then 
+      if (ie_debug > 0) then
          allocate(tmp_sg_data(lnd%is:lnd%ie,lnd%js:lnd%je))
       endif
 
 
       !! precip
-      !! ---------------------------------------------------------------------      
+      !! ---------------------------------------------------------------------
       ! rain
       if (check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_rain')) then
          ! have total liquid precip
-         call state_getimport_2d(importState, 'Faxa_rain',  lm4data_1d=lm4_model%atm_forc%lprec, rc=rc)        
-         if (ie_debug > 0) then 
+         call state_getimport_2d(importState, 'Faxa_rain',  lm4data_1d=lm4_model%atm_forc%lprec, rc=rc)
+         if (ie_debug > 0) then
             call state_getimport_2d(importState, 'Faxa_rain', lm4data_2d=lm4_model%atm_forc2d%lprec, rc=rc)
          endif
       elseif ( ( check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_rainc') ) .and. &
-               ( check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_rainl') ) ) then
+         ( check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_rainl') ) ) then
          ! have convective and large-scale total precip
          call state_getimport_2d(importState, 'Faxa_rainc',  lm4data_1d=lm4_model%atm_forc%lprec, rc=rc)
          call state_getimport_2d(importState, 'Faxa_rainl',  lm4data_1d=tmp_ug_data, rc=rc)
          lm4_model%atm_forc%lprec = lm4_model%atm_forc%lprec + tmp_ug_data
-         if (ie_debug > 0) then 
+         if (ie_debug > 0) then
             call state_getimport_2d(importState, 'Faxa_rainc', lm4data_2d=lm4_model%atm_forc2d%lprec, rc=rc)
             call state_getimport_2d(importState, 'Faxa_rainl', lm4data_2d=tmp_sg_data, rc=rc)
             lm4_model%atm_forc2d%lprec = lm4_model%atm_forc2d%lprec + tmp_sg_data
@@ -592,22 +593,22 @@ contains
          call ESMF_LogWrite(trim(subname)//": Don't have any liquid precip fields", &
             ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__)
          call ESMF_Finalize(endflag=ESMF_END_ABORT)
-      endif    
+      endif
 
       ! snow
       if (check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_snow')) then
          ! have snow precip
-         call state_getimport_2d(importState, 'Faxa_snow',  lm4data_1d=lm4_model%atm_forc%fprec, rc=rc) 
-         if (ie_debug > 0) then 
+         call state_getimport_2d(importState, 'Faxa_snow',  lm4data_1d=lm4_model%atm_forc%fprec, rc=rc)
+         if (ie_debug > 0) then
             call state_getimport_2d(importState, 'Faxa_snow', lm4data_2d=lm4_model%atm_forc2d%fprec, rc=rc)
          endif
       elseif ( ( check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_snowc') ) .and. &
-               ( check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_snowl') ) ) then
+         ( check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_snowl') ) ) then
          ! have convective and large-scale snow precip
          call state_getimport_2d(importState, 'Faxa_snowc',  lm4data_1d=lm4_model%atm_forc%fprec, rc=rc)
          call state_getimport_2d(importState, 'Faxa_snowl',  lm4data_1d=tmp_ug_data, rc=rc)
          lm4_model%atm_forc%fprec = lm4_model%atm_forc%fprec + tmp_ug_data
-         if (ie_debug > 0) then 
+         if (ie_debug > 0) then
             call state_getimport_2d(importState, 'Faxa_snowc', lm4data_2d=lm4_model%atm_forc2d%fprec, rc=rc)
             call state_getimport_2d(importState, 'Faxa_snowl', lm4data_2d=tmp_sg_data, rc=rc)
             lm4_model%atm_forc2d%fprec = lm4_model%atm_forc2d%fprec + tmp_sg_data
@@ -621,7 +622,7 @@ contains
 
 
       deallocate(tmp_ug_data)
-      if (ie_debug > 0) then 
+      if (ie_debug > 0) then
          deallocate(tmp_sg_data)
       endif
 
