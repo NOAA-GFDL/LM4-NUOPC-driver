@@ -156,10 +156,6 @@ contains
 
       use ESMF, only : ESMF_Mesh, ESMF_Grid
 
-      use lm4_comp_cplscalars, only : flds_scalar_name, flds_scalar_num,          &
-                                      flds_scalar_index_nx, flds_scalar_index_ny, flds_scalar_index_ntile
-      use lm4_comp_cplscalars, only : State_SetScalar
-
       ! input/output variables
       type(ESMF_GridComp) , intent(inout)          :: gcomp
       type(ESMF_Mesh)     , optional , intent(in)  :: mesh
