@@ -63,13 +63,6 @@ module lm4_cap_mod
    private :: ModelAdvance
    private :: ModelFinalize
 
-   ! Needed for communication with Mediator
-   character(len=CL)      :: flds_scalar_name = ''
-   integer                :: flds_scalar_num = 0
-   integer                :: flds_scalar_index_nx = 0
-   integer                :: flds_scalar_index_ny = 0
-   integer                :: flds_scalar_index_ntile = 0
-
    character(*),parameter       :: modName =  "(lm4_cap_mod)"
    character(len=*) , parameter :: u_FILE_u =  __FILE__
 
@@ -365,8 +358,8 @@ contains
       call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldName", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
       if (isPresent .and. isSet) then
-         flds_scalar_name = trim(cvalue)
-         call ESMF_LogWrite(trim(subname)//' flds_scalar_name = '//trim(flds_scalar_name), ESMF_LOGMSG_INFO)
+         lm4_model%cpl_scalar%flds_scalar_name = trim(cvalue)
+         call ESMF_LogWrite(trim(subname)//' flds_scalar_name = '//lm4_model%cpl_scalar%flds_scalar_name, ESMF_LOGMSG_INFO)
          if (ChkErr(rc,__LINE__,u_FILE_u)) return
          ! else
          !    call shr_sys_abort(subname//'Need to set attribute ScalarFieldName')
@@ -375,8 +368,8 @@ contains
       call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldCount", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
       if (isPresent .and. isSet) then
-         read(cvalue, *) flds_scalar_num
-         write(logmsg,*) flds_scalar_num
+         read(cvalue, *) lm4_model%cpl_scalar%flds_scalar_num
+         write(logmsg,*) lm4_model%cpl_scalar%flds_scalar_num
          call ESMF_LogWrite(trim(subname)//' flds_scalar_num = '//trim(logmsg), ESMF_LOGMSG_INFO)
          if (ChkErr(rc,__LINE__,u_FILE_u)) return
          ! else
@@ -386,29 +379,29 @@ contains
       call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxGridNX", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
       if (isPresent .and. isSet) then
-         read(cvalue,*) flds_scalar_index_nx
-         write(logmsg,*) flds_scalar_index_nx
+         read(cvalue, *) lm4_model%cpl_scalar%flds_scalar_index_nx
+         write(logmsg,*) lm4_model%cpl_scalar%flds_scalar_index_nx
          call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_nx = '//trim(logmsg), ESMF_LOGMSG_INFO)
          if (ChkErr(rc,__LINE__,u_FILE_u)) return
       endif
       call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxGridNY", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
       if (isPresent .and. isSet) then
-         read(cvalue,*) flds_scalar_index_ny
-         write(logmsg,*) flds_scalar_index_ny
+         read(cvalue, *) lm4_model%cpl_scalar%flds_scalar_index_ny
+         write(logmsg,*) lm4_model%cpl_scalar%flds_scalar_index_ny
          call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_ny = '//trim(logmsg), ESMF_LOGMSG_INFO)
          if (ChkErr(rc,__LINE__,u_FILE_u)) return
       endif
       call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxGridNTile", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
       if (isPresent .and. isSet) then
-         read(cvalue,*) flds_scalar_index_ntile
-         write(logmsg,*) flds_scalar_index_ntile
+         read(cvalue, *) lm4_model%cpl_scalar%flds_scalar_index_ntile
+         write(logmsg,*) lm4_model%cpl_scalar%flds_scalar_index_ntile
          call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_ntile = '//trim(logmsg), ESMF_LOGMSG_INFO)
          if (ChkErr(rc,__LINE__,u_FILE_u)) return
       endif
 
-      call advertise_fields(gcomp, flds_scalar_name, rc)
+      call advertise_fields(gcomp, rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
       call ESMF_LogWrite(subname//' finished', ESMF_LOGMSG_INFO)
@@ -473,8 +466,7 @@ contains
       ! ------------------------------------
       ! Realize the actively coupled fields
       ! ------------------------------------
-      call realize_fields(gcomp, lm4_model, grid=lndGrid, flds_scalar_name=flds_scalar_name, &
-         flds_scalar_num=flds_scalar_num, rc=rc)
+      call realize_fields(gcomp, lm4_model, grid=lndGrid, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
       ! ---------------------

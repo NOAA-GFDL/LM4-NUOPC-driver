@@ -60,11 +60,10 @@ module lnd_import_export
 contains
 
    !===============================================================================
-   subroutine advertise_fields(gcomp, flds_scalar_name,  rc)
+   subroutine advertise_fields(gcomp, rc)
 
       ! input/output variables
       type(ESMF_GridComp)            :: gcomp
-      character(len=*) , intent(in)  :: flds_scalar_name
       integer          , intent(out) :: rc
 
       ! local variables
@@ -152,7 +151,7 @@ contains
    end subroutine advertise_fields
 
    !===============================================================================
-   subroutine realize_fields(gcomp, lm4_model, mesh, grid, flds_scalar_name, flds_scalar_num, rc)
+   subroutine realize_fields(gcomp, lm4_model, mesh, grid, rc)
 
       use ESMF, only : ESMF_Mesh, ESMF_Grid
 
@@ -161,9 +160,6 @@ contains
       type(lm4_type)      , intent(inout)          :: lm4_model
       type(ESMF_Mesh)     , optional , intent(in)  :: mesh
       type(ESMF_Grid)     , optional , intent(in)  :: grid
-
-      character(len=*)    , intent(in)             :: flds_scalar_name
-      integer             , intent(in)             :: flds_scalar_num
       integer             , intent(out)            :: rc
 
       ! local variables
@@ -184,8 +180,8 @@ contains
             state=ExportState, &
             fldList=fldsFrLnd, &
             numflds=fldsFrLnd_num, &
-            flds_scalar_name=flds_scalar_name, &
-            flds_scalar_num=flds_scalar_num, &
+            flds_scalar_name=lm4_model%cpl_scalar%flds_scalar_name, &
+            flds_scalar_num=lm4_model%cpl_scalar%flds_scalar_num, &
             tag=subname//':Land Export',&
             mesh=mesh, rc=rc)
          if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -194,8 +190,8 @@ contains
             state=importState, &
             fldList=fldsToLnd, &
             numflds=fldsToLnd_num, &
-            flds_scalar_name=flds_scalar_name, &
-            flds_scalar_num=flds_scalar_num, &
+            flds_scalar_name=lm4_model%cpl_scalar%flds_scalar_name, &
+            flds_scalar_num=lm4_model%cpl_scalar%flds_scalar_num, &
             tag=subname//':Land Import',&
             mesh=mesh, rc=rc)
          if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -205,8 +201,8 @@ contains
             state=ExportState, &
             fldList=fldsFrLnd, &
             numflds=fldsFrLnd_num, &
-            flds_scalar_name=flds_scalar_name, &
-            flds_scalar_num=flds_scalar_num, &
+            flds_scalar_name=lm4_model%cpl_scalar%flds_scalar_name, &
+            flds_scalar_num=lm4_model%cpl_scalar%flds_scalar_num, &
             tag=subname//':Land Export',&
             grid=grid, rc=rc)
          if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -215,8 +211,8 @@ contains
             state=importState, &
             fldList=fldsToLnd, &
             numflds=fldsToLnd_num, &
-            flds_scalar_name=flds_scalar_name, &
-            flds_scalar_num=flds_scalar_num, &
+            flds_scalar_name=lm4_model%cpl_scalar%flds_scalar_name, &
+            flds_scalar_num=lm4_model%cpl_scalar%flds_scalar_num, &
             tag=subname//':Land Import',&
             grid=grid, rc=rc)
          if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -230,11 +226,14 @@ contains
   
       if (flds_scalar_num > 0) then
          ! Set the scalar data into the exportstate
-         call State_SetScalar(scalardim(1), flds_scalar_index_nx, exportState, flds_scalar_name, flds_scalar_num, rc)
+         call State_SetScalar(scalardim(1), lm4_model%cpl_scalar%flds_scalar_index_nx, exportState, &
+            lm4_model%cpl_scalar%flds_scalar_name, lm4_model%cpl_scalar%flds_scalar_num, rc)
          if (ChkErr(rc,__LINE__,u_FILE_u)) return
-         call State_SetScalar(scalardim(2), flds_scalar_index_ny, exportState, flds_scalar_name, flds_scalar_num, rc)
+         call State_SetScalar(scalardim(2), lm4_model%cpl_scalar%flds_scalar_index_ny, exportState, &
+            lm4_model%cpl_scalar%flds_scalar_name, lm4_model%cpl_scalar%flds_scalar_num, rc)
          if (ChkErr(rc,__LINE__,u_FILE_u)) return
-         call State_SetScalar(scalardim(3), flds_scalar_index_ntile, exportState, flds_scalar_name, flds_scalar_num, rc)
+         call State_SetScalar(scalardim(3), lm4_model%cpl_scalar%flds_scalar_index_ntile, exportState, &
+            lm4_model%cpl_scalar%flds_scalar_name, lm4_model%cpl_scalar%flds_scalar_num, rc)
          if (ChkErr(rc,__LINE__,u_FILE_u)) return
       end if
 
