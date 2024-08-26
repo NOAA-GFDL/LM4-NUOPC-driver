@@ -5,7 +5,7 @@
 module lnd_import_export
 
    use ESMF,                     only: ESMF_GridComp, ESMF_State, ESMF_Mesh, ESMF_StateGet
-   use ESMF,                     only: ESMF_FieldGet
+   use ESMF,                     only: ESMF_Field, ESMF_FieldGet
    use ESMF,                     only: ESMF_KIND_R8, ESMF_SUCCESS, ESMF_END_ABORT, ESMF_Finalize
    use ESMF,                     only: ESMF_MAXSTR, ESMF_LOGMSG_INFO
    use ESMF,                     only: ESMF_LogWrite, ESMF_LOGMSG_ERROR, ESMF_LogFoundError, ESMF_FAILURE
@@ -278,7 +278,7 @@ contains
 
       use NUOPC , only : NUOPC_IsConnected, NUOPC_Realize
       use ESMF  , only : ESMF_MeshLoc_Element, ESMF_INDEX_DELOCAL, ESMF_FieldCreate, ESMF_TYPEKIND_R8
-      use ESMF  , only : ESMF_MAXSTR, ESMF_Field, ESMF_State, ESMF_Mesh, ESMF_Grid, ESMF_StateRemove
+      use ESMF  , only : ESMF_MAXSTR, ESMF_State, ESMF_Mesh, ESMF_Grid, ESMF_StateRemove
       use ESMF  , only : ESMF_LogFoundError, ESMF_LOGMSG_INFO, ESMF_SUCCESS
       use ESMF  , only : ESMF_LogWrite, ESMF_LOGMSG_ERROR, ESMF_LOGERR_PASSTHRU
 
@@ -363,7 +363,7 @@ contains
       ! ----------------------------------------------
       ! create a field with scalar data on the root pe
       ! ----------------------------------------------
-      use ESMF, only : ESMF_Field, ESMF_DistGrid, ESMF_Grid
+      use ESMF, only : ESMF_DistGrid, ESMF_Grid
       use ESMF, only : ESMF_DistGridCreate, ESMF_GridCreate, ESMF_LogFoundError, ESMF_LOGERR_PASSTHRU
       use ESMF, only : ESMF_FieldCreate, ESMF_GridCreate, ESMF_TYPEKIND_R8
 
