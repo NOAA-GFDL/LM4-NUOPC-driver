@@ -89,7 +89,8 @@ contains
       if (send_to_atm) then
          ! TODO: actually set land frac for this field
          call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_lfrin')
-
+         ! Needed by CMEPS
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'cpl_scalars')
       end if
 
       ! Now advertise above export fields
@@ -137,10 +138,6 @@ contains
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swndf') ! atmosphere export - mean surface downward nir diffuse flux
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swvdr') ! atmosphere export - mean surface downward uv+visvdirect flux
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_swndr') ! atmosphere export - mean surface downward nir direct flux
-
-      ! Needed by CMEPS
-      call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'cpl_scalars')
-
 
       ! Now advertise import fields
       do n = 1,fldsToLnd_num
@@ -353,8 +350,6 @@ contains
             if (stdname /= trim(flds_scalar_name)) then
                call ESMF_LogWrite(subname // trim(tag) // " Field = "// trim(stdname) // " is not connected.", &
                   ESMF_LOGMSG_INFO)
-               ! JP TMP DEBUG
-               call ESMF_LogWrite(subname // trim(tag) // " Field = "// trim(stdname) // " is not connected.", ESMF_LOGMSG_INFO)
 
                call ESMF_StateRemove(state, (/stdname/), rc=rc)
                if (ChkErr(rc,__LINE__,u_FILE_u)) return
