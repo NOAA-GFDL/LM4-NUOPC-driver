@@ -301,6 +301,7 @@ contains
       ! ----------------------------------------------
 
       rc = ESMF_SUCCESS
+      call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
 
       do n = 1, numflds
          stdname = fldList(n)%stdname
@@ -310,6 +311,8 @@ contains
                   ESMF_LOGMSG_INFO)
                ! Create the scalar field
                call SetScalarField(field, flds_scalar_name, flds_scalar_num, rc=rc)
+               if (ChkErr(rc,__LINE__,u_FILE_u)) return
+               call NUOPC_Realize(state, field=field, rc=rc)
                if (ChkErr(rc,__LINE__,u_FILE_u)) return
             else
                ! Create the field
