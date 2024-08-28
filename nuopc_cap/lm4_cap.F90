@@ -20,7 +20,7 @@ module lm4_cap_mod
    use lm4_type_mod,         only: alloc_atmforc2d, dealloc_atmforc2d ! TMP DEBUG
 
    use nuopc_lm4_methods,    only: chkerr
-   use lnd_import_export,    only: advertise_fields, realize_fields, &
+   use lm4_import_export,    only: advertise_fields, realize_fields, &
                                    import_fields, correct_import_fields, export_fields
    use fms_mod,              only: fms_init, fms_end, uppercase
    use fms_io_mod,           only: fms_io_exit

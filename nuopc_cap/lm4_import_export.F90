@@ -2,7 +2,7 @@
 !! This module contains the import and export routines for the land model, and
 !! related helper routines.
 !!===============================================================================
-module lnd_import_export
+module lm4_import_export
 
    use ESMF,                     only: ESMF_GridComp, ESMF_State, ESMF_Mesh, ESMF_StateGet
    use ESMF,                     only: ESMF_Field, ESMF_FieldGet, ESMF_LOGERR_PASSTHRU
@@ -52,8 +52,8 @@ module lnd_import_export
 
    logical                :: send_to_atm = .true.
 
-   character(*),parameter :: modName =  "(lnd_import_export)"
-   character(*),parameter :: F01 = "('(lnd_import_export) ',a,i5,2x,i5,2x,d21.14)"
+   character(*),parameter :: modName =  "(lm4_import_export)"
+   character(*),parameter :: F01 = "('(lm4_import_export) ',a,i5,2x,i5,2x,d21.14)"
    character(*),parameter :: u_FILE_u = &
       __FILE__
 
@@ -72,7 +72,7 @@ contains
       type(ESMF_State)       :: exportState
       character(ESMF_MAXSTR) :: cvalue
       integer                :: n, num
-      character(len=*), parameter :: subname='(lnd_import_export:advertise_fields)'
+      character(len=*), parameter :: subname='(lm4_import_export:advertise_fields)'
       !-------------------------------------------------------------------------------
 
       rc = ESMF_SUCCESS
@@ -166,7 +166,7 @@ contains
       ! local variables
       type(ESMF_State)     :: importState
       type(ESMF_State)     :: exportState
-      character(len=*), parameter :: subname='(lnd_import_export:realize_fields)'
+      character(len=*), parameter :: subname='(lm4_import_export:realize_fields)'
       real(R8)          :: scalardim(3)
       !---------------------------------------------------------------------------
 
@@ -253,7 +253,7 @@ contains
 
       ! local variables
       integer :: rc
-      character(len=*), parameter :: subname='(lnd_import_export:fldlist_add)'
+      character(len=*), parameter :: subname='(lm4_import_export:fldlist_add)'
       !-------------------------------------------------------------------------------
 
       ! Set up a list of field information
@@ -297,7 +297,7 @@ contains
       integer                :: n
       type(ESMF_Field)       :: field
       character(len=80)      :: stdname
-      character(len=*),parameter  :: subname='(lnd_import_export:fldlist_realize)'
+      character(len=*),parameter  :: subname='(lm4_import_export:fldlist_realize)'
       ! ----------------------------------------------
 
       rc = ESMF_SUCCESS
@@ -375,7 +375,7 @@ contains
       ! local variables
       type(ESMF_Distgrid) :: distgrid
       type(ESMF_Grid)     :: grid
-      character(len=*), parameter :: subname='(lnd_import_export:SetScalarField)'
+      character(len=*), parameter :: subname='(lm4_import_export:SetScalarField)'
       ! ----------------------------------------------
 
       rc = ESMF_SUCCESS
@@ -412,7 +412,7 @@ contains
       type(ESMF_VM)     :: vm
       real(ESMF_KIND_R8), pointer :: farrayptr(:,:)
 
-      character(len=*), parameter :: subname = ' (lnd_import_export:state_setscalar) '
+      character(len=*), parameter :: subname = ' (lm4_import_export:state_setscalar) '
       ! ----------------------------------------------
 
       rc = ESMF_SUCCESS
@@ -672,7 +672,7 @@ contains
       ! local variables
       real(r8), pointer :: fldPtr1d(:)
       type(ESMF_StateItem_Flag)   :: itemType
-      character(len=*), parameter :: subname='(lnd_import_export:state_getimport_1d)'
+      character(len=*), parameter :: subname='(lm4_import_export:state_getimport_1d)'
       ! ----------------------------------------------
 
       rc = ESMF_SUCCESS
@@ -715,7 +715,7 @@ contains
       ! local variables
       real(r8), pointer :: fldPtr2d(:,:)
       type(ESMF_StateItem_Flag)   :: itemType
-      character(len=*), parameter :: subname='(lnd_import_export:state_getimport_2d)'
+      character(len=*), parameter :: subname='(lm4_import_export:state_getimport_2d)'
       ! ----------------------------------------------
 
       rc = ESMF_SUCCESS
@@ -806,7 +806,7 @@ contains
       ! local variables
       type(ESMF_FieldStatus_Flag) :: status
       type(ESMF_Field)            :: lfield
-      character(len=*), parameter :: subname='(lnd_import_export:state_getfldptr)'
+      character(len=*), parameter :: subname='(lm4_import_export:state_getfldptr)'
       ! ----------------------------------------------
 
 
@@ -855,4 +855,4 @@ contains
    end function check_for_connected
 
 
-end module lnd_import_export
+end module lm4_import_export
