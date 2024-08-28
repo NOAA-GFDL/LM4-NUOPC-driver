@@ -154,10 +154,10 @@ contains
       integer                     :: ierr
       integer                     :: n
       integer                     :: localpet
-      character(len=CL)           :: cvalue
+
       character(len=CL)           :: logmsg
-      logical                     :: isPresent, isSet
-      logical                     :: cism_evolve
+
+
       integer :: mype, ntasks, mpi_comm_land, mpi_comm_land2
       character(len=*), parameter :: subname=trim(modName)//':(InitializeAdvertise) '
 
@@ -355,6 +355,70 @@ contains
       ! advertise fields
       !----------------------------------------------------------------------------
 
+      call advertise_fields(gcomp, rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+      call ESMF_LogWrite(subname//' finished', ESMF_LOGMSG_INFO)
+
+   end subroutine InitializeAdvertise
+
+
+   !===============================================================================
+   subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
+
+      use fms_io_mod,         only: field_exist, read_data
+
+      ! input/output variables
+      type(ESMF_GridComp)  :: gcomp
+      type(ESMF_State)     :: importState
+      type(ESMF_State)     :: exportState
+      type(ESMF_Clock)     :: clock
+      integer, intent(out) :: rc
+
+      ! local variables
+      character(len=*),parameter :: subname=trim(modName)//':(InitializeRealize) '
+      ! cube sphere mosaic
+      type(ESMF_Decomp_Flag)  :: decompflagPTile(2,6)
+      character(256)          :: gridfile
+      integer                 :: tl
+      integer,dimension(2,6)  :: decomptile                  !define delayout for the 6 cubed-sphere tiles
+      type(ESMF_Grid)         :: lndGrid
+
+      character(len=CL)           :: cvalue
+      character(len=CL)           :: logmsg
+      logical                     :: isPresent, isSet
+
+      !-------------------------------------------------------------------------------
+
+      rc = ESMF_SUCCESS
+      call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
+
+      !geomtype = ESMF_GEOMTYPE_GRID
+
+      gridfile = "grid_spec.nc" ! default
+      if (field_exist("INPUT/grid_spec.nc", "atm_mosaic_file")) then
+         call read_data("INPUT/grid_spec.nc", "atm_mosaic_file", gridfile)
+      endif
+
+
+
+      do tl=1,6
+         decomptile(1,tl) = lm4_model%nml%layout(1)
+         decomptile(2,tl) = lm4_model%nml%layout(2)
+         decompflagPTile(:,tl) = (/ESMF_DECOMP_SYMMEDGEMAX,ESMF_DECOMP_SYMMEDGEMAX/)
+      enddo
+
+      lndGrid = ESMF_GridCreateMosaic(filename="INPUT/"//trim(gridfile),     &
+         regDecompPTile=decomptile,tileFilePath="INPUT/",                   &
+         decompflagPTile=decompflagPTile,                                   &
+         staggerlocList=(/ESMF_STAGGERLOC_CENTER, ESMF_STAGGERLOC_CORNER/), &
+         name='lnd_grid', rc=rc)
+
+      !! JP TMP DEBUG
+      if (debug_cap > 0) then
+         call wrt_fcst_grid(lndGrid, "diagnostic_lndGrid.nc", rc=rc)
+      endif
+
       ! set cpl_scalars from config. Default to null values
       lm4_model%cpl_scalar%flds_scalar_name = ''
       lm4_model%cpl_scalar%flds_scalar_num = 0
@@ -408,74 +472,13 @@ contains
          if (ChkErr(rc,__LINE__,u_FILE_u)) return
       endif
 
-      call advertise_fields(gcomp, rc)
-      if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
-      call ESMF_LogWrite(subname//' finished', ESMF_LOGMSG_INFO)
-
-   end subroutine InitializeAdvertise
-
-
-   !===============================================================================
-   subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
-
-      use fms_io_mod,         only: field_exist, read_data
-
-      ! input/output variables
-      type(ESMF_GridComp)  :: gcomp
-      type(ESMF_State)     :: importState
-      type(ESMF_State)     :: exportState
-      type(ESMF_Clock)     :: clock
-      integer, intent(out) :: rc
-
-      ! local variables
-      character(len=*),parameter :: subname=trim(modName)//':(InitializeRealize) '
-      ! cube sphere mosaic
-      type(ESMF_Decomp_Flag)  :: decompflagPTile(2,6)
-      character(256)          :: gridfile
-      integer                 :: tl
-      integer,dimension(2,6)  :: decomptile                  !define delayout for the 6 cubed-sphere tiles
-      type(ESMF_Grid)         :: lndGrid
-
-
-      !-------------------------------------------------------------------------------
-
-      rc = ESMF_SUCCESS
-      call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
-
-      !geomtype = ESMF_GEOMTYPE_GRID
-
-      gridfile = "grid_spec.nc" ! default
-      if (field_exist("INPUT/grid_spec.nc", "atm_mosaic_file")) then
-         call read_data("INPUT/grid_spec.nc", "atm_mosaic_file", gridfile)
-      endif
-
-
-
-      do tl=1,6
-         decomptile(1,tl) = lm4_model%nml%layout(1)
-         decomptile(2,tl) = lm4_model%nml%layout(2)
-         decompflagPTile(:,tl) = (/ESMF_DECOMP_SYMMEDGEMAX,ESMF_DECOMP_SYMMEDGEMAX/)
-      enddo
-
-      lndGrid = ESMF_GridCreateMosaic(filename="INPUT/"//trim(gridfile),     &
-         regDecompPTile=decomptile,tileFilePath="INPUT/",                   &
-         decompflagPTile=decompflagPTile,                                   &
-         staggerlocList=(/ESMF_STAGGERLOC_CENTER, ESMF_STAGGERLOC_CORNER/), &
-         name='lnd_grid', rc=rc)
-
-      !! JP TMP DEBUG
-      if (debug_cap > 0) then
-         call wrt_fcst_grid(lndGrid, "diagnostic_lndGrid.nc", rc=rc)
-      endif
-
-
       ! ------------------------------------
       ! Realize the actively coupled fields
       ! ------------------------------------
       call realize_fields(gcomp, lm4_model, grid=lndGrid, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
+      
+      
       ! ---------------------
       ! Create export state
       ! ---------------------

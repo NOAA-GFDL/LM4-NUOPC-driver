@@ -350,6 +350,9 @@ contains
             if (stdname /= trim(flds_scalar_name)) then
                call ESMF_LogWrite(subname // trim(tag) // " Field = "// trim(stdname) // " is not connected.", &
                   ESMF_LOGMSG_INFO)
+               ! JP TMP DEBUG
+               call ESMF_LogWrite(subname // trim(tag) // " Field = "// trim(stdname) // " is not connected.", ESMF_LOGMSG_INFO)
+
                call ESMF_StateRemove(state, (/stdname/), rc=rc)
                if (ChkErr(rc,__LINE__,u_FILE_u)) return
             end if
