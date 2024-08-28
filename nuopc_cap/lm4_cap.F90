@@ -355,6 +355,13 @@ contains
       ! advertise fields
       !----------------------------------------------------------------------------
 
+      ! set cpl_scalars from config. Default to null values
+      lm4_model%cpl_scalar%flds_scalar_name = ''
+      lm4_model%cpl_scalar%flds_scalar_num = 0
+      lm4_model%cpl_scalar%flds_scalar_index_nx = 0
+      lm4_model%cpl_scalar%flds_scalar_index_ny = 0
+      lm4_model%cpl_scalar%flds_scalar_index_ntile = 0
+
       call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldName", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
       if (isPresent .and. isSet) then
