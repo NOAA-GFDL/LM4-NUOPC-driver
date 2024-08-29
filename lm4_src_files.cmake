@@ -58,7 +58,7 @@ list(APPEND lm4_src_files
      nuopc_cap/lm4_cap.F90
      nuopc_cap/lm4_driver.F90
      nuopc_cap/lm4_type.F90
-     nuopc_cap/lnd_import_export.F90
+     nuopc_cap/lm4_import_export.F90
      nuopc_cap/nuopc_lm4_methods.F90
      nuopc_cap/lm4_kind_mod.F90
      nuopc_cap/domain_create.F90

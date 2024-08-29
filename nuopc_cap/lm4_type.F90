@@ -20,11 +20,18 @@ module lm4_type_mod
                                                                         !! is all zero, no intermediate restart file will be written out
    end type lm4_nml_type
 
+   ! TODO: is this used at all?
    type :: lm4_control_type
       logical   :: first_time  ! flag for first time step
       integer   :: mype
       integer   :: nblks, blksz, isc, iec, jsc, jec
    end type lm4_control_type
+
+   type :: lm4_cpl_scalar_type
+      integer, public           :: flds_scalar_num, flds_scalar_index_nx
+      integer, public           :: flds_scalar_index_ny, flds_scalar_index_ntile
+      character(len=80), public :: flds_scalar_name
+   end type lm4_cpl_scalar_type
 
    ! type for atmospheric forcing data, based off atmos_solo_land's atmos_data_type
    type, public :: atm_forc_type
@@ -94,6 +101,7 @@ module lm4_type_mod
    type :: lm4_type
       type(lm4_nml_type)             :: nml        ! namelist
       type(lm4_control_type)         :: control
+      type(lm4_cpl_scalar_type)      :: cpl_scalar ! for scalars to mediator
       type(atm_forc_type)            :: atm_forc   ! data from atm 
       type(atm_forc2d_type)          :: atm_forc2d ! TMP DEBUG
       ! these are passed to the land model's routines:

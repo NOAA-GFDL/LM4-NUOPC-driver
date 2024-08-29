@@ -20,7 +20,7 @@ module lm4_cap_mod
    use lm4_type_mod,         only: alloc_atmforc2d, dealloc_atmforc2d ! TMP DEBUG
 
    use nuopc_lm4_methods,    only: chkerr
-   use lnd_import_export,    only: advertise_fields, realize_fields, &
+   use lm4_import_export,    only: advertise_fields, realize_fields, &
                                    import_fields, correct_import_fields, export_fields
    use fms_mod,              only: fms_init, fms_end, uppercase
    use fms_io_mod,           only: fms_io_exit
@@ -62,9 +62,6 @@ module lm4_cap_mod
    private :: InitializeRealize
    private :: ModelAdvance
    private :: ModelFinalize
-
-   character(len=CL)      :: flds_scalar_name = ''
-   integer                :: flds_scalar_num = 0
 
    character(*),parameter       :: modName =  "(lm4_cap_mod)"
    character(len=*) , parameter :: u_FILE_u =  __FILE__
@@ -157,10 +154,10 @@ contains
       integer                     :: ierr
       integer                     :: n
       integer                     :: localpet
-      character(len=CL)           :: cvalue
+
       character(len=CL)           :: logmsg
-      logical                     :: isPresent, isSet
-      logical                     :: cism_evolve
+
+
       integer :: mype, ntasks, mpi_comm_land, mpi_comm_land2
       character(len=*), parameter :: subname=trim(modName)//':(InitializeAdvertise) '
 
@@ -358,28 +355,7 @@ contains
       ! advertise fields
       !----------------------------------------------------------------------------
 
-      call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldName", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
-      if (ChkErr(rc,__LINE__,u_FILE_u)) return
-      if (isPresent .and. isSet) then
-         flds_scalar_name = trim(cvalue)
-         call ESMF_LogWrite(trim(subname)//' flds_scalar_name = '//trim(flds_scalar_name), ESMF_LOGMSG_INFO)
-         if (ChkErr(rc,__LINE__,u_FILE_u)) return
-         ! else
-         !    call shr_sys_abort(subname//'Need to set attribute ScalarFieldName')
-      endif
-
-      call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldCount", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
-      if (ChkErr(rc,__LINE__,u_FILE_u)) return
-      if (isPresent .and. isSet) then
-         read(cvalue, *) flds_scalar_num
-         write(logmsg,*) flds_scalar_num
-         call ESMF_LogWrite(trim(subname)//' flds_scalar_num = '//trim(logmsg), ESMF_LOGMSG_INFO)
-         if (ChkErr(rc,__LINE__,u_FILE_u)) return
-         ! else
-         !    call shr_sys_abort(subname//'Need to set attribute ScalarFieldCount')
-      endif
-
-      call advertise_fields(gcomp, flds_scalar_name, rc)
+      call advertise_fields(gcomp, rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
       call ESMF_LogWrite(subname//' finished', ESMF_LOGMSG_INFO)
@@ -408,6 +384,9 @@ contains
       integer,dimension(2,6)  :: decomptile                  !define delayout for the 6 cubed-sphere tiles
       type(ESMF_Grid)         :: lndGrid
 
+      character(len=CL)           :: cvalue
+      character(len=CL)           :: logmsg
+      logical                     :: isPresent, isSet
 
       !-------------------------------------------------------------------------------
 
@@ -440,14 +419,66 @@ contains
          call wrt_fcst_grid(lndGrid, "diagnostic_lndGrid.nc", rc=rc)
       endif
 
+      ! set cpl_scalars from config. Default to null values
+      lm4_model%cpl_scalar%flds_scalar_name = ''
+      lm4_model%cpl_scalar%flds_scalar_num = 0
+      lm4_model%cpl_scalar%flds_scalar_index_nx = 0
+      lm4_model%cpl_scalar%flds_scalar_index_ny = 0
+      lm4_model%cpl_scalar%flds_scalar_index_ntile = 0
+
+      call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldName", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      if (isPresent .and. isSet) then
+         lm4_model%cpl_scalar%flds_scalar_name = trim(cvalue)
+         call ESMF_LogWrite(trim(subname)//' flds_scalar_name = '//lm4_model%cpl_scalar%flds_scalar_name, ESMF_LOGMSG_INFO)
+         if (ChkErr(rc,__LINE__,u_FILE_u)) return
+         ! else
+         !    call shr_sys_abort(subname//'Need to set attribute ScalarFieldName')
+      endif
+
+      call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldCount", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      if (isPresent .and. isSet) then
+         read(cvalue, *) lm4_model%cpl_scalar%flds_scalar_num
+         write(logmsg,*) lm4_model%cpl_scalar%flds_scalar_num
+         call ESMF_LogWrite(trim(subname)//' flds_scalar_num = '//trim(logmsg), ESMF_LOGMSG_INFO)
+         if (ChkErr(rc,__LINE__,u_FILE_u)) return
+         ! else
+         !    call shr_sys_abort(subname//'Need to set attribute ScalarFieldCount')
+      endif
+
+      call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxGridNX", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      if (isPresent .and. isSet) then
+         read(cvalue, *) lm4_model%cpl_scalar%flds_scalar_index_nx
+         write(logmsg,*) lm4_model%cpl_scalar%flds_scalar_index_nx
+         call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_nx = '//trim(logmsg), ESMF_LOGMSG_INFO)
+         if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      endif
+      call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxGridNY", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      if (isPresent .and. isSet) then
+         read(cvalue, *) lm4_model%cpl_scalar%flds_scalar_index_ny
+         write(logmsg,*) lm4_model%cpl_scalar%flds_scalar_index_ny
+         call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_ny = '//trim(logmsg), ESMF_LOGMSG_INFO)
+         if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      endif
+      call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxGridNTile", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      if (isPresent .and. isSet) then
+         read(cvalue, *) lm4_model%cpl_scalar%flds_scalar_index_ntile
+         write(logmsg,*) lm4_model%cpl_scalar%flds_scalar_index_ntile
+         call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_ntile = '//trim(logmsg), ESMF_LOGMSG_INFO)
+         if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      endif
 
       ! ------------------------------------
       ! Realize the actively coupled fields
       ! ------------------------------------
-      call realize_fields(gcomp, grid=lndGrid, flds_scalar_name=flds_scalar_name, &
-         flds_scalar_num=flds_scalar_num, rc=rc)
+      call realize_fields(gcomp, lm4_model, grid=lndGrid, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
+      
+      
       ! ---------------------
       ! Create export state
       ! ---------------------
