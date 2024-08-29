@@ -435,11 +435,6 @@ contains
             rc = ESMF_FAILURE
             return
          endif
-         ! JP TMP DEBUG
-         write(*,*) ": Debug: scalar_id = ", scalar_id
-         write(*,*) ": Debug: scalar_value = ", scalar_value
-         write(*,*) ": Debug: flds_scalar_name = ", flds_scalar_name
-         write(*,*) ": Debug: flds_scalar_num = ", flds_scalar_num
          farrayptr(scalar_id,1) = scalar_value
       endif
 
