@@ -218,8 +218,8 @@ contains
 
       ! cpl_scalars for export state
       scalardim = 0.0
-      scalardim(1) = real(lm4_model%nml%npx,8)
-      scalardim(2) = real(lm4_model%nml%npy,8)
+      scalardim(1) = real(lm4_model%nml%npx,8) - 1.0
+      scalardim(2) = real(lm4_model%nml%npy,8) - 1.0
       scalardim(3) = real(lm4_model%nml%ntiles,8)
 
       if (lm4_model%cpl_scalar%flds_scalar_num > 0) then
