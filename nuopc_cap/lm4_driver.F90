@@ -48,8 +48,8 @@ module lm4_driver
 
    ! --- namelist of vars originally from atmos_prescr_nml
    character(len=24) :: gust_to_use = 'computed' ! or 'prescribed'
-   real    :: gustiness    = 5.0  ! m/s, wind gustiness
-   real    :: gust_min     = 0.0 ! minimum gustiness
+   real    :: gustiness    = 5.0  ! m/s, wind gustiness if gust_to_use = 'prescribed'
+   real    :: gust_min     = 0.0  ! m/s, minimum gustiness when gust_to_use = 'computed'
    namelist /atmos_prescr_nml/ gustiness, gust_to_use, gust_min
 
 
@@ -228,31 +228,6 @@ contains
       call domain_create(lm4_model%nml, land_domain)
 
       call mpp_get_compute_domain(land_domain,isc,iec,jsc,jec)
-      ! use LM4's data type, using just a part of land_data_init
-      !call mpp_get_compute_domain(lnd%sg_domain, lnd%is,lnd%ie,lnd%js,lnd%je)
-
-      ! call land_diag_init( lnd%coord_glonb, lnd%coord_glatb, lnd%coord_glon, lnd%coord_glat, &
-      !                      lm4_model%Time_land, lnd%ug_domain, id_band, id_ug )
-
-      ! create a buffer for diagnostic output
-      ! call init_diag_buff(lm4_buffer)
-
-      ! isc = lnd%is
-      ! iec = lnd%ie
-      ! jsc = lnd%js
-      ! jec = lnd%je
-
-      !im = (iec-isc+1)*(jec-jsc+1)
-
-      ! ! Create blocks, but again, not currently using
-      ! call define_blocks_packed('land_model', Lnd_block, isc, iec, jsc, jec, 1, &
-      !    lm4_model%nml%blocksize, block_message)
-
-
-      ! ! Restart read of sfc_data
-      ! call sfc_prop_restart_read(lm4_model, land_domain, .false.)
-      ! ! Transfer from sfcprop to model data
-      ! call sfc_prop_transfer(lm4_model)
 
       allocate( &
          ex_flux_t(lnd%ls:lnd%le), ex_flux_lw(lnd%ls:lnd%le),   &
@@ -304,6 +279,16 @@ contains
 
       endif
 
+      ! initialize gust
+      if (trim(gust_to_use)=='computed') then
+         ! can't use with CDEPS atm, since no ustar/bstar provided in atm forcing or restarts
+         call ESMF_LogWrite('computed gustiness not currently compatible with this data atmosphere', &
+            ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__)
+         call ESMF_Finalize(endflag=ESMF_END_ABORT)
+      else
+         call compute_gust(lm4_model)
+      endif
+
    end subroutine init_driver
 
    !! ============================================================================
@@ -315,15 +300,7 @@ contains
       type(lm4_type), intent(inout) :: lm4_model ! land model's variable type
 
       type(time_type)       :: Time_restart_stamp ! datetime stamp for restart file
-      
-
-      ! JP TMP DEBUG
-      ! timestamp = date_to_string(lm4_model%Time_land)
-      ! call ESMF_LogWrite('write_int_restart Time_land '//trim(timestamp), ESMF_LOGMSG_INFO)
-      ! timestamp = date_to_string(lm4_model%Time_restart)
-      ! call ESMF_LogWrite('write_int_restart Time_restart '//trim(timestamp), ESMF_LOGMSG_INFO)
-      ! JP end
-      
+          
       !--- write out intermediate restart file when needed.                                                                                                                                           
       if (lm4_model%Time_land >= lm4_model%Time_restart) then
          lm4_model%Time_restart = increment_date(lm4_model%Time_land, lm4_model%nml%restart_interval(1), lm4_model%nml%restart_interval(2), &
@@ -698,6 +675,26 @@ contains
       ! Original code here calculated net shortwave fluxes from downward shortwave fluxes and surface albedos
       ! TODO: move data atmosphere sw flux calculation from imports here?
       
+      call compute_gust(lm4_model)
+         
+      !! Original code calculated Atmos%Surf_diff%dtmass and reset Sfc%dt_tr = 0.0 here
+      !! If needed by LM4 with active atmosphere, this would need to be added back in
+
+   end subroutine update_atmos_model_down
+
+   !! ============================================================================
+   !! Put prescribed atmosphere gust calculation in its own subroutine, 
+   !! so it can be called both from update_atmos_model_down and at initialization.
+   !! Note that:
+   !! 1) If alt_gustiness= T from surface_flux_nml, absolute wind in suface 
+   !!    flux will not use this gustiness.
+   !! 2) If gust_to_use= 'computed', there will not be restart prodicibility with
+   !!    UFS Data Atmosphere, since u_star and b_star are not saved in restarts.
+   !! ============================================================================
+   subroutine compute_gust(lm4_model)
+
+      type(lm4_type),        intent(inout)  :: lm4_model ! land model's variable type
+
       if (trim(gust_to_use)=='computed') then
          !compute gust based on u_star and b_star
          where (ex_b_star > 0.)
@@ -712,13 +709,9 @@ contains
          call ESMF_LogWrite('update_atmos_down: illegal value of gust_to_use', &
             ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__)
          call ESMF_Finalize(endflag=ESMF_END_ABORT)         
+      end if     
 
-      end if      
-         
-      !! Original code calculaed Atmos%Surf_diff%dtmass and reset Sfc%dt_tr = 0.0 here
-      !! If needed by LM4 with active atmosphere, this would need to be added back in
-
-   end subroutine update_atmos_model_down
+   end subroutine compute_gust
 
 
 
@@ -883,8 +876,9 @@ contains
 
    end subroutine flux_down_from_atmos
 
-   ! ! ----------------------------------------
-
+   !! ============================================================================
+   !! flux_up_to_atmos will be completed for 2-way coupling to active atmosphere
+   !! ============================================================================
    subroutine  flux_up_to_atmos( Land )
 
       type(land_data_type),  intent(in)    :: Land !< A derived data type to specify land boundary data

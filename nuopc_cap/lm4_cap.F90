@@ -314,24 +314,9 @@ contains
       write(logmsg,*) lm4_model%nml%dt_lnd_slow
       call ESMF_LogWrite(trim(subname)//'init LM4 slow timestep: '//trim(logmsg), ESMF_LOGMSG_INFO)
 
-      ! ! JP TMP DEBUG
-      ! call ESMF_GridCompGet(gcomp, clock=clock, rc=rc)
-      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return       
-      ! call NUOPC_ModelGet(gcomp, driverClock=dclock, rc=rc)
-      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-      ! call ESMF_ClockGet(dclock,  timeStep=model_timestep, rc=rc)
-      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-      ! call ESMF_TimeIntervalGet(model_timestep, s=timestep_sec, rc=rc)
-      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-      ! write(logmsg,*) timestep_sec
-      ! call ESMF_LogWrite(trim(subname)//'init LM4 driver timestep: '//trim(logmsg), ESMF_LOGMSG_INFO)      
-      ! ! END TMP DEBUG
-
       lm4_model%Time_step_land = set_time(timestep_sec,0)
       lm4_model%Time_step_slow = set_time(lm4_model%nml%dt_lnd_slow,0)
    
-
-
       
       !----------------------------------------------------------------------------
       ! Initialize model
