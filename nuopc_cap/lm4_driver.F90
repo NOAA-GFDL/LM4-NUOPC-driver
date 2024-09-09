@@ -3,7 +3,7 @@
 module lm4_driver
 
    use ESMF,                 only: ESMF_MethodRemove, ESMF_LogWrite, ESMF_LOGMSG_INFO, ESMF_SUCCESS, &
-                                   ESMF_FAILURE, ESMF_END_ABORT, ESMF_Finalize, ESMF_LOGMSG_ERROR
+                                   ESMF_FAILURE, ESMF_END_ABORT, ESMF_Finalize, ESMF_LOGMSG_ERROR, ESMF_LOGMSG_WARNING
    use mpp_domains_mod,      only: domain2d
    use mpp_mod,              only: mpp_pe, mpp_root_pe
 
@@ -282,9 +282,10 @@ contains
       ! initialize gust
       if (trim(gust_to_use)=='computed') then
          ! can't use with CDEPS atm, since no ustar/bstar provided in atm forcing or restarts
-         call ESMF_LogWrite('computed gustiness not currently compatible with this data atmosphere', &
-            ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__)
-         call ESMF_Finalize(endflag=ESMF_END_ABORT)
+         call ESMF_LogWrite('Computed gustiness reinitializes gust on initialization with this data atmosphere.', &
+         ESMF_LOGMSG_WARNING, line=__LINE__, file=__FILE__)
+         call ESMF_LogWrite('Restarting is NOT reproducible with continous run', &
+         ESMF_LOGMSG_WARNING, line=__LINE__, file=__FILE__)
       else
          call compute_gust(lm4_model)
       endif
