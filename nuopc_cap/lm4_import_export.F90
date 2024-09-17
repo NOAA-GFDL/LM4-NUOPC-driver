@@ -566,7 +566,7 @@ contains
       ! rain
       if ( ( check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_rainc') ) .and. &
          ( check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_rainl') ) ) then
-         ! have convective and large-scale total precip
+         ! have convective and large-scale liquid precip
          call state_getimport_2d(importState, 'Faxa_rainc',  lm4data_1d=lm4_model%atm_forc%lprec, rc=rc)
          call state_getimport_2d(importState, 'Faxa_rainl',  lm4data_1d=tmp_ug_data, rc=rc)
          lm4_model%atm_forc%lprec = lm4_model%atm_forc%lprec + tmp_ug_data
