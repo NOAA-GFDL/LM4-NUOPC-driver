@@ -128,8 +128,8 @@ contains
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snow')  ! mean_fprec_rate
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snowc')
       call fldlist_add(fldsToLnd_num, fldsToLnd, 'Faxa_snowl')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'vfrac')
-      call fldlist_add(fldsToLnd_num, fldsToLnd, 'zorl')
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_vfrac')
+      call fldlist_add(fldsToLnd_num, fldsToLnd, 'Sa_zorl')
       ! needed?
       !call fldlist_add(fldsToLnd_num, fldsToLnd,'Faxa_garea')
 
@@ -487,6 +487,12 @@ contains
       call state_getimport_2d(importState, 'Faxa_swndf', lm4data_1d=lm4_model%atm_forc%flux_sw_down_nir_dif, rc=rc) ! mean surface downward nir diffuse flux
       call state_getimport_2d(importState, 'Faxa_swndr', lm4data_1d=lm4_model%atm_forc%flux_sw_down_nir_dir, rc=rc) ! mean surface downward nir direct flux
 
+      ! call state_getimport_2d(importState, 'Faxa_swdn' , lm4data_1d=lm4_model%atm_forc%flux_sw, rc=rc) ! mean downward SW heat flux
+      ! call state_getimport_2d(importState, 'Faxa_swnet', lm4data_1d=lm4_model%atm_forc%flux_sw, rc=rc) ! mean_net_sw_flx
+      ! call state_getimport_2d(importState, 'Sa_vfrac',  lm4data_1d=lm4_model%atm_forc%vfrac, rc=rc)  ! vegetation fraction
+      ! call state_getimport_2d(importState, 'Sa_zorl',   lm4data_1d=lm4_model%atm_forc%zorl, rc=rc)   ! roughness length
+
+
       if (ie_debug > 0) then ! Also want Structured Grid data
          call state_getimport_2d(importState, 'Sa_z',       lm4data_2d=lm4_model%atm_forc2d%z_bot,   rc=rc)
          call state_getimport_2d(importState, 'Sa_tbot',    lm4data_2d=lm4_model%atm_forc2d%t_bot,   rc=rc)
@@ -505,21 +511,6 @@ contains
          call state_getimport_2d(importState, 'Faxa_swndf', lm4data_2d=lm4_model%atm_forc2d%flux_sw_down_nir_dif, rc=rc)
          call state_getimport_2d(importState, 'Faxa_swndr', lm4data_2d=lm4_model%atm_forc2d%flux_sw_down_nir_dir, rc=rc)
       end if
-
-
-      ! call state_getimport_2d(importState, 'Faxa_swdn' , cplr2land%swdn_flux, rc=rc)
-      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
-      ! call state_getimport_2d(importState, 'Faxa_swnet', forc%flux_sw, rc=rc)
-      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-      ! -----------------------
-
-      ! call state_getimport_2d(importState, 'Faxa_swndf',
-      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
-      ! call state_getimport_2d(importState, 'Faxa_swndr',
-      ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
-      ! -----------------------
 
       ! ! call state_getimport_2d(importState, 'Sa_exner'  , cplr2land%, rc=rc)
       ! ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -573,15 +564,9 @@ contains
       !! precip
       !! ---------------------------------------------------------------------
       ! rain
-      if (check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_rain')) then
-         ! have total liquid precip
-         call state_getimport_2d(importState, 'Faxa_rain',  lm4data_1d=lm4_model%atm_forc%lprec, rc=rc)
-         if (ie_debug > 0) then
-            call state_getimport_2d(importState, 'Faxa_rain', lm4data_2d=lm4_model%atm_forc2d%lprec, rc=rc)
-         endif
-      elseif ( ( check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_rainc') ) .and. &
+      if ( ( check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_rainc') ) .and. &
          ( check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_rainl') ) ) then
-         ! have convective and large-scale total precip
+         ! have convective and large-scale liquid precip
          call state_getimport_2d(importState, 'Faxa_rainc',  lm4data_1d=lm4_model%atm_forc%lprec, rc=rc)
          call state_getimport_2d(importState, 'Faxa_rainl',  lm4data_1d=tmp_ug_data, rc=rc)
          lm4_model%atm_forc%lprec = lm4_model%atm_forc%lprec + tmp_ug_data
@@ -590,6 +575,12 @@ contains
             call state_getimport_2d(importState, 'Faxa_rainl', lm4data_2d=tmp_sg_data, rc=rc)
             lm4_model%atm_forc2d%lprec = lm4_model%atm_forc2d%lprec + tmp_sg_data
          endif
+      elseif (check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_rain')) then
+            ! have total liquid precip
+            call state_getimport_2d(importState, 'Faxa_rain',  lm4data_1d=lm4_model%atm_forc%lprec, rc=rc)
+            if (ie_debug > 0) then
+               call state_getimport_2d(importState, 'Faxa_rain', lm4data_2d=lm4_model%atm_forc2d%lprec, rc=rc)
+            endif         
       else
          call ESMF_LogWrite(trim(subname)//": Don't have any liquid precip fields", &
             ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__)
@@ -597,13 +588,7 @@ contains
       endif
 
       ! snow
-      if (check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_snow')) then
-         ! have snow precip
-         call state_getimport_2d(importState, 'Faxa_snow',  lm4data_1d=lm4_model%atm_forc%fprec, rc=rc)
-         if (ie_debug > 0) then
-            call state_getimport_2d(importState, 'Faxa_snow', lm4data_2d=lm4_model%atm_forc2d%fprec, rc=rc)
-         endif
-      elseif ( ( check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_snowc') ) .and. &
+      if ( ( check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_snowc') ) .and. &
          ( check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_snowl') ) ) then
          ! have convective and large-scale snow precip
          call state_getimport_2d(importState, 'Faxa_snowc',  lm4data_1d=lm4_model%atm_forc%fprec, rc=rc)
@@ -614,6 +599,12 @@ contains
             call state_getimport_2d(importState, 'Faxa_snowl', lm4data_2d=tmp_sg_data, rc=rc)
             lm4_model%atm_forc2d%fprec = lm4_model%atm_forc2d%fprec + tmp_sg_data
          endif
+      elseif (check_for_connected(fldsToLnd, fldsToLnd_num, 'Faxa_snow')) then
+            ! have snow precip
+            call state_getimport_2d(importState, 'Faxa_snow',  lm4data_1d=lm4_model%atm_forc%fprec, rc=rc)
+            if (ie_debug > 0) then
+               call state_getimport_2d(importState, 'Faxa_snow', lm4data_2d=lm4_model%atm_forc2d%fprec, rc=rc)
+            endif         
       else
          ! TODO: want to have FMS Coupler's precip scaling functionality here?
          call ESMF_LogWrite(trim(subname)//": Don't have any snow precip fields", &
