@@ -201,6 +201,10 @@ contains
       lm4_model%nml%dt_lnd_slow = dt_lnd_slow
       lm4_model%nml%restart_interval = restart_interval
 
+      ! print out namelist values
+      ! ------------------------------------------
+      call ESMF_LogWrite('lm4_nml_read: lm4_debug = '//trim(adjustl(lm4_debug)), ESMF_LOGMSG_INFO)
+
    end subroutine lm4_nml_read
 
    !! ============================================================================
@@ -286,7 +290,10 @@ contains
          ESMF_LOGMSG_WARNING, line=__LINE__, file=__FILE__)
          call ESMF_LogWrite('Restarting is NOT reproducible with continous run', &
          ESMF_LOGMSG_WARNING, line=__LINE__, file=__FILE__)
-      else
+      elseif (trim(gust_to_use)=='prescribed') then
+         call ESMF_LogWrite('Using prescribed gustiness', ESMF_LOGMSG_INFO)
+         call ESMF_LogWrite('gustiness = '//trim(adjustl(gustiness)), ESMF_LOGMSG_INFO)
+         call ESMF_LogWrite('gust_min = '//trim(adjustl(gust_min)), ESMF_LOGMSG_INFO)
          call compute_gust(lm4_model)
       endif
 
