@@ -8,6 +8,7 @@ module lm4_driver
    use mpp_mod,              only: mpp_pe, mpp_root_pe
 
    use lm4_type_mod,         only: lm4_type
+   use lm4_kind_mod,         only: r8 => shr_kind_r8, cl=>shr_kind_cl
    use land_data_mod,        only: land_data_type, atmos_land_boundary_type, lnd
    use land_tracers_mod,     only: isphum, ico2, ntcana
    use lm4_surface_flux_mod, only: lm4_surface_flux_1d
@@ -117,6 +118,7 @@ module lm4_driver
       iug_rough_scale  , &
       iug_gust
 
+   character(len=CL) :: logmsg
 
 contains
 
@@ -200,10 +202,6 @@ contains
       lm4_model%nml%ntiles      = ntiles
       lm4_model%nml%dt_lnd_slow = dt_lnd_slow
       lm4_model%nml%restart_interval = restart_interval
-
-      ! print out namelist values
-      ! ------------------------------------------
-      call ESMF_LogWrite('lm4_nml_read: lm4_debug = '//trim(adjustl(lm4_debug)), ESMF_LOGMSG_INFO)
 
    end subroutine lm4_nml_read
 
@@ -292,8 +290,10 @@ contains
          ESMF_LOGMSG_WARNING, line=__LINE__, file=__FILE__)
       elseif (trim(gust_to_use)=='prescribed') then
          call ESMF_LogWrite('Using prescribed gustiness', ESMF_LOGMSG_INFO)
-         call ESMF_LogWrite('gustiness = '//trim(adjustl(gustiness)), ESMF_LOGMSG_INFO)
-         call ESMF_LogWrite('gust_min = '//trim(adjustl(gust_min)), ESMF_LOGMSG_INFO)
+         write(logmsg, '(A,F6.2)') 'gustiness = ', gustiness
+         call ESMF_LogWrite(trim(logmsg), ESMF_LOGMSG_INFO)
+         write(logmsg, '(A,F6.2)') 'gust_min = ', gust_min
+         call ESMF_LogWrite(trim(logmsg), ESMF_LOGMSG_INFO)
          call compute_gust(lm4_model)
       endif
 
