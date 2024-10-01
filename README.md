@@ -13,7 +13,7 @@ but is managed by NOAA-GFDL at https://gitlab.gfdl.noaa.gov.
 Supported grids and resolutions
 --------------------------------------------------------
 
-Currently in development, global C48 and C96 grids are supported
+Currently in development, only the global C96 grids are supported
 
 Namelist Options
 --------------------------------------------------------
@@ -104,17 +104,17 @@ Restarts
 LM4 uses FMS to write and read restarts.
 
 - The following restart files are needed generated in the `RESTART` directory, and needed in the `INPUT` directory for a warm start
-
-  - cana.res.tile{1..6}.nc 
-  - glac.res.tile{1..6}.nc 
-  - lake.res.tile{1..6}.nc 
-  - land.res.tile{1..6}.nc 
-  - snow.res.tile{1..6}.nc 
-  - soil.res.tile{1..6}.nc 
-  - vegn1.res.tile{1..6}.nc
-  - vegn2.res.tile{1..6}.nc
-  - landuse.res	  
-
+```
+  cana.res.tile{1..6}.nc 
+  glac.res.tile{1..6}.nc 
+  lake.res.tile{1..6}.nc 
+  land.res.tile{1..6}.nc 
+  snow.res.tile{1..6}.nc 
+  soil.res.tile{1..6}.nc 
+  vegn1.res.tile{1..6}.nc
+  vegn2.res.tile{1..6}.nc
+  landuse.res	  
+```
 
 
 Intermediate restarts can be generate during the model run
