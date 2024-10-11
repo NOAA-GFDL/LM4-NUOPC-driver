@@ -5,6 +5,7 @@ module lm4_type_mod
 
    public
 
+   ! type for LM4 NUOPC cap nml
    type :: lm4_nml_type
       integer           :: lm4_debug    ! debug flag for lm4 (0=off, 1=low, 2=high)
       ! grid, domain, and blocking
@@ -13,13 +14,24 @@ module lm4_type_mod
       integer           :: layout(2)
       character(len=64) :: grid
       integer           :: blocksize
+      integer           :: dt_lnd_slow  ! land slow timestep (s)
+      integer, dimension(6) :: restart_interval = (/ 0, 0, 0, 0, 0, 0/) !< The time interval that write out intermediate restart file.
+                                                                        !! The format is (yr,mo,day,hr,min,sec).  When restart_interval
+                                                                        !! is all zero, no intermediate restart file will be written out
    end type lm4_nml_type
 
+   ! TODO: is this used at all?
    type :: lm4_control_type
       logical   :: first_time  ! flag for first time step
       integer   :: mype
       integer   :: nblks, blksz, isc, iec, jsc, jec
    end type lm4_control_type
+
+   type :: lm4_cpl_scalar_type
+      integer, public           :: flds_scalar_num, flds_scalar_index_nx
+      integer, public           :: flds_scalar_index_ny, flds_scalar_index_ntile
+      character(len=80), public :: flds_scalar_name
+   end type lm4_cpl_scalar_type
 
    ! type for atmospheric forcing data, based off atmos_solo_land's atmos_data_type
    type, public :: atm_forc_type
@@ -89,13 +101,14 @@ module lm4_type_mod
    type :: lm4_type
       type(lm4_nml_type)             :: nml        ! namelist
       type(lm4_control_type)         :: control
+      type(lm4_cpl_scalar_type)      :: cpl_scalar ! for scalars to mediator
       type(atm_forc_type)            :: atm_forc   ! data from atm 
       type(atm_forc2d_type)          :: atm_forc2d ! TMP DEBUG
       ! these are passed to the land model's routines:
       type(land_data_type)           :: From_lnd   ! data from land
       type(atmos_land_boundary_type) :: From_atm   ! data from atm      
       type(time_type)                :: Time_land, Time_init, Time_end,  &
-                                        Time_step_land, Time_step_ocean, &
+                                        Time_step_land, Time_step_slow, &
                                         Time_restart, Time_step_restart, &
                                         Time_atstart      
 
@@ -167,6 +180,9 @@ contains
       allocate( bnd%lprec(lnd%ls:lnd%le) )
       allocate( bnd%fprec(lnd%ls:lnd%le) )
 
+      ! gust is an output to lm4_surface_flux_1d, so it needs to be initialized 
+      bnd%gust = 0.01  ! JP TEST VALUE
+
    end subroutine alloc_atmforc
 
    ! TMP DEBUG
@@ -231,6 +247,10 @@ contains
       allocate( bnd%flux_sw_vis_dif(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%lprec(lnd%is:lnd%ie,lnd%js:lnd%je) )
       allocate( bnd%fprec(lnd%is:lnd%ie,lnd%js:lnd%je) )
+
+      ! gust is an output to lm4_surface_flux_1d, so it needs to be initialized 
+      bnd%gust = 0.01  ! JP TEST VALUE
+            
    end subroutine alloc_atmforc2d
 	! TMP DEBUG
 

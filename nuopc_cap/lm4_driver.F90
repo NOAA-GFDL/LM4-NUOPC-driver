@@ -2,26 +2,28 @@
 !! ============================================================================
 module lm4_driver
 
-   use ESMF,                 only: ESMF_MethodRemove, ESMF_LogWrite, ESMF_LOGMSG_INFO, ESMF_SUCCESS, ESMF_FAILURE
+   use ESMF,                 only: ESMF_MethodRemove, ESMF_LogWrite, ESMF_LOGMSG_INFO, ESMF_SUCCESS, &
+                                   ESMF_FAILURE, ESMF_END_ABORT, ESMF_Finalize, ESMF_LOGMSG_ERROR, ESMF_LOGMSG_WARNING
    use mpp_domains_mod,      only: domain2d
-   use mpp_mod,             only: mpp_pe, mpp_root_pe
+   use mpp_mod,              only: mpp_pe, mpp_root_pe
 
    use lm4_type_mod,         only: lm4_type
+   use lm4_kind_mod,         only: r8 => shr_kind_r8, cl=>shr_kind_cl
    use land_data_mod,        only: land_data_type, atmos_land_boundary_type, lnd
    use land_tracers_mod,     only: isphum, ico2, ntcana
    use lm4_surface_flux_mod, only: lm4_surface_flux_1d
 
-   ! for debug diag
-   use time_manager_mod,     only: time_type
-   use mpp_domains_mod,      only: domainUG
-   use mpp_domains_mod,      only: mpp_get_UG_compute_domain, mpp_get_UG_domain_ntiles
-   use mpp_domains_mod,      only: mpp_get_UG_domain_grid_index
-   use diag_manager_mod,     only: diag_axis_init, register_static_field, diag_field_add_attribute, &
-                                   register_diag_field
-   use diag_axis_mod,        only: diag_axis_add_attribute
-   use land_tile_diag_mod,   only: register_tiled_area_fields, register_tiled_diag_field, set_default_diag_filter, &
-                                   send_tile_data
-   use tile_diag_buff_mod,   only: diag_buff_type, init_diag_buff
+   use time_manager_mod,      only: time_type, date_to_string, increment_date, decrement_date
+   use time_manager_mod,      only: operator(>=), operator(<), operator(==)
+   use mpp_domains_mod,       only: domainUG
+   use mpp_domains_mod,       only: mpp_get_UG_compute_domain, mpp_get_UG_domain_ntiles
+   use mpp_domains_mod,       only: mpp_get_UG_domain_grid_index
+   use diag_manager_mod,      only: diag_axis_init, register_static_field, diag_field_add_attribute, &
+                                    register_diag_field
+   use diag_axis_mod,         only: diag_axis_add_attribute
+   use land_tile_diag_mod,    only: register_tiled_area_fields, register_tiled_diag_field, set_default_diag_filter, &
+                                    send_tile_data
+   use tile_diag_buff_mod,    only: diag_buff_type, init_diag_buff
 
 
    implicit none
@@ -30,19 +32,27 @@ module lm4_driver
    type(domain2D), public :: land_domain
 
    integer :: date_init(6)
+   character(len=32)     :: timestamp
 
 
    public :: lm4_nml_read
    public :: init_driver, end_driver
-   public :: sfc_boundary_layer, flux_down_from_atmos
+   public :: sfc_boundary_layer, update_atmos_model_down, flux_down_from_atmos
+   public :: write_int_restart
    public :: debug_diag
 
 
    ! --- namelist of vars originally from flux exchange nml
    real :: z_ref_heat =  2. !< Reference height (meters) for temperature and relative humidity diagnostics (t_ref, rh_ref, del_h, del_q)
-
    ! TODO: rename this nml?
    namelist /flux_exchange_nml/ z_ref_heat
+
+   ! --- namelist of vars originally from atmos_prescr_nml
+   character(len=24) :: gust_to_use = 'computed' ! or 'prescribed'
+   real    :: gustiness    = 5.0  ! m/s, wind gustiness if gust_to_use = 'prescribed'
+   real    :: gust_min     = 0.0  ! m/s, minimum gustiness when gust_to_use = 'computed'
+   namelist /atmos_prescr_nml/ gustiness, gust_to_use, gust_min
+
 
    logical :: scale_precip_2d = .false.
 
@@ -108,10 +118,13 @@ module lm4_driver
       iug_rough_scale  , &
       iug_gust
 
+   character(len=CL) :: logmsg
 
 contains
 
-   !! Read in lm4 namelist
+   !! Read in lm4 namelist for NUOPC-cap related variables
+   !! Also read in other namelists that are not read in from other model components,
+   !! but are used in this module
    !! ============================================================================
    subroutine lm4_nml_read(lm4_model)
 
@@ -124,27 +137,39 @@ contains
 
       type(lm4_type),          intent(inout) :: lm4_model ! land model's variable type
 
-      ! namelist variables for lm4
+      ! namelist variables for lm4 cap
       ! ------------------------------------------
-      integer           :: lm4_debug = 0        ! debug flag for lm4 (0=off, 1=low, 2=high)
-      integer           :: npx = 0, npy = 0
-      integer           :: ntiles = 0
-      integer           :: layout(2) = (/0,0/)
-      character(len=64) :: grid      = 'none'
-      integer           :: blocksize = -1
+      integer           :: lm4_debug   = 0          ! debug flag for lm4 (0=off, 1=low, 2=high)
+      integer           :: npx         = 0, npy = 0
+      integer           :: ntiles      = 0
+      integer           :: layout(2)   = (/0,0/)
+      character(len=64) :: grid        = 'none'
+      integer           :: blocksize   = -1
+      integer           :: dt_lnd_slow = 86400  ! time step for slow land processes (s)
+      integer, dimension(6) :: restart_interval = (/ 0, 0, 0, 0, 0, 0/) !< The time interval that write out intermediate restart file.
+                                                                        !! The format is (yr,mo,day,hr,min,sec).  When restart_interval
+                                                                        !! is all zero, no intermediate restart file will be written out
 
+      ! TODO: are all these still needed?
 
       ! for namelist read
       integer :: unit, io, ierr
       namelist /lm4_nml/ grid, npx, npy, layout, ntiles, &
-         blocksize, lm4_debug
+         blocksize, lm4_debug, dt_lnd_slow, restart_interval
 
-      ! read in namelist
-
+      ! read in namelists
+      ! ------------------------------------------
       if ( file_exist('input.nml')) then
 #ifdef INTERNAL_FILE_NML
+         ! lm4_nml
          read(input_nml_file, nml=lm4_nml, iostat=io)
          ierr = check_nml_error(io, 'lm4_nml')
+
+         read(input_nml_file, nml=atmos_prescr_nml, iostat=io)
+         ierr = check_nml_error(io, 'atmos_prescr_nml')
+
+         read(input_nml_file, nml=flux_exchange_nml, iostat=io)
+         ierr = check_nml_error(io, 'flux_exchange_nml')
 #else
          unit = open_namelist_file ( )
          ierr=1
@@ -152,17 +177,31 @@ contains
             read(unit, nml=lm4_nml, iostat=io)
             ierr = check_nml_error(io,'lm4_nml')
          enddo
+
+         ierr=1
+         do while (ierr /= 0)
+            read(unit, nml=atmos_prescr_nml, iostat=io)
+            ierr = check_nml_error(io,'atmos_prescr_nml')
+         enddo        
+         
+         ierr=1
+         do while (ierr /= 0)
+            read(unit, nml=flux_exchange_nml, iostat=io)
+            ierr = check_nml_error(io,'flux_exchange_nml')
+         enddo             
          call close_file(unit)
 #endif
       endif
 
-      lm4_model%nml%lm4_debug = lm4_debug
-      lm4_model%nml%grid      = grid
-      lm4_model%nml%blocksize = blocksize
-      lm4_model%nml%npx       = npx
-      lm4_model%nml%npy       = npy
-      lm4_model%nml%layout    = layout
-      lm4_model%nml%ntiles    = ntiles
+      lm4_model%nml%lm4_debug   = lm4_debug
+      lm4_model%nml%grid        = grid
+      lm4_model%nml%blocksize   = blocksize
+      lm4_model%nml%npx         = npx
+      lm4_model%nml%npy         = npy
+      lm4_model%nml%layout      = layout
+      lm4_model%nml%ntiles      = ntiles
+      lm4_model%nml%dt_lnd_slow = dt_lnd_slow
+      lm4_model%nml%restart_interval = restart_interval
 
    end subroutine lm4_nml_read
 
@@ -191,31 +230,6 @@ contains
       call domain_create(lm4_model%nml, land_domain)
 
       call mpp_get_compute_domain(land_domain,isc,iec,jsc,jec)
-      ! use LM4's data type, using just a part of land_data_init
-      !call mpp_get_compute_domain(lnd%sg_domain, lnd%is,lnd%ie,lnd%js,lnd%je)
-
-      ! call land_diag_init( lnd%coord_glonb, lnd%coord_glatb, lnd%coord_glon, lnd%coord_glat, &
-      !                      lm4_model%Time_land, lnd%ug_domain, id_band, id_ug )
-
-      ! create a buffer for diagnostic output
-      ! call init_diag_buff(lm4_buffer)
-
-      ! isc = lnd%is
-      ! iec = lnd%ie
-      ! jsc = lnd%js
-      ! jec = lnd%je
-
-      !im = (iec-isc+1)*(jec-jsc+1)
-
-      ! ! Create blocks, but again, not currently using
-      ! call define_blocks_packed('land_model', Lnd_block, isc, iec, jsc, jec, 1, &
-      !    lm4_model%nml%blocksize, block_message)
-
-
-      ! ! Restart read of sfc_data
-      ! call sfc_prop_restart_read(lm4_model, land_domain, .false.)
-      ! ! Transfer from sfcprop to model data
-      ! call sfc_prop_transfer(lm4_model)
 
       allocate( &
          ex_flux_t(lnd%ls:lnd%le), ex_flux_lw(lnd%ls:lnd%le),   &
@@ -242,7 +256,73 @@ contains
 
       )
 
+      ! Set restart time  
+      if (ALL(lm4_model%nml%restart_interval ==0)) then
+         lm4_model%Time_restart = increment_date(lm4_model%Time_end, 0, 0, 10, 0, 0, 0)   ! no intermediate restart
+      else
+         
+         lm4_model%Time_restart = increment_date(lm4_model%Time_init, lm4_model%nml%restart_interval(1), lm4_model%nml%restart_interval(2), &
+            lm4_model%nml%restart_interval(3), lm4_model%nml%restart_interval(4), lm4_model%nml%restart_interval(5), lm4_model%nml%restart_interval(6) )
+
+            ! subtract the slow time step in seconds
+            timestamp = date_to_string(lm4_model%Time_restart)
+            call ESMF_LogWrite('LM4 init_driver: Time_restart before decrement' //trim(timestamp), ESMF_LOGMSG_INFO)
+            lm4_model%Time_restart = decrement_date(lm4_model%Time_restart, 0,0,0,0,0, lm4_model%nml%dt_lnd_slow)
+            timestamp = date_to_string(lm4_model%Time_restart)
+            call ESMF_LogWrite('LM4 init_driver: Time_restart after decrement' //trim(timestamp), ESMF_LOGMSG_INFO)
+         
+
+         if (lm4_model%Time_restart < lm4_model%Time_land) then
+            call ESMF_LogWrite('The first intermediate restart time is larger than the start time', &
+               ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__)
+            call ESMF_Finalize(endflag=ESMF_END_ABORT)
+            
+         endif
+
+      endif
+
+      ! initialize gust
+      if (trim(gust_to_use)=='computed') then
+         ! can't use with CDEPS atm, since no ustar/bstar provided in atm forcing or restarts
+         call ESMF_LogWrite('Computed gustiness reinitializes gust on initialization with this data atmosphere.', &
+         ESMF_LOGMSG_WARNING, line=__LINE__, file=__FILE__)
+         call ESMF_LogWrite('Restarting is NOT reproducible with continous run', &
+         ESMF_LOGMSG_WARNING, line=__LINE__, file=__FILE__)
+      elseif (trim(gust_to_use)=='prescribed') then
+         call ESMF_LogWrite('Using prescribed gustiness', ESMF_LOGMSG_INFO)
+         write(logmsg, '(A,F6.2)') 'gustiness = ', gustiness
+         call ESMF_LogWrite(trim(logmsg), ESMF_LOGMSG_INFO)
+         write(logmsg, '(A,F6.2)') 'gust_min = ', gust_min
+         call ESMF_LogWrite(trim(logmsg), ESMF_LOGMSG_INFO)
+         call compute_gust(lm4_model)
+      endif
+
    end subroutine init_driver
+
+   !! ============================================================================
+   !! Adapted from GFDL coupler, write intermediate restarts
+   !! ============================================================================
+   subroutine write_int_restart(lm4_model)
+      use land_model_mod,          only: land_model_restart
+
+      type(lm4_type), intent(inout) :: lm4_model ! land model's variable type
+
+      type(time_type)       :: Time_restart_stamp ! datetime stamp for restart file
+          
+      !--- write out intermediate restart file when needed.                                                                                                                                           
+      if (lm4_model%Time_land >= lm4_model%Time_restart) then
+         lm4_model%Time_restart = increment_date(lm4_model%Time_land, lm4_model%nml%restart_interval(1), lm4_model%nml%restart_interval(2), &
+            lm4_model%nml%restart_interval(3), lm4_model%nml%restart_interval(4), lm4_model%nml%restart_interval(5), lm4_model%nml%restart_interval(6) )
+
+         ! To match behavior of GFDL coupler, advance the restart file timestamp by the slow time step
+         ! (datestamp is modeltime needed for restart)
+         Time_restart_stamp = increment_date(lm4_model%Time_land, 0,0,0,0,0, lm4_model%nml%dt_lnd_slow)
+         timestamp = date_to_string(Time_restart_stamp)
+         call ESMF_LogWrite('write_int_restart restart is written for '//trim(timestamp), ESMF_LOGMSG_INFO)
+         call land_model_restart(timestamp)
+       endif
+   
+   end subroutine write_int_restart
 
    !! ============================================================================
    !! Adapted from GFDL atm_land_ice_flux_exchange,
@@ -342,11 +422,6 @@ contains
 
 
       ! ---------------------------
-      ! JP TMP DEBUG
-         ! if (mpp_pe()== mpp_root_pe() ) then
-         !    call set_fake_data(lm4_model)
-         !    call write_data(lm4_model)
-         ! endif
 
       ex_avail    = .TRUE.
       ex_land     = .TRUE.
@@ -373,6 +448,7 @@ contains
       ex_p_atm  = lm4_model%atm_forc%p_bot
       ex_z_atm  = lm4_model%atm_forc%z_bot
       ex_p_surf = lm4_model%atm_forc%p_surf
+      ex_gust   = lm4_model%atm_forc%gust
 
 
       ! this is mimicking the original code for land roughness vars
@@ -385,24 +461,6 @@ contains
       ex_t_surf = lm4_model%From_lnd%t_surf(:,ntile)
       ex_t_ca   = lm4_model%From_lnd%t_ca(:,ntile)
 
-
-      ! TMP DEBUG values
-      !ex_t_atm        =  271.41292317708337
-      !ex_q_atm        =  3.0431489770611133E-003  !! this is now fine
-      !ex_u_atm        =  7.0392669041951503       !! this is now fine
-      ! ex_v_atm        =   2.1000000000000000
-      !ex_v_atm        =  7.039266904195150
-      !ex_p_atm        =  98525.662918221846       !! this is now fine
-      !ex_z_atm        =  35.000000000000000       !! this is now fine
-      !ex_p_surf       =  99102.075520833343       !! this is now fine
-      !ex_t_surf       =  271.50000000000000       !! this is fine
-      !ex_t_ca         =  271.50000000000000       !! this is fine
-      !ex_q_surf       =  3.0431489770611133E-003  !! this is fine
-      !ex_rough_mom    =  4.0000000000000002E-004  !! this is fine
-      !ex_rough_heat   =  4.0000000000000002E-004  !! this is fine
-      !ex_rough_moist  =  4.0000000000000002E-004  !! this is fine
-      !ex_rough_scale  =  4.0000000000000002E-004  !! this is fine
-      ex_gust          = 0.07        ! TODO: need to fill this appropriately!
 
       ! initialize other variables to zero
       ex_flux_t         =  0.0
@@ -426,143 +484,6 @@ contains
       ex_dtaudu_atm     =  0.0
       ex_dtaudv_atm     =  0.0
 
-      ! write(*,*) 'ex_t_atm min/max: ', minval(ex_t_atm), maxval(ex_t_atm)
-      ! write(*,*) 'ex_q_atm min/max: ', minval(ex_q_atm), maxval(ex_q_atm)
-      ! write(*,*) 'ex_u_atm min/max: ', minval(ex_u_atm), maxval(ex_u_atm)
-      ! write(*,*) 'ex_v_atm min/max: ', minval(ex_v_atm), maxval(ex_v_atm)
-      ! write(*,*) 'ex_p_atm min/max: ', minval(ex_p_atm), maxval(ex_p_atm)
-      ! write(*,*) 'ex_z_atm min/max: ', minval(ex_z_atm), maxval(ex_z_atm)
-      ! write(*,*) 'ex_p_surf min/max: ', minval(ex_p_surf), maxval(ex_p_surf)
-      ! write(*,*) 'ex_t_surf min/max: ', minval(ex_t_surf), maxval(ex_t_surf)
-      ! write(*,*) 'ex_t_ca min/max: ', minval(ex_t_ca), maxval(ex_t_ca)
-      ! write(*,*) 'ex_q_surf min/max: ', minval(ex_q_surf), maxval(ex_q_surf)
-      ! write(*,*) 'ex_rough_mom min/max: ', minval(ex_rough_mom), maxval(ex_rough_mom)
-      ! write(*,*) 'ex_rough_heat min/max: ', minval(ex_rough_heat), maxval(ex_rough_heat)
-      ! write(*,*) 'ex_rough_moist min/max: ', minval(ex_rough_moist), maxval(ex_rough_moist)
-      ! write(*,*) 'ex_rough_scale min/max: ', minval(ex_rough_scale), maxval(ex_rough_scale)
-
-
-      ! if (any(isnan(ex_t_atm))) then
-      !    write(*,*) 'ex_t_atm contains NaNs'
-      ! end if
-
-      ! if (any(isnan(ex_q_atm))) then
-      !    write(*,*) 'ex_q_atm contains NaNs'
-      ! end if
-
-      ! if (any(isnan(ex_u_atm))) then
-      !    write(*,*) 'ex_u_atm contains NaNs'
-      ! end if
-
-      ! if (any(isnan(ex_v_atm))) then
-      !    write(*,*) 'ex_v_atm contains NaNs'
-      ! end if
-
-      ! if (any(isnan(ex_p_atm))) then
-      !    write(*,*) 'ex_p_atm contains NaNs'
-      ! end if
-
-      ! if (any(isnan(ex_z_atm))) then
-      !    write(*,*) 'ex_z_atm contains NaNs'
-      ! end if
-
-      ! if (any(isnan(ex_p_surf))) then
-      !    write(*,*) 'ex_p_surf contains NaNs'
-      ! end if
-
-      ! if (any(isnan(ex_t_surf))) then
-      !    write(*,*) 'ex_t_surf contains NaNs'
-      ! end if
-
-      ! if (any(isnan(ex_t_ca))) then
-      !    write(*,*) 'ex_t_ca contains NaNs'
-      ! end if
-
-      ! if (any(isnan(ex_q_surf))) then
-      !    write(*,*) 'ex_q_surf contains NaNs'
-      ! end if
-
-      ! if (any(isnan(ex_rough_mom))) then
-      !    write(*,*) 'ex_rough_mom contains NaNs'
-      ! end if
-
-      ! if (any(isnan(ex_rough_heat))) then
-      !    write(*,*) 'ex_rough_heat contains NaNs'
-      ! end if
-
-      ! if (any(isnan(ex_rough_moist))) then
-      !    write(*,*) 'ex_rough_moist contains NaNs'
-      ! end if
-
-      ! if (any(isnan(ex_rough_scale))) then
-      !    write(*,*) 'ex_rough_scale contains NaNs'
-      ! end if
-
-      ! ! Check that the variables are within a reasonable range
-      ! if (any(ex_t_atm < 200.0) .or. any(ex_t_atm > 350.0)) then
-      !    write(*,*) 'ex_t_atm is outside of reasonable range'
-      ! end if
-
-      ! if (any(ex_q_atm < 0.0) .or. any(ex_q_atm > 0.05)) then
-      !    write(*,*) 'ex_q_atm is outside of reasonable range'
-      ! end if
-
-      ! if (any(ex_u_atm < 0.0) .or. any(ex_u_atm > 50.0)) then
-      !    write(*,*) 'ex_u_atm is outside of reasonable range'
-      ! end if
-
-      ! if (any(ex_v_atm < 0.0) .or. any(ex_v_atm > 50.0)) then
-      !    write(*,*) 'ex_v_atm is outside of reasonable range'
-      ! end if
-
-      ! if (any(ex_p_atm < 50000.0) .or. any(ex_p_atm > 110000.0)) then
-      !    write(*,*) 'ex_p_atm is outside of reasonable range'
-      ! end if
-
-      ! if (any(ex_z_atm < 0.0) .or. any(ex_z_atm > 10000.0)) then
-      !    write(*,*) 'ex_z_atm is outside of reasonable range'
-      ! end if
-
-      ! if (any(ex_p_surf < 50000.0) .or. any(ex_p_surf > 110000.0)) then
-      !    write(*,*) 'ex_p_surf is outside of reasonable range'
-      ! end if
-
-      ! if (any(ex_t_surf < 200.0) .or. any(ex_t_surf > 350.0)) then
-      !    write(*,*) 'ex_t_surf is outside of reasonable range'
-      ! end if
-
-      ! if (any(ex_t_ca < 200.0) .or. any(ex_t_ca > 350.0)) then
-      !    write(*,*) 'ex_t_ca is outside of reasonable range'
-      ! end if
-
-      ! if (any(ex_q_surf < 0.0) .or. any(ex_q_surf > 0.05)) then
-      !    write(*,*) 'ex_q_surf is outside of reasonable range'
-      ! end if
-
-      ! if (any(ex_rough_mom < 0.0) .or. any(ex_rough_mom > 0.1)) then
-      !    write(*,*) 'ex_rough_mom is outside of reasonable range'
-      ! end if
-
-      ! if (any(ex_rough_heat < 0.0) .or. any(ex_rough_heat > 0.1)) then
-      !    write(*,*) 'ex_rough_heat is outside of reasonable range'
-      ! end if
-
-      ! if (any(ex_rough_moist < 0.0) .or. any(ex_rough_moist > 0.1)) then
-      !    write(*,*) 'ex_rough_moist is outside of reasonable range'
-      ! end if
-
-      ! if (any(ex_rough_scale < 0.0) .or. any(ex_rough_scale > 1.0)) then
-      !    write(*,*) 'ex_rough_scale is outside of reasonable range'
-      ! end if
-
-      ! ! check diff between t_atm and t_ca
-      ! write(*,*) 'max diff between t_atm and t_ca: ', maxval(abs(ex_t_atm - ex_t_ca))
-      ! write(*,*) 'min diff between t_atm and t_ca: ', minval(abs(ex_t_atm - ex_t_ca))
-      ! if (any(abs(ex_t_atm - ex_t_ca) > 30)) then
-      !    write(*,*) 'ex_t_atm and ex_t_ca differ by more than 30'
-      ! end if
-
-
       ! Note, these are relying on the send_tile_data_0d_array procedure
       ! to avoid bring land_mdel.F90's tile buffer into calls
       ! Note: only use for data with tile dim.?
@@ -582,93 +503,9 @@ contains
       ! call send_tile_data(iug_rough_scale, ex_rough_scale)
       ! call send_tile_data(iug_gust       , ex_gust       )
 
-      ! ! JP TMP DEBUG
-      ! if (mpp_pe()== mpp_root_pe()) then
-      !    ! overwrite with data from standalone run
-      !    lm4_model%atm_forc%t_bot(1)               =    285.73773193359375
-      !    lm4_model%atm_forc%q_bot(1)               =    7.9072029329836369E-003
-      !    lm4_model%atm_forc%u_bot(1)               =    4.0279372930526733
-      !    lm4_model%atm_forc%v_bot(1)               =    0.0000000000000000
-      !    lm4_model%atm_forc%p_bot(1)               =    98854.045142723960
-      !    lm4_model%atm_forc%z_bot(1)               =    35.000000000000000
-      !    lm4_model%atm_forc%p_surf(1)              =    99432.378906250000
-      !    lm4_model%From_lnd%t_surf(1,ntile)        =    271.50000000000000
-      !    lm4_model%From_lnd%t_ca(1,ntile)          =    271.50000000000000
-      !    ex_q_surf(1)                              =    7.9072029329836369E-003
-      !    ex_u_surf(1)                              =    0.0000000000000000
-      !    ex_v_surf(1)                              =    0.0000000000000000
-      !    lm4_model%From_lnd%rough_mom(1,ntile)     =    4.0000000000000002E-004
-      !    lm4_model%From_lnd%rough_heat(1,ntile)    =    4.0000000000000002E-004
-      !    ex_rough_moist(1)                         =    4.0000000000000002E-004
-      !    lm4_model%From_lnd%rough_scale(1,ntile)   =    4.0000000000000002E-004
-      !    ex_gust(1)                                =    1.0000000000000000E-002
-      !    ! ex_flux_t(1) =    6.9366201651163585E-310
-      !    ! ex_flux_tr(1) =    5.4927512634392058E+247
-      !    ! ex_flux_lw(1) =    6.9366201651163585E-310
-      !    ! ex_flux_u(1) =    6.9366201651305876E-310
-      !    ! ex_flux_v(1) =    6.9366201651163585E-310
-      !    ! ex_cd_m(1) =    0.0000000000000000
-      !    ! ex_cd_t(1)              =    0.0000000000000000
-      !    ! ex_cd_q(1)              =    0.0000000000000000
-      !    ! ex_wind(1)              =    6.9366201651313781E-310
-      !    ! ex_u_star(1)            =    6.9366201651179395E-310
-      !    ! ex_b_star(1)            =    6.9366201651163585E-310
-      !    ! ex_q_star(1)            =    6.9366201651305876E-310
-      !    ! ex_dhdt_surf(1)         =    6.9366201651179395E-310
-      !    ! ex_dedt_surf(1)         =    6.9366201651305876E-310
-      !    ! ex_dfdtr_surf(1,isphum) =    0.0000000000000000
-      !    ! ex_drdt_surf(1)         =    6.9366201651163585E-310
-      !    ! ex_dhdt_atm(1)          =    6.9366201651163585E-310
-      !    ! ex_dfdtr_atm(1,isphum)  =    5.4927512634392058E+247
-      !    ! ex_dtaudu_atm(1)        =    6.9366201651163585E-310
-      !    ! ex_dtaudv_atm(1)        =    6.9366201651163585E-310
-      !    ! ex_land(1)              =  F
-      !    ! ex_seawater(1)          =    1.0000000000000000
-      !    ! ex_avail(1)             =  T
 
-      !    write(*,*) 'surface_flux args before call:'
-      !    write(*,*) 'SF1 lm4_model%atm_forc%t_bot(1)               =', lm4_model%atm_forc%t_bot(1)
-      !    write(*,*) 'SF1 lm4_model%atm_forc%q_bot(1)               =', lm4_model%atm_forc%q_bot(1)
-      !    write(*,*) 'SF1 lm4_model%atm_forc%u_bot(1)               =', lm4_model%atm_forc%u_bot(1)
-      !    write(*,*) 'SF1 lm4_model%atm_forc%v_bot(1)               =', lm4_model%atm_forc%v_bot(1)
-      !    write(*,*) 'SF1 lm4_model%atm_forc%p_bot(1)               =', lm4_model%atm_forc%p_bot(1)
-      !    write(*,*) 'SF1 lm4_model%atm_forc%z_bot(1)               =', lm4_model%atm_forc%z_bot(1)
-      !    write(*,*) 'SF1 lm4_model%atm_forc%p_surf(1)              =', lm4_model%atm_forc%p_surf(1)
-      !    write(*,*) 'SF1 lm4_model%From_lnd%t_surf(1,ntile)        =', lm4_model%From_lnd%t_surf(1,ntile)
-      !    write(*,*) 'SF1 lm4_model%From_lnd%t_ca(1,ntile)          =', lm4_model%From_lnd%t_ca(1,ntile)
-      !    write(*,*) 'SF1 ex_q_surf(1)                              =', ex_q_surf(1)
-      !    write(*,*) 'SF1 ex_u_surf(1)                              =', ex_u_surf(1)
-      !    write(*,*) 'SF1 ex_v_surf(1)                              =', ex_v_surf(1)
-      !    write(*,*) 'SF1 lm4_model%From_lnd%rough_mom(1,ntile)     =', lm4_model%From_lnd%rough_mom(1,ntile)
-      !    write(*,*) 'SF1 lm4_model%From_lnd%rough_heat(1,ntile)    =', lm4_model%From_lnd%rough_heat(1,ntile)
-      !    write(*,*) 'SF1 ex_rough_moist(1)                         =', ex_rough_moist(1)
-      !    write(*,*) 'SF1 lm4_model%From_lnd%rough_scale(1,ntile)   =', lm4_model%From_lnd%rough_scale(1,ntile)
-      !    write(*,*) 'SF1 ex_gust(1)                                =', ex_gust(1)
-      !    write(*,*) 'SF1 ex_flux_t(1)                              =', ex_flux_t(1)
-      !    write(*,*) 'SF1 ex_flux_tr(1,isphum)                      =', ex_flux_tr(1,isphum)
-      !    write(*,*) 'SF1 ex_flux_lw(1)                             =', ex_flux_lw(1)
-      !    write(*,*) 'SF1 ex_flux_u(1)                              =', ex_flux_u(1)
-      !    write(*,*) 'SF1 ex_flux_v(1)                              =', ex_flux_v(1)
-      !    write(*,*) 'SF1 ex_cd_m(1)                                =', ex_cd_m(1)
-      !    write(*,*) 'SF1 ex_cd_t(1)                                =', ex_cd_t(1)
-      !    write(*,*) 'SF1 ex_cd_q(1)                                =', ex_cd_q(1)
-      !    write(*,*) 'SF1 ex_wind(1)                                =', ex_wind(1)
-      !    write(*,*) 'SF1 ex_u_star(1)                              =', ex_u_star(1)
-      !    write(*,*) 'SF1 ex_b_star(1)                              =', ex_b_star(1)
-      !    write(*,*) 'SF1 ex_q_star(1)                              =', ex_q_star(1)
-      !    write(*,*) 'SF1 ex_dhdt_surf(1)                           =', ex_dhdt_surf(1)
-      !    write(*,*) 'SF1 ex_dedt_surf(1)                           =', ex_dedt_surf(1)
-      !    write(*,*) 'SF1 ex_dfdtr_surf(1,isphum)                   =', ex_dfdtr_surf(1,isphum)
-      !    write(*,*) 'SF1 ex_drdt_surf(1)                           =', ex_drdt_surf(1)
-      !    write(*,*) 'SF1 ex_dhdt_atm(1)                            =', ex_dhdt_atm(1)
-      !    write(*,*) 'SF1 ex_dfdtr_atm(1,isphum)                    =', ex_dfdtr_atm(1,isphum)
-      !    write(*,*) 'SF1 ex_dtaudu_atm(1)                          =', ex_dtaudu_atm(1)
-      !    write(*,*) 'SF1 ex_dtaudv_atm(1)                          =', ex_dtaudv_atm(1)
-      !    write(*,*) 'SF1 ex_land(1)                                =', ex_land(1)
-      !    write(*,*) 'SF1 ex_seawater(1)                            =', ex_seawater(1)
-      !    write(*,*) 'SF1 ex_avail(1)                               =', ex_avail(1)
-      ! end if
-      ! ! END JP TMP DEBUG
+         ex_tr_surf(1,isphum) = ex_q_surf(1)  ! TODO: review this connection 
+
 
       !1 TODO: make sure output args that are used outside of this routine have the right scope
       call lm4_surface_flux_1d ( &
@@ -683,7 +520,7 @@ contains
          ex_u_surf, ex_v_surf,             & ! 0s
          lm4_model%From_lnd%rough_mom(:,ntile), lm4_model%From_lnd%rough_heat(:,ntile), &
          ex_rough_moist, lm4_model%From_lnd%rough_scale(:,ntile),   &
-         ex_gust,                                                       & ! gustiness
+         lm4_model%atm_forc%gust,                                                       & ! gustiness
          ! outputs
          ex_flux_t, ex_flux_tr(:,isphum), ex_flux_lw,   &
          ex_flux_u, ex_flux_v, ex_cd_m,   ex_cd_t, &
@@ -695,51 +532,8 @@ contains
          ex_land, ex_seawater, ex_avail                                       & ! Is land, Is seawater, Is ex. avail
          )
 
-   ! ! JP TMP DEBUG
-   !    if (mpp_pe()== mpp_root_pe()) then
-   !       write(*,*) 'surface_flux args after call:'
-   !       write(*,*) 'SF2 lm4_model%atm_forc%t_bot(1)               =', lm4_model%atm_forc%t_bot(1)
-   !       write(*,*) 'SF2 lm4_model%atm_forc%q_bot(1)               =', lm4_model%atm_forc%q_bot(1)
-   !       write(*,*) 'SF2 lm4_model%atm_forc%u_bot(1)               =', lm4_model%atm_forc%u_bot(1)
-   !       write(*,*) 'SF2 lm4_model%atm_forc%v_bot(1)               =', lm4_model%atm_forc%v_bot(1)
-   !       write(*,*) 'SF2 lm4_model%atm_forc%p_bot(1)               =', lm4_model%atm_forc%p_bot(1)
-   !       write(*,*) 'SF2 lm4_model%atm_forc%z_bot(1)               =', lm4_model%atm_forc%z_bot(1)
-   !       write(*,*) 'SF2 lm4_model%atm_forc%p_surf(1)              =', lm4_model%atm_forc%p_surf(1)
-   !       write(*,*) 'SF2 lm4_model%From_lnd%t_surf(1,ntile)        =', lm4_model%From_lnd%t_surf(1,ntile)
-   !       write(*,*) 'SF2 lm4_model%From_lnd%t_ca(1,ntile)          =', lm4_model%From_lnd%t_ca(1,ntile)
-   !       write(*,*) 'SF2 ex_q_surf(1)                              =', ex_q_surf(1)
-   !       write(*,*) 'SF2 ex_u_surf(1)                              =', ex_u_surf(1)
-   !       write(*,*) 'SF2 ex_v_surf(1)                              =', ex_v_surf(1)
-   !       write(*,*) 'SF2 lm4_model%From_lnd%rough_mom(1,ntile)     =', lm4_model%From_lnd%rough_mom(1,ntile)
-   !       write(*,*) 'SF2 lm4_model%From_lnd%rough_heat(1,ntile)    =', lm4_model%From_lnd%rough_heat(1,ntile)
-   !       write(*,*) 'SF2 ex_rough_moist(1)                         =', ex_rough_moist(1)
-   !       write(*,*) 'SF2 lm4_model%From_lnd%rough_scale(1,ntile)   =', lm4_model%From_lnd%rough_scale(1,ntile)
-   !       write(*,*) 'SF2 ex_gust(1)                                =', ex_gust(1)
-   !       write(*,*) 'SF2 ex_flux_t(1)                              =', ex_flux_t(1)
-   !       write(*,*) 'SF2 ex_flux_tr(1,isphum)                      =', ex_flux_tr(:,isphum)
-   !       write(*,*) 'SF2 ex_flux_lw(1)                             =', ex_flux_lw(1)
-   !       write(*,*) 'SF2 ex_flux_u(1)                              =', ex_flux_u(1)
-   !       write(*,*) 'SF2 ex_flux_v(1)                              =', ex_flux_v(1)
-   !       write(*,*) 'SF2 ex_cd_m(1)                                =', ex_cd_m(1)
-   !       write(*,*) 'SF2 ex_cd_t(1)                                =', ex_cd_t(1)
-   !       write(*,*) 'SF2 ex_cd_q(1)                                =', ex_cd_q(1)
-   !       write(*,*) 'SF2 ex_wind(1)                                =', ex_wind(1)
-   !       write(*,*) 'SF2 ex_u_star(1)                              =', ex_u_star(1)
-   !       write(*,*) 'SF2 ex_b_star(1)                              =', ex_b_star(1)
-   !       write(*,*) 'SF2 ex_q_star(1)                              =', ex_q_star(1)
-   !       write(*,*) 'SF2 ex_dhdt_surf(1)                           =', ex_dhdt_surf(1)
-   !       write(*,*) 'SF2 ex_dedt_surf(1)                           =', ex_dedt_surf(1)
-   !       write(*,*) 'SF2 ex_dfdtr_surf(1,isphum)                   =', ex_dfdtr_surf(1,isphum)
-   !       write(*,*) 'SF2 ex_drdt_surf(1)                           =', ex_drdt_surf(1)
-   !       write(*,*) 'SF2 ex_dhdt_atm(1)                            =', ex_dhdt_atm(1)
-   !       write(*,*) 'SF2 ex_dfdtr_atm(1,isphum)                    =', ex_dfdtr_atm(1,isphum)
-   !       write(*,*) 'SF2 ex_dtaudu_atm(1)                          =', ex_dtaudu_atm(1)
-   !       write(*,*) 'SF2 ex_dtaudv_atm(1)                          =', ex_dtaudv_atm(1)
-   !       write(*,*) 'SF2 ex_land(1)                                =', ex_land(1)
-   !       write(*,*) 'SF2 ex_seawater(1)                            =', ex_seawater(1)
-   !       write(*,*) 'SF2 ex_avail(1)                               =', ex_avail(1)
-   !    end if
-   !   ! END JP TMP DEBUG
+         ex_q_surf(1) = ex_tr_surf(1,isphum)  ! TODO: review this connection
+
 
       !! ....
       zrefm = 10.0
@@ -875,6 +669,59 @@ contains
 
    end subroutine sfc_boundary_layer
 
+   !! ============================================================================
+   !! Adapted from GFDL atm_land_ice_flux_exchange,
+   !! stripped down to be "land only" on unstructured grid
+   !! In original code, caculates radiation, damping, and vertical diffusion of 
+   !! momentum, tracers, and downward heat/moisture
+   !! For Data Atmosphere, this is only used for gustiness
+   !! ============================================================================
+   subroutine update_atmos_model_down(lm4_model)
+
+      type(lm4_type),        intent(inout)  :: lm4_model ! land model's variable type
+
+      ! Original code here calculated net shortwave fluxes from downward shortwave fluxes and surface albedos
+      ! TODO: move data atmosphere sw flux calculation from imports here?
+      
+      call compute_gust(lm4_model)
+         
+      !! Original code calculated Atmos%Surf_diff%dtmass and reset Sfc%dt_tr = 0.0 here
+      !! If needed by LM4 with active atmosphere, this would need to be added back in
+
+   end subroutine update_atmos_model_down
+
+   !! ============================================================================
+   !! Put prescribed atmosphere gust calculation in its own subroutine, 
+   !! so it can be called both from update_atmos_model_down and at initialization.
+   !! Note that:
+   !! 1) If alt_gustiness= T from surface_flux_nml, absolute wind in suface 
+   !!    flux will not use this gustiness.
+   !! 2) If gust_to_use= 'computed', there will not be restart prodicibility with
+   !!    UFS Data Atmosphere, since u_star and b_star are not saved in restarts.
+   !! ============================================================================
+   subroutine compute_gust(lm4_model)
+
+      type(lm4_type),        intent(inout)  :: lm4_model ! land model's variable type
+
+      if (trim(gust_to_use)=='computed') then
+         !compute gust based on u_star and b_star
+         where (ex_b_star > 0.)
+            lm4_model%atm_forc%gust = (ex_u_star*ex_b_star*1000)**(1./3.)
+         elsewhere
+            lm4_model%atm_forc%gust = 0.0
+         endwhere
+         lm4_model%atm_forc%gust = max(lm4_model%atm_forc%gust, gust_min)
+      else if (trim(gust_to_use)=='prescribed') then
+         lm4_model%atm_forc%gust = gustiness
+      else
+         call ESMF_LogWrite('update_atmos_down: illegal value of gust_to_use', &
+            ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__)
+         call ESMF_Finalize(endflag=ESMF_END_ABORT)         
+      end if     
+
+   end subroutine compute_gust
+
+
 
    !! ============================================================================
    !! Adapted from GFDL atm_land_ice_flux_exchange,
@@ -930,8 +777,8 @@ contains
       ! ex_flux_sw_vis_dif        =
       ex_flux_sw_down_vis_dir   = lm4_model%atm_forc%flux_sw_down_vis_dir
       ex_flux_sw_down_vis_dif   = lm4_model%atm_forc%flux_sw_down_vis_dif
-      ex_flux_sw_down_total_dir = lm4_model%atm_forc%flux_sw_down_vis_dir + lm4_model%atm_forc%flux_sw_down_vis_dir
-      ex_flux_sw_down_total_dif = lm4_model%atm_forc%flux_sw_down_vis_dif + lm4_model%atm_forc%flux_sw_down_vis_dif
+      ex_flux_sw_down_total_dir = lm4_model%atm_forc%flux_sw_down_vis_dir + lm4_model%atm_forc%flux_sw_down_nir_dir
+      ex_flux_sw_down_total_dif = lm4_model%atm_forc%flux_sw_down_vis_dif + lm4_model%atm_forc%flux_sw_down_nir_dif
 
       ! TODO: ex_flux_lwd
       ex_flux_lwd = lm4_model%atm_forc%flux_lw
@@ -1037,8 +884,9 @@ contains
 
    end subroutine flux_down_from_atmos
 
-   ! ! ----------------------------------------
-
+   !! ============================================================================
+   !! flux_up_to_atmos will be completed for 2-way coupling to active atmosphere
+   !! ============================================================================
    subroutine  flux_up_to_atmos( Land )
 
       type(land_data_type),  intent(in)    :: Land !< A derived data type to specify land boundary data

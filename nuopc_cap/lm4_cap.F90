@@ -20,7 +20,7 @@ module lm4_cap_mod
    use lm4_type_mod,         only: alloc_atmforc2d, dealloc_atmforc2d ! TMP DEBUG
 
    use nuopc_lm4_methods,    only: chkerr
-   use lnd_import_export,    only: advertise_fields, realize_fields, &
+   use lm4_import_export,    only: advertise_fields, realize_fields, &
                                    import_fields, correct_import_fields, export_fields
    use fms_mod,              only: fms_init, fms_end, uppercase
    use fms_io_mod,           only: fms_io_exit
@@ -29,7 +29,7 @@ module lm4_cap_mod
    use diag_manager_mod,     only: diag_manager_init, diag_manager_end, &
                                       diag_manager_set_time_end
 
-   use lm4_driver,           only: lm4_nml_read, init_driver, end_driver, debug_diag
+   use lm4_driver,           only: lm4_nml_read, init_driver, end_driver, debug_diag, write_int_restart
 
    use land_model_mod,       only: land_model_init, land_model_end
    use land_data_mod,        only: land_data_type, atmos_land_boundary_type, lnd
@@ -63,14 +63,13 @@ module lm4_cap_mod
    private :: ModelAdvance
    private :: ModelFinalize
 
-   character(len=CL)      :: flds_scalar_name = ''
-   integer                :: flds_scalar_num = 0
-
    character(*),parameter       :: modName =  "(lm4_cap_mod)"
    character(len=*) , parameter :: u_FILE_u =  __FILE__
 
-   !type(ESMF_GeomType_Flag) :: geomtype
-
+   ! for connecting ESMF and FMS timestep objects
+   type(ESMF_TimeInterval)  :: model_timestep
+   integer                  :: timestep_sec
+   
    ! LM4 debug level
    integer :: debug_cap 
 
@@ -133,7 +132,9 @@ contains
       ! input/output variables
       type(ESMF_GridComp)         :: gcomp
       type(ESMF_State)            :: importState, exportState
-      type(ESMF_Clock)            :: clock
+      type(ESMF_Clock)            :: clock  ! model clock
+      type(ESMF_Clock)            :: dclock ! driver clock
+
       integer, intent(out)        :: rc
 
 
@@ -146,23 +147,20 @@ contains
       type(ESMF_Config)           :: cf
       integer                     :: Run_length
       integer,dimension(6)        :: date, date_end
-      integer                     :: dt_atmos
+      !integer                     :: dt_atmos
 
       character(17)               :: calendar='                 '
       integer                     :: calendar_type = -99
       integer                     :: ierr
       integer                     :: n
       integer                     :: localpet
-      character(len=CL)           :: cvalue
+
       character(len=CL)           :: logmsg
-      logical                     :: isPresent, isSet
-      logical                     :: cism_evolve
+
+
       integer :: mype, ntasks, mpi_comm_land, mpi_comm_land2
       character(len=*), parameter :: subname=trim(modName)//':(InitializeAdvertise) '
 
-      ! for connecting ESMF and FMS timestep objects
-      type(ESMF_TimeInterval)  :: model_timestep
-      integer                  :: timestep_sec
 
       !-------------------------------------------------------------------------------
 
@@ -209,13 +207,14 @@ contains
 
       ! if lm4_model%nml%lm4_debug is set, and > 0, write out namelist variables read in 
       if (mype == 0 .and. debug_cap > 0) then
-         write(*,*) 'lm4_model%nml%lm4_debug: ',lm4_model%nml%lm4_debug
-         write(*,*) 'lm4_model%nml%grid: '     ,lm4_model%nml%grid
-         write(*,*) 'lm4_model%nml%npx: '      ,lm4_model%nml%npx
-         write(*,*) 'lm4_model%nml%npy: '      ,lm4_model%nml%npy
-         write(*,*) 'lm4_model%nml%layout: '   ,lm4_model%nml%layout
-         write(*,*) 'lm4_model%nml%ntiles: '   ,lm4_model%nml%ntiles
-         write(*,*) 'lm4_model%nml%blocksize: ',lm4_model%nml%blocksize
+         write(*,*) 'lm4_model%nml%lm4_debug: ' ,lm4_model%nml%lm4_debug
+         write(*,*) 'lm4_model%nml%grid: '      ,lm4_model%nml%grid
+         write(*,*) 'lm4_model%nml%npx: '       ,lm4_model%nml%npx
+         write(*,*) 'lm4_model%nml%npy: '       ,lm4_model%nml%npy
+         write(*,*) 'lm4_model%nml%layout: '    ,lm4_model%nml%layout
+         write(*,*) 'lm4_model%nml%ntiles: '    ,lm4_model%nml%ntiles
+         write(*,*) 'lm4_model%nml%blocksize: ' ,lm4_model%nml%blocksize
+         write(*,*) 'lm4_model%nml%dt_lnd_slow ',lm4_model%nml%dt_lnd_slow
       endif
 
 
@@ -256,7 +255,8 @@ contains
       if ( date_init(1) == 0 ) date_init = date
       lm4_model%Time_init  = set_date (date_init(1), date_init(2), date_init(3), &
          date_init(4), date_init(5), date_init(6))
-      if(mype==0) write(*,'(A,6I5)') 'Land StartTime=',date_init
+      write(logmsg,*) date_init
+      call ESMF_LogWrite(trim(subname)//'Land StartTime = '//trim(logmsg), ESMF_LOGMSG_INFO)
 
       date=0
       call ESMF_TimeGet (CurrTime,                           &
@@ -264,7 +264,8 @@ contains
          H=date(4),  M =date(5), S =date(6), RC=rc )
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
-      if(mype==0) write(*,'(A,6I5)') 'Land CurrTime =',date
+      write(logmsg,*) date
+      call ESMF_LogWrite(trim(subname)//'Land CurrTime = '//trim(logmsg), ESMF_LOGMSG_INFO)
 
       lm4_model%Time_land = set_date (date(1), date(2), date(3),  &
          date(4), date(5), date(6))
@@ -278,7 +279,8 @@ contains
       if ( date_end(1) == 0 ) date_end = date
       lm4_model%Time_end   = set_date (date_end(1), date_end(2), date_end(3),  &
          date_end(4), date_end(5), date_end(6))
-      if(mype==0) write(*,'(A,6I5)') 'Land StopTime =',date_end
+      write(logmsg,*) date_end
+      call ESMF_LogWrite(trim(subname)//'Land StopTime = '//trim(logmsg), ESMF_LOGMSG_INFO)
 
       ! call diag_manager_set_time_end(lm4_model%Time_end)
 
@@ -307,12 +309,14 @@ contains
       call ESMF_TimeIntervalGet(model_timestep, s=timestep_sec, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return    
       write(logmsg,*) timestep_sec
-      call ESMF_LogWrite(trim(subname)//'init LM4 timeStep: '//trim(logmsg), ESMF_LOGMSG_INFO)
+      call ESMF_LogWrite(trim(subname)//'init LM4 fast timestep: '//trim(logmsg), ESMF_LOGMSG_INFO)
+
+      write(logmsg,*) lm4_model%nml%dt_lnd_slow
+      call ESMF_LogWrite(trim(subname)//'init LM4 slow timestep: '//trim(logmsg), ESMF_LOGMSG_INFO)
 
       lm4_model%Time_step_land = set_time(timestep_sec,0)
+      lm4_model%Time_step_slow = set_time(lm4_model%nml%dt_lnd_slow,0)
    
-
-
       
       !----------------------------------------------------------------------------
       ! Initialize model
@@ -320,7 +324,7 @@ contains
 
       call land_model_init( lm4_model%From_atm, lm4_model%From_lnd, &
       lm4_model%Time_init, lm4_model%Time_land,                &
-      lm4_model%Time_step_land, lm4_model%Time_step_ocean     )
+      lm4_model%Time_step_land, lm4_model%Time_step_slow     )
       
       call init_driver(lm4_model)
 
@@ -336,28 +340,7 @@ contains
       ! advertise fields
       !----------------------------------------------------------------------------
 
-      call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldName", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
-      if (ChkErr(rc,__LINE__,u_FILE_u)) return
-      if (isPresent .and. isSet) then
-         flds_scalar_name = trim(cvalue)
-         call ESMF_LogWrite(trim(subname)//' flds_scalar_name = '//trim(flds_scalar_name), ESMF_LOGMSG_INFO)
-         if (ChkErr(rc,__LINE__,u_FILE_u)) return
-         ! else
-         !    call shr_sys_abort(subname//'Need to set attribute ScalarFieldName')
-      endif
-
-      call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldCount", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
-      if (ChkErr(rc,__LINE__,u_FILE_u)) return
-      if (isPresent .and. isSet) then
-         read(cvalue, *) flds_scalar_num
-         write(logmsg,*) flds_scalar_num
-         call ESMF_LogWrite(trim(subname)//' flds_scalar_num = '//trim(logmsg), ESMF_LOGMSG_INFO)
-         if (ChkErr(rc,__LINE__,u_FILE_u)) return
-         ! else
-         !    call shr_sys_abort(subname//'Need to set attribute ScalarFieldCount')
-      endif
-
-      call advertise_fields(gcomp, flds_scalar_name, rc)
+      call advertise_fields(gcomp, rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
       call ESMF_LogWrite(subname//' finished', ESMF_LOGMSG_INFO)
@@ -386,6 +369,9 @@ contains
       integer,dimension(2,6)  :: decomptile                  !define delayout for the 6 cubed-sphere tiles
       type(ESMF_Grid)         :: lndGrid
 
+      character(len=CL)           :: cvalue
+      character(len=CL)           :: logmsg
+      logical                     :: isPresent, isSet
 
       !-------------------------------------------------------------------------------
 
@@ -418,14 +404,66 @@ contains
          call wrt_fcst_grid(lndGrid, "diagnostic_lndGrid.nc", rc=rc)
       endif
 
+      ! set cpl_scalars from config. Default to null values
+      lm4_model%cpl_scalar%flds_scalar_name = ''
+      lm4_model%cpl_scalar%flds_scalar_num = 0
+      lm4_model%cpl_scalar%flds_scalar_index_nx = 0
+      lm4_model%cpl_scalar%flds_scalar_index_ny = 0
+      lm4_model%cpl_scalar%flds_scalar_index_ntile = 0
+
+      call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldName", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      if (isPresent .and. isSet) then
+         lm4_model%cpl_scalar%flds_scalar_name = trim(cvalue)
+         call ESMF_LogWrite(trim(subname)//' flds_scalar_name = '//lm4_model%cpl_scalar%flds_scalar_name, ESMF_LOGMSG_INFO)
+         if (ChkErr(rc,__LINE__,u_FILE_u)) return
+         ! else
+         !    call shr_sys_abort(subname//'Need to set attribute ScalarFieldName')
+      endif
+
+      call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldCount", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      if (isPresent .and. isSet) then
+         read(cvalue, *) lm4_model%cpl_scalar%flds_scalar_num
+         write(logmsg,*) lm4_model%cpl_scalar%flds_scalar_num
+         call ESMF_LogWrite(trim(subname)//' flds_scalar_num = '//trim(logmsg), ESMF_LOGMSG_INFO)
+         if (ChkErr(rc,__LINE__,u_FILE_u)) return
+         ! else
+         !    call shr_sys_abort(subname//'Need to set attribute ScalarFieldCount')
+      endif
+
+      call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxGridNX", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      if (isPresent .and. isSet) then
+         read(cvalue, *) lm4_model%cpl_scalar%flds_scalar_index_nx
+         write(logmsg,*) lm4_model%cpl_scalar%flds_scalar_index_nx
+         call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_nx = '//trim(logmsg), ESMF_LOGMSG_INFO)
+         if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      endif
+      call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxGridNY", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      if (isPresent .and. isSet) then
+         read(cvalue, *) lm4_model%cpl_scalar%flds_scalar_index_ny
+         write(logmsg,*) lm4_model%cpl_scalar%flds_scalar_index_ny
+         call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_ny = '//trim(logmsg), ESMF_LOGMSG_INFO)
+         if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      endif
+      call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxGridNTile", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      if (isPresent .and. isSet) then
+         read(cvalue, *) lm4_model%cpl_scalar%flds_scalar_index_ntile
+         write(logmsg,*) lm4_model%cpl_scalar%flds_scalar_index_ntile
+         call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_ntile = '//trim(logmsg), ESMF_LOGMSG_INFO)
+         if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      endif
 
       ! ------------------------------------
       ! Realize the actively coupled fields
       ! ------------------------------------
-      call realize_fields(gcomp, grid=lndGrid, flds_scalar_name=flds_scalar_name, &
-         flds_scalar_num=flds_scalar_num, rc=rc)
+      call realize_fields(gcomp, lm4_model, grid=lndGrid, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
+      
+      
       ! ---------------------
       ! Create export state
       ! ---------------------
@@ -439,8 +477,9 @@ contains
    !===============================================================================
    subroutine ModelAdvance(gcomp, rc)
 
-      use lm4_driver,           only: sfc_boundary_layer, flux_down_from_atmos
+      use lm4_driver,           only: sfc_boundary_layer, update_atmos_model_down, flux_down_from_atmos
       use land_model_mod,       only: update_land_model_fast, update_land_model_slow
+      use ESMF, only: ESMF_ClockPrint, ESMF_AlarmIsRinging ! TMP DEBUG
 
       ! Arguments
       type(ESMF_GridComp)  :: gcomp
@@ -448,8 +487,21 @@ contains
       integer, intent(out) :: rc
 
       ! Local variables
+      type(ESMF_Clock)           :: clock
+      type(ESMF_Clock)           :: dclock ! driver clock
+      type(ESMF_Time)            :: prevTime
+      type(ESMF_Time)            :: currTime
+      type(ESMF_Alarm)           :: slowAlarm
+      
       character(len=*),parameter :: subname=trim(modName)//':(ModelAdvance) '
       integer :: sec
+      integer,dimension(6)        :: currdate ! for FMS time
+
+      ! JP tmp debug
+      integer                  :: time_sec   ! current time in seconds
+      type(ESMF_TimeInterval)  :: model_time ! current time as ESMF_TimeInterval
+      character(len=CL)        :: logmsg
+      ! END TMP DEBUG
 
       rc = ESMF_SUCCESS
       call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
@@ -458,7 +510,7 @@ contains
       !-------------------------------------------------------------------------------
       ! Get import and export states
       !-------------------------------------------------------------------------------
-      call NUOPC_ModelGet(gcomp, importState=importState, exportState=exportState, rc=rc)
+      call NUOPC_ModelGet(gcomp, importState=importState, exportState=exportState, modelClock=clock, driverClock=dclock, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
       !-------------------------------------------------------------------------------
@@ -477,11 +529,41 @@ contains
       ! endif
 
       ! TODO, is sec being used anywhere?
-      call get_time (lm4_model%Time_step_land, sec)  ! get seconds of timestep
+      call get_time (lm4_model%Time_step_land, sec)        ! get seconds of timestep
       call sfc_boundary_layer(real(sec), lm4_model)
+      call update_atmos_model_down(lm4_model)              ! for gust calculation with data atmosphere
       call flux_down_from_atmos(real(sec), lm4_model)      ! JP: needs review of implicit coupling
       call update_land_model_fast(lm4_model%From_atm,lm4_model%From_lnd)
-      call update_land_model_slow(lm4_model%From_atm,lm4_model%From_lnd)
+
+
+      call ESMF_ClockGet(dclock,  CurrTime=CurrTime, currSimTime=model_time, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      call ESMF_TimeIntervalGet(model_time, s=time_sec, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+      ! sync FMS time with ESMF time
+      call ESMF_TimeGet (CurrTime,                           &
+         YY=currdate(1), MM=currdate(2), DD=currdate(3), &
+         H=currdate(4),  M =currdate(5), S =currdate(6), RC=rc )
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+      write(logmsg,*) currdate
+      call ESMF_LogWrite(trim(subname)//'Land CurrTime = '//trim(logmsg), ESMF_LOGMSG_INFO)
+
+      lm4_model%Time_land = set_date (currdate(1), currdate(2), currdate(3),  &
+         currdate(4), currdate(5), currdate(6))      
+
+      ! JP TMP DEBUG
+      ! write(logmsg,*) time_sec
+      ! call ESMF_LogWrite(trim(subname)//'LM4 driver currSimTime: '//trim(logmsg), ESMF_LOGMSG_INFO)
+      
+      ! quick way to only call on slow timestep, replicates behavior in FMS coupler
+      if ( mod(time_sec+timestep_sec ,lm4_model%nml%dt_lnd_slow) == 0 ) then
+         call update_land_model_slow(lm4_model%From_atm,lm4_model%From_lnd)
+         call ESMF_LogWrite(trim(subname)//'LM4 update_land_model_slow called', ESMF_LOGMSG_INFO)
+         
+         call write_int_restart(lm4_model)
+      endif
 
       call ESMF_LogWrite(subname//' finished', ESMF_LOGMSG_INFO)
 
@@ -490,13 +572,41 @@ contains
    !===============================================================================
 
    subroutine ModelFinalize(gcomp, rc)
+      ! Arguments
       type(ESMF_GridComp)  :: gcomp
       integer, intent(out) :: rc
+
+      ! Local variables
+      type(ESMF_Clock)     :: dclock
       character(len=*),parameter  :: subname=trim(modName)//':(ModelFinalize) '
+      type(ESMF_Time)            :: currTime
+      type(ESMF_Alarm)           :: slowAlarm
+      
+      character(len=CL)        :: logmsg
+      integer :: sec
+      integer,dimension(6)        :: currdate ! for FMS time      
 
       rc = ESMF_SUCCESS
       call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
 
+      call NUOPC_ModelGet(gcomp, driverClock=dclock,rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      call ESMF_ClockGet(dclock,  CurrTime=CurrTime, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+      ! sync FMS time with ESMF time
+      call ESMF_TimeGet (CurrTime,                           &
+         YY=currdate(1), MM=currdate(2), DD=currdate(3), &
+         H=currdate(4),  M =currdate(5), S =currdate(6), RC=rc )
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+      write(logmsg,*) currdate
+      call ESMF_LogWrite(trim(subname)//'Land CurrTime = '//trim(logmsg), ESMF_LOGMSG_INFO)
+
+      lm4_model%Time_land = set_date (currdate(1), currdate(2), currdate(3),  &
+         currdate(4), currdate(5), currdate(6))      
+
+      call write_int_restart(lm4_model)
       call end_driver()
       call land_model_end(lm4_model%From_atm, lm4_model%From_lnd)
 
