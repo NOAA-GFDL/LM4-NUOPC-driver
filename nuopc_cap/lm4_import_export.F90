@@ -85,12 +85,26 @@ contains
       ! Advertise export fields
       !--------------------------------
 
+
+      ! Needed by CMEPS
+      call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_lfrin')
+      call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'cpl_scalars')
       ! export to atm
-      if (send_to_atm) then
-         ! TODO: actually set land frac for this field
-         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_lfrin')
-         ! Needed by CMEPS
-         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'cpl_scalars')
+      if (send_to_atm) then            
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_sfrac')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Fall_lat')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Fall_sen')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Fall_evap')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_tref')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_qref')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_q')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Fall_gflx')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Fall_roff')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Fall_soff')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_cmm')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_chh')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_zvfun')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'cpl_scalars')         
       end if
 
       ! Now advertise above export fields
