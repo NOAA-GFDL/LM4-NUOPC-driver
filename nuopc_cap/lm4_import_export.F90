@@ -85,12 +85,25 @@ contains
       ! Advertise export fields
       !--------------------------------
 
+
+      ! Needed by CMEPS
+      call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_lfrin')
+      call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'cpl_scalars')
       ! export to atm
-      if (send_to_atm) then
-         ! TODO: actually set land frac for this field
-         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_lfrin')
-         ! Needed by CMEPS
-         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'cpl_scalars')
+      if (send_to_atm) then            
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_sfrac')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Fall_lat')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Fall_sen')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Fall_evap')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_tref')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_qref')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_q')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Fall_gflx')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Fall_roff')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Fall_soff')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_cmm')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_chh')
+         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_zvfun')
       end if
 
       ! Now advertise above export fields
@@ -472,14 +485,14 @@ contains
       ! Get Unstructured Grid data
       call state_getimport_2d(importState, 'Sa_z',       lm4data_1d=lm4_model%atm_forc%z_bot, rc=rc)  ! bottom layer height
       call state_getimport_2d(importState, 'Sa_tbot',    lm4data_1d=lm4_model%atm_forc%t_bot, rc=rc)  ! bottom layer temperature
-      !call state_getimport_2d(importState, 'Sa_ta',      lm4data_1d=lm4_model%atm_forc%t_bot, rc=rc)  ! bottom layer temperature (active UFS atm)
+      call state_getimport_2d(importState, 'Sa_ta',      lm4data_1d=lm4_model%atm_forc%t_bot, rc=rc)  ! bottom layer temperature (active UFS atm)
       ! call state_getimport_2d(importState, 'Sa_tskn' ...                                            ! surface skin temperature
       call state_getimport_2d(importState, 'Sa_pbot',    lm4data_1d=lm4_model%atm_forc%p_bot, rc=rc)  ! bottom layer pressure
-      !call state_getimport_2d(importState, 'Sa_prsl',    lm4data_1d=lm4_model%atm_forc%p_bot, rc=rc)  ! bottom layer pressure (active UFS atm)
+      call state_getimport_2d(importState, 'Sa_prsl',    lm4data_1d=lm4_model%atm_forc%p_bot, rc=rc)  ! bottom layer pressure (active UFS atm)
       call state_getimport_2d(importState, 'Sa_u',       lm4data_1d=lm4_model%atm_forc%u_bot, rc=rc)  ! bottom layer zonal wind
       call state_getimport_2d(importState, 'Sa_v',       lm4data_1d=lm4_model%atm_forc%v_bot, rc=rc)  ! bottom layer meridional wind
       call state_getimport_2d(importState, 'Sa_shum',    lm4data_1d=lm4_model%atm_forc%q_bot, rc=rc)  ! bottom layer specific humidity
-      !call state_getimport_2d(importState, 'Sa_qa',      lm4data_1d=lm4_model%atm_forc%q_bot, rc=rc)  ! bottom layer specific humidity (active UFS atm)
+      call state_getimport_2d(importState, 'Sa_qa',      lm4data_1d=lm4_model%atm_forc%q_bot, rc=rc)  ! bottom layer specific humidity (active UFS atm)
       call state_getimport_2d(importState, 'Sa_pslv',    lm4data_1d=lm4_model%atm_forc%p_surf, rc=rc) ! surface pressure
       call state_getimport_2d(importState, 'Faxa_lwdn',  lm4data_1d=lm4_model%atm_forc%flux_lw, rc=rc)
       call state_getimport_2d(importState, 'Faxa_swvdf', lm4data_1d=lm4_model%atm_forc%flux_sw_down_vis_dif, rc=rc) ! mean surface downward uv+vis diffuse flux
