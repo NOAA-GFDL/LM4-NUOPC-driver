@@ -25,7 +25,7 @@ set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${LM4_Extra_FORTRAN_FLAGS}")
 # Add preprocessor flag for namelist
 add_definitions(-DINTERNAL_FILE_NML)
 
-# Set MPI flags 
+# Set MPI flags
 if(MPI)
   add_definitions(-DMPI)
 endif()
@@ -40,7 +40,7 @@ target_include_directories(lm4 PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_D
                                        $<INSTALL_INTERFACE:mod>)
 
 find_package(HDF5 COMPONENTS C Fortran REQUIRED)
-target_link_libraries(lm4 PUBLIC esmf fms ${HDF5_Fortran_LIBRARIES})
+target_link_libraries(lm4 PUBLIC ESMF::ESMF fms ${HDF5_Fortran_LIBRARIES})
 
 ###############################################################################
 ### Install
