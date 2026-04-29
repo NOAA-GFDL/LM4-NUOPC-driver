@@ -128,7 +128,8 @@ contains
    !! ============================================================================
    subroutine lm4_nml_read(lm4_model)
 
-      use fms_mod,             only: check_nml_error, close_file, file_exist
+      use fms_mod,             only: check_nml_error, file_exist
+      use fms2_io_mod,         only: close_file
 #ifdef INTERNAL_FILE_NML
       use mpp_mod,             only: input_nml_file
 #else

@@ -2,8 +2,8 @@
 !! ============================================================================
 module lm4_surface_flux_mod
 
-   use             fms_mod, only: close_file, mpp_pe, mpp_root_pe, write_version_number
-   use             fms_mod, only: file_exist, check_nml_error, open_namelist_file, stdlog
+   use             fms_mod, only: mpp_pe, mpp_root_pe
+   use             fms_mod, only: check_nml_error, stdlog
    use   monin_obukhov_mod, only: mo_drag, mo_profile, monin_obukhov_init
    use  sat_vapor_pres_mod, only: escomp, descomp
    use       constants_mod, only: cp_air, hlv, stefan, rdgas, rvgas, grav, vonkarm
@@ -78,20 +78,10 @@ contains
       integer :: unit, ierr, io
 
       ! read namelist
-#ifdef INTERNAL_FILE_NML
       read (input_nml_file, surface_flux_nml, iostat=io)
       ierr = check_nml_error(io,'surface_flux_nml')
-#else
-      if ( file_exist('input.nml')) then
-         unit = open_namelist_file ()
-         ierr=1;
-         do while (ierr /= 0)
-            read  (unit, nml=surface_flux_nml, iostat=io)
-            ierr = check_nml_error(io,'surface_flux_nml')
-         enddo
-           call close_file (unit)
-      endif
-#endif
+
+
 
       unit = stdlog()
       if ( mpp_pe() == mpp_root_pe() )  write (unit, nml=surface_flux_nml)
