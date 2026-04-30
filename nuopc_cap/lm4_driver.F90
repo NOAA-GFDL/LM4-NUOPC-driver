@@ -128,13 +128,10 @@ contains
    !! ============================================================================
    subroutine lm4_nml_read(lm4_model)
 
-      use fms_mod,             only: check_nml_error, file_exist
+      use fms_mod,             only: check_nml_error
       use fms2_io_mod,         only: close_file
-#ifdef INTERNAL_FILE_NML
       use mpp_mod,             only: input_nml_file
-#else
-      use fms_mod,             only: open_namelist_file
-#endif
+
 
       type(lm4_type),          intent(inout) :: lm4_model ! land model's variable type
 
@@ -160,39 +157,16 @@ contains
 
       ! read in namelists
       ! ------------------------------------------
-      if ( file_exist('input.nml')) then
-#ifdef INTERNAL_FILE_NML
-         ! lm4_nml
-         read(input_nml_file, nml=lm4_nml, iostat=io)
-         ierr = check_nml_error(io, 'lm4_nml')
+      ! lm4_nml
+      read(input_nml_file, nml=lm4_nml, iostat=io)
+      ierr = check_nml_error(io, 'lm4_nml')
 
-         read(input_nml_file, nml=atmos_prescr_nml, iostat=io)
-         ierr = check_nml_error(io, 'atmos_prescr_nml')
+      read(input_nml_file, nml=atmos_prescr_nml, iostat=io)
+      ierr = check_nml_error(io, 'atmos_prescr_nml')
 
-         read(input_nml_file, nml=flux_exchange_nml, iostat=io)
-         ierr = check_nml_error(io, 'flux_exchange_nml')
-#else
-         unit = open_namelist_file ( )
-         ierr=1
-         do while (ierr /= 0)
-            read(unit, nml=lm4_nml, iostat=io)
-            ierr = check_nml_error(io,'lm4_nml')
-         enddo
+      read(input_nml_file, nml=flux_exchange_nml, iostat=io)
+      ierr = check_nml_error(io, 'flux_exchange_nml')
 
-         ierr=1
-         do while (ierr /= 0)
-            read(unit, nml=atmos_prescr_nml, iostat=io)
-            ierr = check_nml_error(io,'atmos_prescr_nml')
-         enddo        
-         
-         ierr=1
-         do while (ierr /= 0)
-            read(unit, nml=flux_exchange_nml, iostat=io)
-            ierr = check_nml_error(io,'flux_exchange_nml')
-         enddo             
-         call close_file(unit)
-#endif
-      endif
 
       lm4_model%nml%lm4_debug   = lm4_debug
       lm4_model%nml%grid        = grid

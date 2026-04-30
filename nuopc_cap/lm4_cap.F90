@@ -23,7 +23,6 @@ module lm4_cap_mod
    use lm4_import_export,    only: advertise_fields, realize_fields, &
                                    import_fields, correct_import_fields, export_fields
    use fms_mod,              only: fms_init, fms_end, uppercase
-   use fms_io_mod,           only: fms_io_exit
 
    use mpp_mod,              only: mpp_error,FATAL, WARNING
    use diag_manager_mod,     only: diag_manager_init, diag_manager_end, &
@@ -351,7 +350,7 @@ contains
    !===============================================================================
    subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
 
-      use fms_io_mod,         only: field_exist, read_data
+      use fms2_io_mod,        only: read_data, open_file, close_file, FmsNetcdfFile_t, variable_exists
 
       ! input/output variables
       type(ESMF_GridComp)  :: gcomp
@@ -373,18 +372,21 @@ contains
       character(len=CL)           :: logmsg
       logical                     :: isPresent, isSet
 
+      type(FmsNetcdfFile_t)       :: fileobj
+
       !-------------------------------------------------------------------------------
 
       rc = ESMF_SUCCESS
       call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
 
-      !geomtype = ESMF_GEOMTYPE_GRID
-
       gridfile = "grid_spec.nc" ! default
-      if (field_exist("INPUT/grid_spec.nc", "atm_mosaic_file")) then
-         call read_data("INPUT/grid_spec.nc", "atm_mosaic_file", gridfile)
-      endif
 
+      if (open_file(fileobj, "INPUT/grid_spec.nc", "read")) then
+         if (variable_exists(fileobj, "atm_mosaic_file")) then
+            call read_data(fileobj, "atm_mosaic_file", gridfile)
+         endif
+         call close_file(fileobj)
+      endif
 
 
       do tl=1,6
@@ -611,8 +613,7 @@ contains
       call land_model_end(lm4_model%From_atm, lm4_model%From_lnd)
 
       call diag_manager_end(lm4_model%Time_end)
-      call fms_io_exit  ! TEST
-      call fms_end      ! TEST
+      call fms_end    
 
       ! deallocate storage for the atm forc data
       call dealloc_atmforc(lm4_model%atm_forc)
