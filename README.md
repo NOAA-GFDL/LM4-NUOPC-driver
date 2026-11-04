@@ -205,7 +205,7 @@ With an active atmosphere (`cpl2atm = .true.`), the active-atmosphere imports (`
 | Fall_gflx   | Ground heat flux                                 |
 | Fall_roff   | Subsurface runoff                                |
 | Fall_soff   | Surface runoff                                   |
-| Sl_t, Sl_q  | Surface temperature and specific humidity        |
+| Sl_q        | Canopy-air (surface) specific humidity           |
 | Sl_tref, Sl_qref | Reference height temperature and humidity   |
 | Sl_cmm, Sl_chh   | Momentum and heat exchange coefficients     |
 | Sl_zvfun    | Vegetation function for FV3 surface layer        |
@@ -235,7 +235,7 @@ Each fast (coupling) time step, `ModelAdvance` in `lm4_cap.F90` follows the GFDL
 - `flux_down_from_atmos` passes radiation, precipitation, and fluxes to land with explicit coupling. `implicit_atm = .true.` is not functional yet.
 - `flux_up_to_atmos` (only with `cpl2atm`) corrects the fluxes for the new land surface and canopy-air temperatures and tracers after `update_land_model_fast`, then aggregates over land tiles to the grid cell:
   - sensible heat flux (`Fall_sen`) and water vapor flux (`Fall_lat`)
-  - canopy-air temperature (`Sl_t`) and specific humidity (`Sl_q`)
+  - canopy-air specific humidity (`Sl_q`)
   - with `kinematic_flux = .true.` (default), sensible heat is converted to `SH/(rho*cp)` and water vapor flux to `E/rho`, using air density at the lowest atmospheric level, matching what the UFS atmosphere expects
 - `export_fields` sends `Sl_lfrin` and, with `cpl2atm`, the fluxes, states, albedos, and surface-layer quantities above to CMEPS, which passes them to FV3. On the atmosphere side, `cpllnd = cpllnd2atm = .true.` in `gfs_physics_nml` replaces the land surface model over land with these imports.
 

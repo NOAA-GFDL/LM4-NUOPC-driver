@@ -922,7 +922,6 @@ contains
       call aggregate_land_tiles(ex_flux_tr(:,isphum), lm4_model%atm_sfc%lhflx)
       ! not originally to flux_up_to_atmos, but needed by ufs atm
       call aggregate_land_tiles(ex_tr_surf_new(:,isphum), lm4_model%atm_sfc%q_surf)
-      call aggregate_land_tiles(ex_t_ca_new, lm4_model%atm_sfc%t_surf)
 
       if (lm4_model%nml%kinematic_flux) then
          ! convert units from W/m2, using air density at the lowest atmospheric level,

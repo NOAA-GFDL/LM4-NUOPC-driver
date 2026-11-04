@@ -96,7 +96,6 @@ contains
          call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_tref')
          call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_qref')
          call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_q')
-         call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Sl_t')
          call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Fall_gflx')
          call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Fall_roff')
          call fldlist_add(fldsFrLnd_num, fldsFrlnd, 'Fall_soff')
@@ -626,7 +625,6 @@ contains
          call state_setexport_2d(exportState, 'Fall_sen',  lm4data_1d=lm4_model%atm_sfc%shflx,rc=rc)
 
          call state_setexport_2d(exportState, 'Sl_q',      lm4data_1d=lm4_model%atm_sfc%q_surf,rc=rc)
-         call state_setexport_2d(exportState, 'Sl_t',      lm4data_1d=lm4_model%atm_sfc%t_surf,rc=rc)
 
          call state_setexport_2d(exportState, 'Sl_avsdr',  lm4data_1d=lm4_model%atm_sfc%albedo_vis_dir, rc=rc)
          call state_setexport_2d(exportState, 'Sl_anidr',  lm4data_1d=lm4_model%atm_sfc%albedo_nir_dir, rc=rc)
