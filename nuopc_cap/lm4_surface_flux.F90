@@ -4,9 +4,9 @@ module lm4_surface_flux_mod
 
    use             fms_mod, only: mpp_pe, mpp_root_pe
    use             fms_mod, only: check_nml_error, stdlog
-   use   monin_obukhov_mod, only: mo_drag, mo_profile, monin_obukhov_init
-   use  sat_vapor_pres_mod, only: escomp, descomp
-   use       constants_mod, only: cp_air, hlv, stefan, rdgas, rvgas, grav, vonkarm
+   use   monin_obukhov_mod, only: mo_drag, monin_obukhov_init
+   use  sat_vapor_pres_mod, only: escomp
+   use       constants_mod, only: cp_air, hlv, stefan, rdgas, rvgas, grav
    use             mpp_mod, only: input_nml_file, FATAL, mpp_error
 
    implicit none
@@ -14,6 +14,8 @@ module lm4_surface_flux_mod
 
 ! ==== public interface ======================================================
    public  lm4_surface_flux_1d, lm4_surface_flux_init
+   public  virtual_temp, air_density ! not in original coupler, but useful for other modules
+   public  alt_gustiness
 ! ==== end of public interface ===============================================
 
 
@@ -166,7 +168,7 @@ contains
          rho_drag, drag_t,    drag_m,   drag_q,    rho,      &
          q_atm,    q_surf0,  dw_atmdu,  dw_atmdv,  w_gust
 
-      integer :: i, nbad
+      integer :: i
 
 
       if (.not. module_is_initialized) &
@@ -220,10 +222,12 @@ contains
       where (avail)
          p_ratio = (p_surf/p_atm)**kappa
 
-         tv_atm  = t_atm  * (1.0 + d608*q_atm)     ! virtual temperature
+         ! tv_atm  = t_atm  * (1.0 + d608*q_atm)    ! virtual temperature
+         tv_atm = virtual_temp(t_atm, q_atm)       ! virtual temperature
          th_atm  = t_atm  * p_ratio                ! potential T, using p_surf as refernce
          thv_atm = tv_atm * p_ratio                ! virt. potential T, using p_surf as reference
-         thv_surf= t_surf0 * (1.0 + d608*q_surf0 ) ! surface virtual (potential) T
+         !thv_surf= t_surf0 * (1.0 + d608*q_surf0 ) ! surface virtual (potential) T
+         thv_surf = virtual_temp(t_surf0, q_surf0) ! surface virtual (potential) T
          !     thv_surf= t_surf0                        ! surface virtual (potential) T -- just for testing tun off the q_surf
 
          u_dif = u_surf - u_atm                    ! velocity components relative to surface
@@ -282,7 +286,8 @@ contains
          drag_m = cd_m * w_atm
 
          ! density
-         rho = p_atm / (rdgas * tv_atm)
+         ! rho = p_atm / (rdgas * tv_atm)
+         rho = air_density(p_atm, tv_atm)
 
          ! sensible heat flux
          rho_drag = cp_air * drag_t * rho
@@ -354,5 +359,27 @@ contains
 
    end subroutine lm4_surface_flux_1d
 
+
+   !! These were not in original coupler, but also used in other LM4 cap modules
+
+   ! virtual temperature from temperature and specific humidity
+   elemental real function virtual_temp(t, q) result(tv)
+      use land_constants_mod, only : d608
+
+      real, intent(in) :: t, q 
+
+      tv = t*(1.0+d608*q)
+
+   end function virtual_temp
+
+   ! air density from virtual temp
+   elemental real function air_density(p, tv) result(rho)
+      use constants_mod, only : rdgas
+
+      real, intent(in) :: p, tv 
+
+      rho = p/(rdgas*tv)
+
+   end function air_density   
 
 end module lm4_surface_flux_mod
