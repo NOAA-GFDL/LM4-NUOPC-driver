@@ -166,9 +166,7 @@ These tests use the following unique files:
     export FIELD_TABLE_ADDITIONAL=field_table_lm4
     export INPUT_NML="input_datm_lm4.nml.IN"                # or input_atm_lm4.nml.IN; C24/C48 tests call export_lm4_lowres
 
-TODO!!! REVIEW IF THESE ARE TEMP:
-
-C24/C48 grids and C96 hydrography are read from `LM4_GRID_INPUTDATA` and `LM4_HYDRO_PATH`, set in `rt.sh`.
+LM4 input data is read from `INPUTDATA_LM4` (`${INPUTDATA_ROOT}/LM4_input_data`): C96 grid and hydrography from `c96_grid/` and `c96_LM4/`, and lower resolution exchange grids from `a<LNDRES>o<OCNRES>/`.
 
 Imports and Exports
 --------------------------------------------------------
