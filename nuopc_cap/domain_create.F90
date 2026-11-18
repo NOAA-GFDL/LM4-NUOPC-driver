@@ -2,8 +2,8 @@ module land_domain_mod
   !! Defines the land domain for the LM4 model.
   !! -------------------------------------------
 
-  use mpp_mod
-  use mpp_domains_mod
+  use mpp_mod,         only: mpp_error, FATAL, mpp_root_pe
+  use mpp_domains_mod, only: domain2d, mpp_domains_init, mpp_define_mosaic
 
   implicit none
  
