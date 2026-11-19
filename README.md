@@ -196,13 +196,13 @@ With an active atmosphere (`cpl2atm = .true.`), the active-atmosphere imports (`
 
 | Export      | Description                                      |
 |-------------|--------------------------------------------------|
-| Sl_sfrac    | Snow fraction                                    |
+| Sl_sfrac    | Snow area fraction (currently 0)                 |
 | Fall_lat    | Latent heat flux                                 |
 | Fall_sen    | Sensible heat flux                               |
-| Fall_evap   | Evaporation                                      |
-| Fall_gflx   | Ground heat flux                                 |
-| Fall_roff   | Subsurface runoff                                |
-| Fall_soff   | Surface runoff                                   |
+| Fall_evap   | Potential latent heat flux (currently 0)         |
+| Fall_gflx   | Ground heat flux (currently 0)                   |
+| Fall_roff   | Surface runoff (currently 0)                     |
+| Fall_soff   | Subsurface runoff (currently 0)                  |
 | Sl_q        | Canopy-air (surface) specific humidity           |
 | Sl_tref, Sl_qref | Reference height temperature and humidity   |
 | Sl_cmm, Sl_chh   | Momentum and heat exchange coefficients     |
